@@ -39,11 +39,11 @@
 | Feature | Key Advantage |
 | :--- | :--- |
 | ⚡ **Super Fast** | Runs verified site runners directly without DOM re-analysis |
-| 🪙 **Token-Light** | Filters heavy DOMs locally in Node.js, saving 90%+ context tokens |
-| 🔑 **Login-Ready** | Reuses your real Chrome profile & cookies; zero repetitive logins |
+| 🪙 **Token-Light** | Filters heavy DOMs locally in Node.js to reduce the context sent to the agent |
+| 🔑 **Login-Ready** | Reuses Chrome authentication when available, reducing repetitive logins |
 | 🧠 **Self-Evolving** | Auto-detects broken selectors and heals scripts via discovery fallback |
 | 🛠️ **Self-Customizing** | Permanently encodes proven paths as local `<site>_runner.mjs` assets |
-| 🔒 **100% Private** | Runs purely on `localhost:9223`; zero data sent to external servers |
+| 🔒 **Local-First** | Browser control and session data stay local; no hosted browser or remote credential store is required |
 
 ---
 
@@ -204,20 +204,20 @@ Paste this single prompt into your AI coding agent (Claude Code, Antigravity, He
 
 ---
 
-### 9. Why a 100% Local Skill Beats Remote MCP & Cloud Browsers
+### 9. Why Local-First Browser Control
 
-Unlike cloud-hosted browsers or heavy MCP (Model Context Protocol) servers:
+Hyper-Browsing is designed around local browser control and reusable local automation:
 
-- 🔒 **Zero Data Leakage**: Runs 100% on `localhost:9223`. Not a single byte of your cookies, tokens, or browsing data ever leaves your computer.
-- ⚡ **No Context Window Saturation**: MCP forces massive raw DOM trees into your LLM prompt, exploding token bills and causing lag. Hyper-Browsing processes and filters DOMs locally in Node.js, returning only compact, sanitized results.
-- 🧠 **A Skill That Evolves Custom to You**: Fixed MCP servers cannot self-code. Hyper-Browsing writes reusable `<site>_runner.mjs` files directly to your local drive, continuously adapting and evolving into your personalized browsing fleet.
-- 💸 **Zero Extra Subscriptions**: No third-party proxy fees, no CAPTCHA-solving subscriptions, and no Docker overhead. Your existing Chrome is all it needs.
+- 🔒 **Local Credential Handling**: Chrome profiles, cookies, and session state are kept under the local `.runtime/` directory and are not uploaded to a Hyper-Browsing service. Content returned to the AI agent may still be processed according to the model or agent provider you use.
+- ⚡ **Context-Efficient Inspection**: Hyper-Browsing filters page structure locally in Node.js and returns compact, structured results instead of requiring full raw DOM dumps for routine inspection.
+- 🧠 **Reusable Local Automation**: Successful workflows can be encoded as reusable `<site>_runner.mjs` files and site knowledge on your local drive, allowing repeat tasks to skip much of the discovery process.
+- 💸 **No Required Browser-Service Subscription**: Hyper-Browsing does not require a hosted browser, paid proxy, CAPTCHA-solving service, or Docker. Third-party websites or services you choose to use may have their own costs.
 
 ---
 
 ### 10. Privacy & Security Policy
 
 - **No credentials, login cookies, tokens, or personal identifiers are stored in this repository.**
-- All session profiles and cookies stay strictly isolated in your local `.runtime/` directory and are completely excluded from Git tracking.
+- Session profiles and cookies are kept in your local `.runtime/` directory and excluded from Git tracking. Data surfaced to the AI agent is subject to the privacy behavior of the agent/model provider you connect.
 
 ---
