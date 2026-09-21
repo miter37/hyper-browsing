@@ -115,7 +115,30 @@ npm run clean
 
 Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사용 가능합니다.
 
-### 1) 저장소 클론 및 패키지 설치
+### 0) AI 에이전트에게 설치를 시키는 경우 (가장 간단한 방법)
+터미널에서 직접 명령어를 칠 필요 없이, 사용하시는 AI 에이전트(Claude Code, Antigravity, Hermes 등)의 대화창에 아래 한 줄만 붙여넣으시면 됩니다:
+
+> 💬 *"https://github.com/miter37/hyper-browsing 저장소를 내 스킬 폴더에 클론하고, npm install 및 헬스체크까지 완료해서 바로 쓸 수 있게 세팅해줘."*
+
+#### 🤖 에이전트가 이 문서를 읽고 스스로 수행해야 할 단계:
+1. **스킬 폴더 확인 및 클론**: 사용자의 에이전트 스킬 디렉터리(`~/.agents/skills/` 등)로 이동하여 저장소를 클론합니다:
+   ```bash
+   git clone https://github.com/miter37/hyper-browsing.git
+   cd hyper-browsing
+   ```
+2. **의존성 설치**: 패키지를 설치합니다 (Playwright 라이브러리 포함):
+   ```bash
+   npm install
+   ```
+3. **데몬 구동 및 크롬 연결 헬스체크**: OS에 맞는 명령어를 실행하여 `status: "ok"`를 확인합니다:
+   - Windows: `bin\webctl.cmd health`
+   - macOS / Linux: `./bin/webctl health`
+
+---
+
+### 직접 설치 시 (Manual Setup)
+
+#### 1) 저장소 클론 및 패키지 설치
 ```bash
 git clone https://github.com/miter37/hyper-browsing.git
 cd hyper-browsing
@@ -123,11 +146,11 @@ npm install
 ```
 *(※ Playwright 패키지는 `npm install` 시 함께 설치되며, 본 스킬은 사용자의 실제 구글 크롬 브라우저를 CDP로 직접 제어하므로 별도의 수백 MB짜리 Chromium 바이너리 다운로드(`npx playwright install`)는 필요하지 않습니다. 단, 헤드리스 격리 테스트가 필요할 경우 `npx playwright install chromium`을 선택적으로 실행할 수 있습니다.)*
 
-### 2) AI 에이전트 스킬로 등록
+#### 2) AI 에이전트 스킬로 등록
 - **Antigravity / Gemini CLI / Claude Code / Hermes 등 사용 시**:
   스킬 디렉터리(`~/.agents/skills/` 또는 프로젝트 내 `.agents/skills/`) 아래에 이 저장소를 위치시키거나 심볼릭 링크(Junction)를 걸어두면 에이전트가 `SKILL.md`를 인식하여 자동으로 브라우징 도구로 채택합니다.
 
-### 3) 헬스체크 (브라우저 데몬 및 크롬 연결 확인)
+#### 3) 헬스체크 (브라우저 데몬 및 크롬 연결 확인)
 ```bash
 # Windows
 bin\webctl.cmd health
