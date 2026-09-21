@@ -8,14 +8,14 @@
 
 ### ⚡ Highlights & Core Strengths
 
-| Badge | Capability | Description |
-| :--- | :--- | :--- |
-| ⚡ **Super Fast** | Zero-Latency Fast Path | Direct execution of verified site runners without re-analyzing DOMs. |
-| 🪙 **Token-Light** | 90%+ Context Savings | Filters and aggregates heavy DOMs locally in Node.js, sending only compact results to LLMs. |
-| 🔑 **Login-Ready** | Seamless Session Reuse | Inherits your existing Chrome profile and cookies; zero repetitive re-logins. |
-| 🧠 **Self-Evolving** | Autonomous Self-Healing | Automatically detects broken selectors and fallbacks to discovery mode to repair scripts. |
-| 🛠️ **Self-Customizing** | Personalized Script Fleet | Permanently encodes proven paths into your local drive as you browse. |
-| 🔒 **100% Private** | Zero Data Leakage | Runs strictly on `localhost:9223` with your installed Chrome; no external servers or proxies. |
+| Feature | Key Advantage |
+| :--- | :--- |
+| ⚡ **Super Fast** | Runs verified site runners directly without DOM re-analysis |
+| 🪙 **Token-Light** | Filters heavy DOMs locally in Node.js, saving 90%+ context tokens |
+| 🔑 **Login-Ready** | Reuses your real Chrome profile & cookies; zero repetitive logins |
+| 🧠 **Self-Evolving** | Auto-detects broken selectors and heals scripts via discovery fallback |
+| 🛠️ **Self-Customizing** | Permanently encodes proven paths as local `<site>_runner.mjs` assets |
+| 🔒 **100% Private** | Runs purely on `localhost:9223`; zero data sent to external servers |
 
 ---
 
@@ -203,14 +203,14 @@ Unlike cloud-hosted browsers or heavy MCP (Model Context Protocol) servers:
 
 ### ⚡ 핵심 특장점 & 차별화 뱃지
 
-| 핵심 가치 | 기능 및 역량 | 상세 설명 |
-| :--- | :--- | :--- |
-| ⚡ **Super Fast** | 지연 없는 고속 직행 | 이미 검증된 사이트는 번거로운 DOM 재분석 없이 전용 러너로 1초 만에 실행 |
-| 🪙 **Token-Light** | 컨텍스트/토큰 90% 절약 | 무거운 DOM을 로컬 Node.js에서 싹 걸러내고 정제된 핵심 결과만 모델에 전달 |
-| 🔑 **Login-Ready** | 기존 로그인 세션 프리패스 | 내 실제 크롬 프로필과 쿠키를 그대로 물고 들어가 반복 로그인/인증 불필요 |
-| 🧠 **Self-Evolving** | 자가 치유(Self-Healing) | 사이트 개편 시 3초 만에 감지하고 탐색 모드로 폴백하여 스크립트 자동 복구 |
-| 🛠️ **Self-Customizing** | 나에게 맞춤으로 진화 | 성공한 사이트 경로를 내 로컬 드라이브에 전용 러너(`.mjs`)로 차곡차곡 자산화 |
-| 🔒 **100% Private** | 데이터 외부 유출 0% | 외부 프록시/클라우드 없이 오직 내 PC(`localhost:9223`)에서만 크롬 직접 제어 |
+| 핵심 가치 | 주요 특징 |
+| :--- | :--- |
+| ⚡ **Super Fast** | 검증된 사이트는 DOM 재분석 없이 전용 러너로 1초 만에 즉시 실행 |
+| 🪙 **Token-Light** | 무거운 DOM을 로컬에서 싹 정제하여 LLM 컨텍스트/토큰 90% 이상 절약 |
+| 🔑 **Login-Ready** | 내 크롬 프로필과 쿠키를 그대로 물고 들어가 번거로운 재로그인 제로 |
+| 🧠 **Self-Evolving** | 사이트 개편 시 3초 만에 감지하고 탐색 모드로 폴백하여 스크립트 자가 치유 |
+| 🛠️ **Self-Customizing** | 탐색 성공 경험을 내 PC에 전용 러너(`.mjs`)로 차곡차곡 영구 자산화 |
+| 🔒 **100% Private** | 외부 클라우드/프록시 없이 오직 내 PC(`localhost:9223`)에서만 100% 안전 제어 |
 
 ---
 
