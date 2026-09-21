@@ -1,15 +1,21 @@
 # Hyper-Browsing
 
-[English](#english) | [한국어](#한국어)
-
----
-
-<a name="english"></a>
-## English
-
 > - **Enables AI agents to rapidly inspect and interact with any website through Playwright, leveraging your real Chrome browser profile.**
 > - **Self-learns and turns successful interactions into dedicated scripts and knowledge docs for blazing-fast execution on subsequent visits.**
 > - **Ultra-fast, adaptive web browsing agent skill.**
+
+---
+
+### ⚡ Highlights & Core Strengths
+
+| Badge | Capability | Description |
+| :--- | :--- | :--- |
+| ⚡ **Super Fast** | Zero-Latency Fast Path | Direct execution of verified site runners without re-analyzing DOMs. |
+| 🪙 **Token-Light** | 90%+ Context Savings | Filters and aggregates heavy DOMs locally in Node.js, sending only compact results to LLMs. |
+| 🔑 **Login-Ready** | Seamless Session Reuse | Inherits your existing Chrome profile and cookies; zero repetitive re-logins. |
+| 🧠 **Self-Evolving** | Autonomous Self-Healing | Automatically detects broken selectors and fallbacks to discovery mode to repair scripts. |
+| 🛠️ **Self-Customizing** | Personalized Script Fleet | Permanently encodes proven paths into your local drive as you browse. |
+| 🔒 **100% Private** | Zero Data Leakage | Runs strictly on `localhost:9223` with your installed Chrome; no external servers or proxies. |
 
 ---
 
@@ -194,6 +200,17 @@ Unlike cloud-hosted browsers or heavy MCP (Model Context Protocol) servers:
 > - **사용자의 크롬(Chrome) 브라우저를 기반으로 플레이라이트(Playwright)를 통해 어떤 웹사이트든 빠르게 파악하여 조작할 수 있게 하며,**
 > - **성공한 상호작용을 전용 스크립트와 지식 문서로 자산화하여 다음 방문 시 초고속으로 실행하는**
 > - **초고속 적응형 브라우징 에이전트 스킬**
+
+### ⚡ 핵심 특장점 & 차별화 뱃지
+
+| 핵심 가치 | 기능 및 역량 | 상세 설명 |
+| :--- | :--- | :--- |
+| ⚡ **Super Fast** | 지연 없는 고속 직행 | 이미 검증된 사이트는 번거로운 DOM 재분석 없이 전용 러너로 1초 만에 실행 |
+| 🪙 **Token-Light** | 컨텍스트/토큰 90% 절약 | 무거운 DOM을 로컬 Node.js에서 싹 걸러내고 정제된 핵심 결과만 모델에 전달 |
+| 🔑 **Login-Ready** | 기존 로그인 세션 프리패스 | 내 실제 크롬 프로필과 쿠키를 그대로 물고 들어가 반복 로그인/인증 불필요 |
+| 🧠 **Self-Evolving** | 자가 치유(Self-Healing) | 사이트 개편 시 3초 만에 감지하고 탐색 모드로 폴백하여 스크립트 자동 복구 |
+| 🛠️ **Self-Customizing** | 나에게 맞춤으로 진화 | 성공한 사이트 경로를 내 로컬 드라이브에 전용 러너(`.mjs`)로 차곡차곡 자산화 |
+| 🔒 **100% Private** | 데이터 외부 유출 0% | 외부 프록시/클라우드 없이 오직 내 PC(`localhost:9223`)에서만 크롬 직접 제어 |
 
 ---
 
