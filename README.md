@@ -20,17 +20,25 @@
 - **Scenario**: The agent has visited Airbnb before and assetized it into a dedicated script.
 - **Behavior**: Directly invokes the pre-built `airbnb_runner.mjs` without redundant DOM re-analysis or selector probing, delivering results in seconds.
 
-<p align="center">
-  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
-</p>
+<table align="center">
+  <tr>
+    <td>
+      <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
+    </td>
+  </tr>
+</table>
 
 #### 2) New Site: Zero-Shot Browsing via Built-in Core Tools (`Investing.com`)
 - **Scenario**: First time visiting Investing.com with no pre-existing site scripts.
 - **Behavior**: Uses standard built-in discovery tools (`forms`, `smart-scroll`, `diff`) to inspect interactive elements and navigate the site adaptively.
 
-<p align="center">
-  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
-</p>
+<table align="center">
+  <tr>
+    <td>
+      <img src="./assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
+    </td>
+  </tr>
+</table>
 
 ---
 
