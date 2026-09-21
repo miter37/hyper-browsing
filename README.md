@@ -42,7 +42,7 @@
 | 🪙 **Token-Light** | Filters heavy DOMs locally in Node.js to reduce the context sent to the agent |
 | 🔑 **Login-Ready** | Reuses Chrome authentication when available, reducing repetitive logins |
 | 🧠 **Self-Evolving** | Auto-detects broken selectors and heals scripts via discovery fallback |
-| 🛠️ **Self-Customizing** | Permanently encodes proven paths as local `<site>_runner.mjs` assets |
+| 🛠️ **Self-Customizing** | Persists proven paths as reusable local `<site>_runner.mjs` assets |
 | 🔒 **Local-First** | Browser control and session data stay local; no hosted browser or remote credential store is required |
 
 ---
@@ -74,7 +74,7 @@
 ### 2. How It Works
 
 #### 1) Instant Element Inspection & Native Chrome Playwright Connection
-- Never stalls or wastes token context trying to dump massive raw DOM trees.
+- Avoids dumping massive raw DOM trees into the agent context.
 - Rapidly extracts interactable elements (buttons, inputs, key cards) into a clean, compact representation so the agent can click and type immediately.
 - Operates directly on the user's authentic Chrome profile session via CDP, seamlessly inheriting existing logins and credentials.
 
@@ -95,7 +95,7 @@ Equipped with 6 battle-tested primitives to handle modern dynamic web complexiti
    - Gracefully surfaces the visible Chrome window and pauses execution when human intervention (2FA, CAPTCHAs, payments) is required, then safely resumes.
 
 #### 3) Permanent Assetization into Dedicated Scripts & Knowledge Docs
-- Successful interaction workflows are never thrown away.
+- Successful interaction workflows can be persisted for reuse.
 - Saved under `sites/<domain>/`:
   1. **Site Knowledge Document (`SKILL.md`)**: Records layouts, query quirks, and resilient selector strategies.
   2. **Universal CLI Runner (`<site>_runner.mjs`)**: Encapsulates navigation, filters, and extraction into clean CLI options.
@@ -199,7 +199,7 @@ Paste this single prompt into your AI coding agent (Claude Code, Antigravity, He
 
 #### Example 3) New Site Discovery & Explicit Assetization Request
 > 💬 *"Go to https://news.ycombinator.com, extract today's top 10 posts with titles, URLs, and upvotes. Once done, assetize it into a dedicated script so we can use it fast next time."*  
-> *(※ Agents often self-learn autonomously, but explicit prompts guarantee dedicated script creation.)*
+> *(※ Agents may self-learn autonomously; an explicit assetization request makes the desired script-generation step clear.)*
 - **Expected Agent Reaction**: Discovers DOM elements, extracts items, and generates `sites/news_ycombinator_com/` runner and skill docs.
 
 ---
