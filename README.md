@@ -176,7 +176,7 @@ Unlike cloud-hosted browsers or heavy MCP (Model Context Protocol) servers:
 
 - 🔒 **Zero Data Leakage**: Runs 100% on `localhost:9223`. Not a single byte of your cookies, tokens, or browsing data ever leaves your computer.
 - ⚡ **No Context Window Saturation**: MCP forces massive raw DOM trees into your LLM prompt, exploding token bills and causing lag. Hyper-Browsing processes and filters DOMs locally in Node.js, returning only compact, sanitized results.
-- 🧠 **True Self-Learning**: Fixed MCP servers cannot self-code. Hyper-Browsing writes reusable `<site>_runner.mjs` files directly to your local drive, evolving into your personalized browsing fleet.
+- 🧠 **A Skill That Evolves Custom to You**: Fixed MCP servers cannot self-code. Hyper-Browsing writes reusable `<site>_runner.mjs` files directly to your local drive, continuously adapting and evolving into your personalized browsing fleet.
 - 💸 **Zero Extra Subscriptions**: No third-party proxy fees, no CAPTCHA-solving subscriptions, and no Docker overhead. Your existing Chrome is all it needs.
 
 ---
@@ -364,7 +364,7 @@ Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사
 
 - 🔒 **데이터 유출 제로 (100% 로컬)**: 오직 내 PC(`localhost:9223`)에서만 통신합니다. 사용자 쿠키, 인증 세션, 탐색 데이터가 **컴퓨터 외부로 1바이트도 유출되지 않습니다.**
 - ⚡ **LLM 컨텍스트/토큰 낭비 차단**: 매 동작마다 거대한 DOM 트리를 LLM에게 넘겨 토큰을 태우는 MCP와 달리, 로컬 Node.js 백단에서 초고속으로 데이터를 정제한 뒤 **필요한 결과값만 모델에 전달**합니다.
-- 🧠 **진정한 자가 학습과 자산화**: 고정된 API만 호출하는 MCP와 달리, 에이전트가 내 로컬 드라이브에 직접 사이트별 전용 러너(`.mjs`)를 코딩하여 영구 저장하므로 **쓸수록 내 컴퓨터 안에서 똑똑해집니다.**
+- 🧠 **나에게 맞춤으로 진화하는 스킬**: 고정된 API만 호출하는 MCP와 달리, 에이전트가 내 로컬 드라이브에 직접 사이트별 전용 러너(`.mjs`)를 코딩하여 영구 저장하므로 **쓸수록 내 컴퓨터 안에서 똑똑해집니다.**
 - 💸 **추가 구독료/API 비용 제로**: 외부 유료 프록시, 캡차 대행 서비스, 도커(Docker) 구동이 필요 없습니다. **내 PC에 이미 깔린 구글 크롬** 하나로 충분합니다.
 
 ---
