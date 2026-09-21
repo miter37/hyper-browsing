@@ -120,7 +120,7 @@ Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사
 
 > 💬 *"https://github.com/miter37/hyper-browsing 저장소를 내 스킬 폴더에 클론하고, npm install 및 헬스체크까지 완료해서 바로 쓸 수 있게 세팅해줘."*
 
-#### 🤖 에이전트가 이 문서를 읽고 스스로 수행해야 할 단계:
+#### 🤖 사용자 또는 에이전트가 이 문서를 읽고 수행해야 할 단계:
 1. **스킬 폴더 확인 및 클론**: 사용자의 에이전트 스킬 디렉터리(`~/.agents/skills/` 등)로 이동하여 저장소를 클론합니다:
    ```bash
    git clone https://github.com/miter37/hyper-browsing.git
