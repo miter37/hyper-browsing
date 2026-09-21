@@ -1,6 +1,19 @@
 {
-  "generatedAt": "2026-09-21T10:47:07.427Z",
+  "generatedAt": "2026-09-21T17:29:58.285Z",
   "entries": [
+    {
+      "id": "airbnb",
+      "name": "에어비앤비 (Airbnb)",
+      "path": "sites\\airbnb",
+      "match": {
+        "hosts": [
+          "www.airbnb.co.kr",
+          "airbnb.co.kr",
+          "www.airbnb.com",
+          "airbnb.com"
+        ]
+      }
+    },
     {
       "id": "arxiv",
       "name": "arxiv.org",
@@ -140,16 +153,6 @@
       "match": {
         "hosts": [
           "www.naver.com"
-        ]
-      }
-    },
-    {
-      "id": "www_threads_com",
-      "name": "www.threads.com",
-      "path": "sites\\threads.com",
-      "match": {
-        "hosts": [
-          "www.threads.com"
         ]
       }
     },

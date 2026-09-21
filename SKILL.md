@@ -54,15 +54,25 @@ webctl session close --session task_ab12cd34
 
 0. **Snapshot-First > Scripting (Golden Rule)**:
    - **Phase 1 (첫 방문 & 초기 수행 - 스크립트 작성 금지)**: 처음 방문하거나 알려지지 않은 사이트에 대해서는 **절대로 시작부터 스크립트를 작성하지 않는다.** 무조건 기본 도구(`webctl session open`, `dismiss-annoyances`, `snapshot`, `click`, `fill`, `extract`)를 사용해 직접 대화형으로 사용자의 요청을 탐색하고 성공 경로를 검증한다.
-   - **Phase 2 (경험 지식의 일반화 - 사이트별 범용 MJS 규칙)**: 기본 도구로 성공적인 탐색과 수행을 마친 후, 해당 사이트의 패턴을 스크립트화할 가치가 있다면:
+   - **Phase 2 (경험 지식의 일반화 - 사이트 전용 문서 및 스크립트화 판정 기준)**:
+     기본 도구로 성공적인 탐색과 수행을 마친 후, **아래 4개 조건 중 2개 이상을 만족하는 사이트**라면 반드시 해당 사이트의 전용 문서(`sites/<site>/SKILL.md`, `site.yaml`)와 범용 러너 스크립트(`sites/<site>/scripts/<site>_runner.mjs`)를 의무적으로 작성하고 자산화한다. (조건 미달 시 1회성 브라우징으로 신속 종료하여 레포지토리 오염 방지)
+
+     | # | 판정 기준 항목 | 세부 내용 |
+     | :-: | :--- | :--- |
+     | **1** | **사이트 성격** | 단순 콘텐츠/블로그가 아닌 **플랫폼 / 서비스형 웹 앱 (SaaS, 포털)** (금융, 부동산, 이커머스, 여행/예약, SNS 등) |
+     | **2** | **조작 복잡도** | 검색 필터, 날짜 선택, 정렬, 다국어/통화, 페이지네이션 등 **복합 파라미터 조작**이 성공적으로 수행된 경우 |
+     | **3** | **우회 난이도** | 악성 오버레이(OneTrust, 전면 광고, 쿠키 배너) 제거 노하우나 고유 DOM 구조 우회가 필요한 경우 |
+     | **4** | **재방문 가능성** | 향후 사용자나 에이전트가 다른 키워드나 조건으로 **다시 방문하여 데이터를 조회할 가능성이 높다고 판단**되는 경우 |
+
+     **작성 시 5대 필수 규칙**:
      1. 특정 요청값(예: 서울 한옥, 특정 코인 등)을 하드코딩한 **일회성 스크립트를 절대로 만들지 않는다.**
-     2. **파일명 표준 규칙**: 그 사이트의 전용 폴더(`sites/<site>/scripts/`) 아래에 **`<site>_runner.mjs`**를 기본형으로 둔다. (예: `airbnb_runner.mjs`, `hyperliquid_runner.mjs`, `skyscanner_runner.mjs`, `naverland_runner.mjs`)
+     2. **파일명 표준 규칙**: 그 사이트의 전용 폴더(`sites/<site>/scripts/`) 아래에 **`<site>_runner.mjs`**를 기본형으로 둔다. (예: `airbnb_runner.mjs`, `investing_runner.mjs`, `hyperliquid_runner.mjs`, `skyscanner_runner.mjs`, `naverland_runner.mjs`)
      3. 단일 러너로 담기에 특정 기능이 크고 독립적일 경우에 한해 **`<site>_<기능이름>.mjs`** 형태로 보조 러너를 추가할 수 있다.
-     4. 함수형 서브커맨드(search, listings, detail 등)와 CLI 인자(`--keyword`, `--date`, `--trade` 등)를 통해, 이번 요청에서 얻은 성공 지식(URL 구조, internal API, 필수 필터 조작법)을 일반화하여 다양한 입력값에 유연하게 대응하도록 설계한다.
+     4. 함수형 서브커맨드(search, rates, listings, detail 등)와 CLI 인자(`--keyword`, `--date`, `--country` 등)를 통해, 이번 요청에서 얻은 성공 지식(URL 구조, internal API, 필수 필터 조작법)을 일반화하여 다양한 입력값에 유연하게 대응하도록 설계한다.
      5. 항상 `try ... finally { process.exit(0); }`로 CDP 소켓을 깔끔하게 닫아 백그라운드 행(Hang)을 원천 차단한다.
 1. **One session id per task.** Pass `--session <id>` to every command. Never open a second session because something failed.
 2. **Verify every result.** A click that did not throw is *not* success. Read the page back.
-3. **`learning_pending: true` in any output means the task is not finished.** Encode what you learned (section 5), then finish.
+3. **`learning_pending: true` or Qualification Criteria (2+ met) means the task is not finished.** Encode what you learned (section 5), then finish.
 4. **Close your session when the task's browser work is done.** An open tab is not free: it sits in the window, keeps a page alive, and adds to the pile a person or the next agent has to make sense of. If a task genuinely needs to leave a page open (waiting on something), say so explicitly instead of just walking away. If a window's tabs have piled up, `webctl session close --all` closes every one of them at once — use it to clear clutter, not mid-task.
 
 ### ⭐ SPECIAL SHORTCUT: Asking questions to ChatGPT
@@ -250,8 +260,8 @@ Web automation scripts frequently hang in a "Running" state for 30–60+ seconds
 
 ## 5. Saving what you learned (required)
 
-When any command returns `learning_pending: true`, you discovered a click/fill/press path that is
-not reusable yet. Before reporting the task complete:
+When any command returns `learning_pending: true`, OR when a newly visited site meets **2 or more of the 4 Phase 2 qualification criteria** (Platform type, Complex controls, Annoyance bypass, High revisit probability):
+You must encode the knowledge before reporting the task complete:
 
 ```bash
 webctl learning status --session $S        # shows exactly what is unencoded

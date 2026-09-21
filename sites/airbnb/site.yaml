@@ -1,0 +1,77 @@
+site:
+  id: airbnb
+  name: 에어비앤비 (Airbnb)
+  version: 1
+match:
+  hosts:
+    - www.airbnb.co.kr
+    - airbnb.co.kr
+    - www.airbnb.com
+    - airbnb.com
+fingerprints: {}
+states: {}
+elements:
+  language_currency_button:
+    strategies:
+      - role: button
+        name: "Choose a language and currency"
+      - role: button
+        name: "언어 및 통화 선택"
+      - css: "button[aria-label*='language' i], button[aria-label*='언어' i]"
+    description: "Header language and currency settings button"
+  language_dialog:
+    strategies:
+      - css: "[role='dialog']"
+    description: "Language and region selection modal dialog"
+  filter_button:
+    strategies:
+      - role: button
+        name: "필터"
+      - role: button
+        name: "Filters"
+    description: "Search filters button"
+  min_price_input:
+    strategies:
+      - label: "최저 요금"
+      - label: "Minimum price"
+    description: "Minimum price input"
+  max_price_input:
+    strategies:
+      - label: "최고 요금"
+      - label: "Maximum price"
+    description: "Maximum price input"
+  card_container:
+    strategies:
+      - css: "[data-testid='card-container']"
+    description: "Listing card container"
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: "https://www.airbnb.com/s/{{location}}/homes?checkin={{checkin}}&checkout={{checkout}}&min_beds={{beds}}&currency={{currency}}&locale={{locale}}"
+actions:
+  choose_language_en_us:
+    description: "Open language modal and select English (United States)"
+    risk: read
+    lifecycle: candidate
+    implementation:
+      kind: declarative
+      steps:
+        - op: click
+          element: language_currency_button
+    verify: []
+  filter_price:
+    description: "Filter listings by price"
+    risk: read
+    lifecycle: candidate
+    implementation:
+      kind: declarative
+      steps:
+        - op: click
+          element: filter_button
+        - op: fill
+          element: min_price_input
+          value: "{{min_price}}"
+        - op: fill
+          element: max_price_input
+          value: "{{max_price}}"
+    verify: []
