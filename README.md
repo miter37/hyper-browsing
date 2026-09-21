@@ -187,7 +187,27 @@ Unlike cloud-hosted browsers or heavy MCP (Model Context Protocol) servers:
 
 ---
 
-### 10. Privacy & Security Policy
+### 10. Demo
+
+#### 1) Known Site: Ultra-Fast Execution via Ready-Made Script (`Airbnb`)
+- **Scenario**: The agent has visited Airbnb before and assetized it into a dedicated script.
+- **Behavior**: Directly invokes the pre-built `airbnb_runner.mjs` without redundant DOM re-analysis or selector probing, delivering results in seconds.
+
+<p align="center">
+  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
+</p>
+
+#### 2) New Site: Zero-Shot Browsing via Built-in Core Tools (`Investing.com`)
+- **Scenario**: First time visiting Investing.com with no pre-existing site scripts.
+- **Behavior**: Uses standard built-in discovery tools (`forms`, `smart-scroll`, `diff`) to inspect interactive elements and navigate the site adaptively.
+
+<p align="center">
+  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
+</p>
+
+---
+
+### 11. Privacy & Security Policy
 
 - **No credentials, login cookies, tokens, or personal identifiers are stored in this repository.**
 - All session profiles and cookies stay strictly isolated in your local `.runtime/` directory and are completely excluded from Git tracking.
@@ -386,7 +406,27 @@ Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사
 
 ---
 
-### 10. 개인정보 및 보안 정책
+### 10. 데모 (Demo)
+
+#### 1) 기방문 사이트: 기구축된 전용 스크립트(Ready-made)를 활용한 초고속 실행 (`Airbnb`)
+- **시나리오**: 이미 방문하여 전용 러너가 자산화되어 있는 사이트
+- **동작 방식**: 불필요한 DOM 재분석이나 선택자 탐색 과정 없이, 사전 생성된 `airbnb_runner.mjs`를 즉시 호출하여 수초 만에 데이터를 빠르고 안정적으로 추출합니다.
+
+<p align="center">
+  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb 전용 스크립트 실행 데모">
+</p>
+
+#### 2) 신규 사이트: 기본 내장 도구만으로 자율 브라우징 (`Investing.com`)
+- **시나리오**: 사전 구축된 스크립트가 없는 새로운 사이트 첫 방문
+- **동작 방식**: 기본 내장된 분석 및 상호작용 도구(`forms`, `smart-scroll`, `diff` 등)만을 활용하여 요소를 즉시 파악하고 자율적으로 브라우징을 완수합니다.
+
+<p align="center">
+  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com 기본 도구 탐색 데모">
+</p>
+
+---
+
+### 11. 개인정보 및 보안 정책
 
 - 본 저장소의 모든 사이트 지식 문서와 러너 스크립트에는 **사용자의 개인정보, 로그인 쿠키, 비밀번호가 일절 포함되지 않습니다.**
 - 사용자의 실제 브라우징 인증 세션은 로컬 머신의 `.runtime/` 폴더에만 격리 보존되며 Git 추적에서 원천 제외됩니다.
