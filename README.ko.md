@@ -20,17 +20,25 @@
 - **시나리오**: 이미 방문하여 전용 러너가 자산화되어 있는 사이트
 - **동작 방식**: 불필요한 DOM 재분석이나 선택자 탐색 과정 없이, 사전 생성된 `airbnb_runner.mjs`를 즉시 호출하여 수초 만에 데이터를 빠르고 안정적으로 추출합니다.
 
-<p align="center">
-  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb 전용 스크립트 실행 데모">
-</p>
+<table align="center">
+  <tr>
+    <td>
+      <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb 전용 스크립트 실행 데모">
+    </td>
+  </tr>
+</table>
 
 #### 2) 신규 사이트: 기본 내장 도구만으로 자율 브라우징 (`Investing.com`)
 - **시나리오**: 사전 구축된 스크립트가 없는 새로운 사이트 첫 방문
 - **동작 방식**: 기본 내장된 분석 및 상호작용 도구(`forms`, `smart-scroll`, `diff` 등)만을 활용하여 요소를 즉시 파악하고 자율적으로 브라우징을 완수합니다.
 
-<p align="center">
-  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com 기본 도구 탐색 데모">
-</p>
+<table align="center">
+  <tr>
+    <td>
+      <img src="./assets/rec_investing.gif" width="800" alt="Investing.com 기본 도구 탐색 데모">
+    </td>
+  </tr>
+</table>
 
 ---
 
