@@ -1,8 +1,36 @@
 # Hyper-Browsing
 
+<p align="right">
+  <strong>English</strong> · <a href="./README.ko.md">한국어</a>
+</p>
+
+<p>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</p>
+
 > - **Enables AI agents to rapidly inspect and interact with any website through Playwright, leveraging your real Chrome browser profile.**
 > - **Self-learns and turns successful interactions into dedicated scripts and knowledge docs for blazing-fast execution on subsequent visits.**
 > - **Ultra-fast, adaptive web browsing agent skill.**
+
+---
+
+### 🎬 Demo
+
+#### 1) Known Site: Ultra-Fast Execution via Ready-Made Script (`Airbnb`)
+- **Scenario**: The agent has visited Airbnb before and assetized it into a dedicated script.
+- **Behavior**: Directly invokes the pre-built `airbnb_runner.mjs` without redundant DOM re-analysis or selector probing, delivering results in seconds.
+
+<p align="center">
+  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
+</p>
+
+#### 2) New Site: Zero-Shot Browsing via Built-in Core Tools (`Investing.com`)
+- **Scenario**: First time visiting Investing.com with no pre-existing site scripts.
+- **Behavior**: Uses standard built-in discovery tools (`forms`, `smart-scroll`, `diff`) to inspect interactive elements and navigate the site adaptively.
+
+<p align="center">
+  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
+</p>
 
 ---
 
@@ -187,246 +215,9 @@ Unlike cloud-hosted browsers or heavy MCP (Model Context Protocol) servers:
 
 ---
 
-### 10. Demo
-
-#### 1) Known Site: Ultra-Fast Execution via Ready-Made Script (`Airbnb`)
-- **Scenario**: The agent has visited Airbnb before and assetized it into a dedicated script.
-- **Behavior**: Directly invokes the pre-built `airbnb_runner.mjs` without redundant DOM re-analysis or selector probing, delivering results in seconds.
-
-<p align="center">
-  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
-</p>
-
-#### 2) New Site: Zero-Shot Browsing via Built-in Core Tools (`Investing.com`)
-- **Scenario**: First time visiting Investing.com with no pre-existing site scripts.
-- **Behavior**: Uses standard built-in discovery tools (`forms`, `smart-scroll`, `diff`) to inspect interactive elements and navigate the site adaptively.
-
-<p align="center">
-  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
-</p>
-
----
-
-### 11. Privacy & Security Policy
+### 10. Privacy & Security Policy
 
 - **No credentials, login cookies, tokens, or personal identifiers are stored in this repository.**
 - All session profiles and cookies stay strictly isolated in your local `.runtime/` directory and are completely excluded from Git tracking.
 
 ---
-
-<a name="한국어"></a>
-## 한국어
-
-> - **사용자의 크롬(Chrome) 브라우저를 기반으로 플레이라이트(Playwright)를 통해 어떤 웹사이트든 빠르게 파악하여 조작할 수 있게 하며,**
-> - **성공한 상호작용을 전용 스크립트와 지식 문서로 자산화하여 다음 방문 시 초고속으로 실행하는**
-> - **초고속 적응형 브라우징 에이전트 스킬**
-
-### ⚡ 핵심 특장점 & 차별화 뱃지
-
-| 핵심 가치 | 주요 특징 |
-| :--- | :--- |
-| ⚡ **Super Fast** | 검증된 사이트는 DOM 재분석 없이 전용 러너로 1초 만에 즉시 실행 |
-| 🪙 **Token-Light** | 무거운 DOM을 로컬에서 싹 정제하여 LLM 컨텍스트/토큰 90% 이상 절약 |
-| 🔑 **Login-Ready** | 내 크롬 프로필과 쿠키를 그대로 물고 들어가 번거로운 재로그인 제로 |
-| 🧠 **Self-Evolving** | 사이트 개편 시 3초 만에 감지하고 탐색 모드로 폴백하여 스크립트 자가 치유 |
-| 🛠️ **Self-Customizing** | 탐색 성공 경험을 내 PC에 전용 러너(`.mjs`)로 차곡차곡 영구 자산화 |
-| 🔒 **100% Private** | 외부 클라우드/프록시 없이 오직 내 PC(`localhost:9223`)에서만 100% 안전 제어 |
-
----
-
-### 1. 이 스킬이 지향하는 핵심 가치 (3단계 진화 사이클)
-
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│ 1단계: 낯선 사이트 즉시 파악 및 상호작용 (Fast Zero-Shot Interaction)    │
-│  - 어떤 사이트든 DOM 요소/구조를 빠르게 스캔하여 Playwright 조작 지원      │
-└──────────────────────────────────┬─────────────────────────────────────┘
-                                   │
-                                   ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ 2단계: 풍부한 기본 도구 셋을 통한 심층 분석 (Standard Tooling Suite)     │
-│  - 가상 스크롤, 실시간 소켓 스니핑, 상호작용 디퍼, 사용자 개입 도구 활용   │
-└──────────────────────────────────┬─────────────────────────────────────┘
-                                   │
-                                   ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ 3단계: 성공 경험의 영구 자산화 및 가속화 (Knowledge & Script Assets)    │
-│  - 성공한 경로를 <site>_runner.mjs 및 사이트 전용 문서(SKILL.md)로 저장 │
-│  - 다음 요청 시 처음부터 분석하지 않고 즉시 검증된 전용 스크립트로 쾌속 실행│
-└────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 2. 핵심 동작 원리
-
-#### 1) 어느 사이트든 즉각적인 요소 파악 및 Playwright 연결
-- 낯선 페이지를 열었을 때 거대한 DOM 전체를 읽느라 토큰을 낭비하거나 멈추지 않습니다.
-- 상호작용 가능한 요소(버튼, 입력 필드, 주요 카드 등)를 최적화된 형태로 빠르게 파악하여, AI 에이전트가 Playwright를 통해 즉시 클릭하고 입력할 수 있도록 돕습니다.
-- 사용자의 실제 크롬 프로필 세션을 공유하므로, 사용자가 이미 로그인해 둔 상태를 그대로 활용합니다.
-
-#### 2) 분석을 빠르게 끝내주는 핵심 기본 도구 6선
-복잡한 최신 웹(SPA, 가상 돔, 방해 모달, 실시간 데이터 등)을 만났을 때 에이전트가 맨땅에서 헤매지 않도록 돕는 가장 강력한 6가지 핵심 도구입니다:
-
-1. **`dismiss-annoyances` (방해 요소 자동 청소기)**:
-   - 페이지 진입 시 화면을 가로막고 클릭을 방해하는 쿠키 동의 배너, 이벤트 팝업, 투명 백드롭 오버레이를 자동 제거하고 잠긴 스크롤을 즉시 해제
-2. **`forms` (입력 폼 구조 자동 파악기)**:
-   - 로그인, 검색, 필터링 등 입력 영역의 각 필드(이름, 레이블, 플레이스홀더, 필수 여부)와 전송 버튼을 한 번에 스캔하여 에이전트가 채워야 할 구조를 즉각 파악
-3. **`smart-scroll` (가상 돔 관통 누적 스크롤러)**:
-   - 피드나 목록 탐색 시 화면 밖으로 밀려나 DOM에서 사라지는 가상 돔(Virtual DOM) 노드들을 유실 없이 메모리에 누적 수집
-4. **`diff` (동작 전후 상태 변화 검증기)**:
-   - 버튼 클릭이나 폼 제출 전후의 스냅샷을 비교하여 새로 뜬 모달, 페이지 이동, 혹은 시스템 오류(`role="alert"`, 실패 메시지)를 즉시 감지
-5. **`api-sniff` / `sniff-ws` (네트워크 및 소켓 데이터 스니퍼)**:
-   - 복잡한 화면 렌더링을 일일이 파싱할 필요 없이, 브라우저 백그라운드에서 오가는 REST JSON 응답과 실시간 웹소켓(WebSocket) 스트림 패킷을 다이렉트로 가로채어 분석
-6. **`user-intervene` (인간 협업 개입 도구 - Human-in-the-Loop)**:
-   - 2단계 인증, 복잡한 캡차, 최종 결제 등 사람의 직접 확인이 필요한 순간에 브라우저 창을 띄워 사용자에게 처리를 요청하고 안전하게 복귀
-
-#### 3) 성공 경험의 사이트 전용 문서 및 스크립트 자산화
-- 한 번 성공한 상호작용은 일회성으로 버려지지 않습니다.
-- 해당 사이트 폴더(`sites/<domain>/`) 아래에:
-  1. **사이트 전용 지식 문서 (`SKILL.md`)**: 사이트의 레이아웃 특징, 동적 렌더링 특이사항, 안정적인 셀렉터 규칙 기록
-  2. **범용 전용 러너 (`<site>_runner.mjs`)**: 검색, 조회, 추출을 명령행 옵션 한 줄로 재현할 수 있는 표준 스크립트 구축
-- **재방문 시 초고속 실행 (Fast-Path)**:  
-  다음에 사용자가 동일한 사이트의 작업을 요청하면, 번거로운 화면 재분석 없이 **이미 완성된 전용 러너를 곧바로 호출**하여 몇 초 만에 결과를 전달합니다.
-
----
-
-### 3. 요청 시 뒷단에서는 어떻게 동작하는가? (구체적 흐름)
-
-#### [처음 방문하는 사이트인 경우: 탐색 → 분석 → 자산화]
-- **사용자 요청**: *"새로운 쇼핑몰 X에서 특정 상품 재고 좀 확인해줘"*
-- **뒷단 동작**:
-  1. **초기 진입 & 요소 파악**: 스킬이 사용자의 크롬으로 사이트에 접속하여 클릭 가능한 버튼과 검색창 요소를 빠르게 식별합니다.
-  2. **기본 도구 가동**: 필요시 `smart-scroll`을 돌려 상품 목록을 누적하고, 데이터를 정확히 추출해 냅니다.
-  3. **결과 보고 & 자산화**: 사용자에게 재고 현황을 알려준 뒤, 오늘 성공한 검색/추출 로직을 `sites/x_mall/scripts/x_mall_runner.mjs`와 `SKILL.md`로 저장해 둡니다.
-
-#### [이미 한 번 방문하여 자산화된 사이트인 경우: 초고속 직행]
-- **사용자 요청**: *"내 스레드 최신 피드 3개만 읽어서 요약해줘"*
-- **뒷단 동작**:
-  1. **전용 자산 확인**: 에이전트가 이미 구축된 `sites/threads/`와 `threads_runner.mjs`를 즉시 발견합니다.
-  2. **쾌속 실행**: DOM을 헤매며 셀렉터를 찾는 과정 없이, `node sites/threads/scripts/threads_runner.mjs feed --limit 3`를 다이렉트로 실행합니다.
-  3. **초고속 응답**: 사용자의 로그인 세션으로 피드를 즉시 긁어와 요약 결과를 사용자에게 수 초 만에 반환합니다.
-
----
-
-### 4. 이미 자산화된 주요 사이트 러너 목록
-
-현재 다음과 같은 주요 사이트들이 전용 스크립트(`<site>_runner.mjs`)와 지식 문서로 자산화되어 있어 즉시 고속 실행이 가능합니다:
-- **소셜/커뮤니티**: LinkedIn (`linkedin_runner.mjs`), X/Twitter (`x_runner.mjs`), Threads (`threads_runner.mjs`), Instagram (`instagram_runner.mjs`)
-- **이커머스/예매/여행**: KREAM (`kream_runner.mjs`), Airbnb (`airbnb_runner.mjs`), Ticketmaster (`ticketmaster_runner.mjs`), Skyscanner (`skyscanner_runner.mjs`)
-- **금융/학술/데이터**: Coinbase (`coinbase_runner.mjs`), Hyperliquid (`hyperliquid_runner.mjs`), TradingView (`tradingview_runner.mjs`), arXiv (`arxiv_runner.mjs`), Google Trends (`googletrends_runner.mjs`), 네이버 부동산 (`naverland_runner.mjs`)
-
----
-
-### 5. 사이트가 개편되어 기존 자산이 작동하지 않을 때 (자가 치유: Self-Healing)
-
-웹사이트의 UI나 셀렉터가 변경되어 기존 전용 스크립트가 실패하더라도 시스템은 멈추지 않습니다:
-
-1. **초고속 실패 감지 (Fail-Fast)**: 30초 대기 없이 3~5초 타임아웃으로 실패를 즉시 감지하고 중단합니다.
-2. **기본 도구 자동 폴백 (Fallback to Discovery)**: 에이전트가 즉시 1단계 탐색 모드로 전환하여 `dismiss-annoyances`(새 방해 배너 제거), `diff`(바뀐 DOM 비교), `forms`(새 폼 구조 파악)로 우회 경로를 찾고 사용자 요청을 끝까지 완수합니다.
-3. **지식 및 스크립트 자동 갱신 (Self-Healing)**: 새롭게 찾아낸 성공 경로를 바탕으로 `sites/<site>/`의 전용 스크립트와 문서를 최신 상태로 덮어써서 스스로 복구합니다.
-
----
-
-### 6. 저장공간 및 세션 관리
-
-웹페이지 탐색 과정에서 크롬이 생성하는 대용량 셰이더/모델 캐시는 사전에 차단되어 있습니다.  
-작업 후 디스크를 다이어트하고 싶을 때도 **사용자의 로그인 세션(쿠키)은 안전하게 보존**한 채 찌꺼기만 원클릭으로 정리됩니다:
-
-```bash
-npm run clean
-```
-
----
-
-### 7. 설치 및 환경 구성 (Installation)
-
-Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사용 가능합니다.
-
-#### AI 에이전트에게 다음과 같이 시키세요
-터미널에서 직접 명령어를 칠 필요 없이, 사용하시는 AI 에이전트(Claude Code, Antigravity, Hermes 등)의 대화창에 아래 한 줄만 입력하시면 모든 세팅이 완료됩니다:
-
-> 💬 *"https://github.com/miter37/hyper-browsing 저장소를 내 스킬 폴더에 클론하고, npm install 및 헬스체크까지 완료해서 바로 쓸 수 있게 세팅해줘."*
-
-##### 🤖 사용자 또는 에이전트가 이 문서를 읽고 수행해야 할 단계:
-1. **스킬 폴더 확인 및 클론**:
-   사용자의 에이전트 스킬 디렉터리(`~/.agents/skills/` 또는 프로젝트 내 `.agents/skills/`) 아래에 저장소를 클론하거나 심볼릭 링크(Junction)를 연결합니다:
-   ```bash
-   git clone https://github.com/miter37/hyper-browsing.git
-   cd hyper-browsing
-   ```
-   *(※ 에이전트는 폴더 내의 `SKILL.md`를 인식하여 브라우징 작업 시 자동으로 이 도구를 채택합니다.)*
-
-2. **의존성 설치**:
-   ```bash
-   npm install
-   ```
-   *(※ Playwright 패키지는 `npm install` 시 함께 설치되며, 본 스킬은 사용자의 실제 구글 크롬 브라우저를 CDP로 직접 제어하므로 별도의 수백 MB짜리 Chromium 바이너리 다운로드(`npx playwright install`)는 필요하지 않습니다. 단, 헤드리스 격리 테스트가 필요할 경우 `npx playwright install chromium`을 선택적으로 실행할 수 있습니다.)*
-
-3. **데몬 구동 및 크롬 연결 헬스체크**:
-   OS에 맞는 명령어를 실행하여 크롬 브라우저 데몬을 띄우고 `status: "ok"`를 확인합니다:
-   ```bash
-   # Windows
-   bin\webctl.cmd health
-
-   # macOS / Linux
-   ./bin/webctl health
-   ```
-   *(※ 최초 1회 실행 시 크롬 브라우저 데몬이 자동으로 백그라운드에 구동됩니다.)*
-
----
-
-### 8. 에이전트 대화창에서 시키는 방법 (실전 프롬프트 예시 3선)
-
-복잡한 명령어 대신, 에이전트 대화창에서 평소 말하듯 자연어로 요청하면 에이전트가 스스로 스킬을 판단하여 처리합니다:
-
-#### 예시 1) 이미 로그인된 소셜/계정 기반 작업 요청
-> 💬 *"내 스레드(Threads)에 들어가서 최신 피드 상위 5개 글 읽고, 주요 트렌드랑 핵심 내용 3줄로 요약해줘."*
-- **기대하는 에이전트 반응**: 보존된 로그인 세션으로 스레드에 접근하여 전용 러너(`threads_runner.mjs`)를 통해 피드를 안전하게 읽어와 브리핑합니다.
-
-#### 예시 2) 복잡한 실시간 탐색 및 맞춤 조건 조사
-> 💬 *"hyper-browsing 스킬 사용해서, 티켓XX 사이트에 접속해 10월 8일 서울에서 20대 딸과 함께 볼 공연을 조사해줘."*
-- **기대하는 에이전트 반응**: 브라우저를 띄워 티켓 예매 사이트의 날짜/지역/카테고리 필터를 매끄럽게 조작하고, 추천 공연 목록과 예매 가능 여부를 정리하여 추천합니다.
-
-#### 예시 3) 처음 방문하는 새로운 웹사이트 분석 및 데이터 수집
-> 💬 *"https://news.ycombinator.com 에 접속해서 오늘 1등부터 10등까지 게시글 제목이랑 링크, 추천수 뽑아줘. 성공하면 앞으로도 빠르게 쓸 수 있게 스크립트로 자산화해 놔."*  
-> *(※ 이렇게 직접적으로 자산화하라고 하지 않아도 스스로 생성하곤 하지만, 이렇게 직접 요청 시 확실하게 생성함)*
-- **기대하는 에이전트 반응**: 1단계 빠른 요소 파악으로 페이지 구조를 분석해 데이터를 추출한 뒤, `sites/news_ycombinator_com/` 아래에 전용 러너와 지식 문서를 스스로 생성하여 저장합니다.
-
----
-
-### 9. 왜 원격 MCP나 클라우드 브라우저 대신 '100% 로컬 스킬'인가?
-
-원격 클라우드 브라우저나 무거운 MCP(Model Context Protocol) 서버와 확연히 다릅니다:
-
-- 🔒 **데이터 유출 제로 (100% 로컬)**: 오직 내 PC(`localhost:9223`)에서만 통신합니다. 사용자 쿠키, 인증 세션, 탐색 데이터가 **컴퓨터 외부로 1바이트도 유출되지 않습니다.**
-- ⚡ **LLM 컨텍스트/토큰 낭비 차단**: 매 동작마다 거대한 DOM 트리를 LLM에게 넘겨 토큰을 태우는 MCP와 달리, 로컬 Node.js 백단에서 초고속으로 데이터를 정제한 뒤 **필요한 결과값만 모델에 전달**합니다.
-- 🧠 **나에게 맞춤으로 진화하는 스킬**: 고정된 API만 호출하는 MCP와 달리, 에이전트가 내 로컬 드라이브에 직접 사이트별 전용 러너(`.mjs`)를 코딩하여 영구 저장하므로 **쓸수록 내 컴퓨터 안에서 똑똑해집니다.**
-- 💸 **추가 구독료/API 비용 제로**: 외부 유료 프록시, 캡차 대행 서비스, 도커(Docker) 구동이 필요 없습니다. **내 PC에 이미 깔린 구글 크롬** 하나로 충분합니다.
-
----
-
-### 10. 데모 (Demo)
-
-#### 1) 기방문 사이트: 기구축된 전용 스크립트(Ready-made)를 활용한 초고속 실행 (`Airbnb`)
-- **시나리오**: 이미 방문하여 전용 러너가 자산화되어 있는 사이트
-- **동작 방식**: 불필요한 DOM 재분석이나 선택자 탐색 과정 없이, 사전 생성된 `airbnb_runner.mjs`를 즉시 호출하여 수초 만에 데이터를 빠르고 안정적으로 추출합니다.
-
-<p align="center">
-  <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb 전용 스크립트 실행 데모">
-</p>
-
-#### 2) 신규 사이트: 기본 내장 도구만으로 자율 브라우징 (`Investing.com`)
-- **시나리오**: 사전 구축된 스크립트가 없는 새로운 사이트 첫 방문
-- **동작 방식**: 기본 내장된 분석 및 상호작용 도구(`forms`, `smart-scroll`, `diff` 등)만을 활용하여 요소를 즉시 파악하고 자율적으로 브라우징을 완수합니다.
-
-<p align="center">
-  <img src="./assets/rec_investing.gif" width="800" alt="Investing.com 기본 도구 탐색 데모">
-</p>
-
----
-
-### 11. 개인정보 및 보안 정책
-
-- 본 저장소의 모든 사이트 지식 문서와 러너 스크립트에는 **사용자의 개인정보, 로그인 쿠키, 비밀번호가 일절 포함되지 않습니다.**
-- 사용자의 실제 브라우징 인증 세션은 로컬 머신의 `.runtime/` 폴더에만 격리 보존되며 Git 추적에서 원천 제외됩니다.
