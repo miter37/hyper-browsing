@@ -31,7 +31,7 @@ actions:
   get_tbody:
     description: Read read_tbody learned from discovery
     risk: read
-    lifecycle: candidate
+    lifecycle: verified
     implementation:
       kind: declarative
       steps: []

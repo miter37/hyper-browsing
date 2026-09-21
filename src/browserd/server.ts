@@ -16,7 +16,7 @@ import { redactText } from "../utils/strings";
 import { recordLearningEvent, encodeObservedExtraction, learningStatus } from "../runtime/learning";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
-import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle } from "../runtime/discovery-tools";
+import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement } from "../runtime/discovery-tools";
 
 async function readJson(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
@@ -143,13 +143,17 @@ export class BrowserDaemon {
     const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
     if (method === "page.goto") {
       if (!page) throw new Error("sessionId required");
-      return await navigate(page, params.url);
+      const res: any = await navigate(page, params.url);
+      if (params.observe) {
+        res.snapshot = await captureSnapshot(page);
+      }
+      return res;
     }
     if (method === "page.snapshot") {
       if (!page) throw new Error("sessionId required");
-      const snapshot = await captureSnapshot(page);
+      const snapshot = await captureSnapshot(page, { query: params.query });
       const file = params.save ? await saveSnapshot(this.config, params.sessionId, snapshot) : undefined;
-      const learning = await recordLearningEvent(this.config, page, params.sessionId, "snapshot", { saved: Boolean(params.save) });
+      const learning = await recordLearningEvent(this.config, page, params.sessionId, "snapshot", { saved: Boolean(params.save), query: params.query });
       return { snapshot, file, learning, learning_pending: learning.pending };
     }
     if (method === "page.click") {
@@ -161,20 +165,32 @@ export class BrowserDaemon {
       // on top of an otherwise visible control.
       await locatorFromStrategy(page, params.locator).first().click({ force: Boolean(params.force) });
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "click", { locator: params.locator, risk });
-      return { clicked: true, risk, url: page.url(), learning, learning_pending: learning.pending };
+      const res: any = { clicked: true, risk, url: page.url(), learning, learning_pending: learning.pending };
+      if (params.observe) {
+        res.snapshot = await captureSnapshot(page);
+      }
+      return res;
     }
     if (method === "page.fill") {
       if (!page) throw new Error("sessionId required");
       await locatorFromStrategy(page, params.locator).first().fill(params.value);
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "fill", { locator: params.locator, valuePresent: Boolean(params.value) });
-      return { ok: true, learning, learning_pending: learning.pending };
+      const res: any = { ok: true, learning, learning_pending: learning.pending };
+      if (params.observe) {
+        res.snapshot = await captureSnapshot(page);
+      }
+      return res;
     }
     if (method === "page.press") {
       if (!page) throw new Error("sessionId required");
       if (params.locator) await locatorFromStrategy(page, params.locator).first().press(params.key);
       else await page.keyboard.press(params.key);
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "press", { locator: params.locator, key: params.key });
-      return { ok: true, learning, learning_pending: learning.pending };
+      const res: any = { ok: true, learning, learning_pending: learning.pending };
+      if (params.observe) {
+        res.snapshot = await captureSnapshot(page);
+      }
+      return res;
     }
     if (method === "page.extract") {
       if (!page) throw new Error("sessionId required");
@@ -253,6 +269,25 @@ export class BrowserDaemon {
     if (method === "page.waitForIdle") {
       if (!page) throw new Error("sessionId required");
       return await waitForIdle(page, params.timeoutMs ? Number(params.timeoutMs) : 10000);
+    }
+    if (method === "page.scroll") {
+      if (!page) throw new Error("sessionId required");
+      return await scrollPage(page, {
+        direction: params.direction,
+        distance: params.distance ? Number(params.distance) : undefined,
+        times: params.times ? Number(params.times) : undefined,
+        selector: params.selector,
+        delayMs: params.delayMs ? Number(params.delayMs) : undefined,
+      });
+    }
+    if (method === "page.waitFor") {
+      if (!page) throw new Error("sessionId required");
+      return await waitForElement(page, {
+        css: params.css,
+        text: params.text,
+        timeoutMs: params.timeoutMs ? Number(params.timeoutMs) : undefined,
+        state: params.state,
+      });
     }
     if (method === "page.evaluate") {
       if (!page) throw new Error("sessionId required");

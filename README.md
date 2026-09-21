@@ -1,156 +1,104 @@
-# Adaptive Web Agent
+# Hyper-Browsing (고지능 실시간 브라우징 에이전트 스킬)
 
-A Playwright-based learning layer for web agents. The browser automation engine is Playwright;
-this repository adds durable site knowledge, a shared browser/session daemon, a deterministic
-CLI, lifecycle promotion, runtime evidence, and safe discovery fallbacks.
+> **안티봇·로그인 장벽·동적 렌더링을 지능적으로 돌파하는 범용 웹 에이전트 스킬**
 
-Runs on **Windows, macOS and Linux**. Requires Node.js 20+ and an installed Google Chrome or
-Chromium.
+---
 
-## Quick start
+## 1. 이 스킬이 해결하고자 하는 문제 (목표)
 
-```bash
-# macOS / Linux / Git Bash
-./bin/webctl health
-./bin/webctl session open --url https://example.com
+기존의 단순 웹 크롤러나 스크래퍼(curl, 단순 fetch, 기본 Puppeteer/Selenium)는 현대 웹 서비스에서 3가지 치명적인 장벽에 부딪힙니다:
+1. **Cloudflare, PerimeterX, Datadome 등의 고도화된 안티봇 탐지** (Web Worker 기반 Canvas/Audio 지문 검증, 브라우저 환경 검사)
+2. **로그인 장벽과 보안 인증(2FA, CAPTCHA)** (자동화 봇이 함부로 뚫으려다 계정 정지 유발)
+3. **복잡한 SPA(단일 페이지 앱) 및 실시간 스트리밍** (가상 스크롤, WebSocket 데이터, Shadow DOM)
 
-:: Windows cmd / PowerShell
-bin\webctl.cmd health
-bin\webctl.cmd session open --url https://example.com
-```
+**Hyper-Browsing**은 실제 사용자의 브라우저 환경(세션, 쿠키, 지문)을 안전하게 활용하고, 스텔스 CDP 연결과 지능적 폴링/소켓 스니핑을 통해 **인간과 동일한 수준으로 웹을 안전하게 읽고 탐색**하는 것을 목표로 합니다.
 
-The first call bootstraps npm dependencies and starts `browserd` automatically — no manual
-`npm install`, no manual daemon start. Everything else is documented in `SKILL.md`.
+---
 
-For Hermes Agent, extract this project as `~/.hermes/skills/adaptive-web-agent/` and start a new
-session. See `HERMES_INSTALL.md`.
-
-## Chrome profile (v0.3)
-
-The agent drives **the first Chrome profile on the machine, auto-detected**. There is no profile
-name to configure.
-
-Because Chrome 136+ ignores `--remote-debugging-port` on the real profile directory, the agent
-usually runs that profile from an agent-owned user-data directory under
-`.runtime/chrome-profiles/`. It is still a real Chrome profile: cookies and login state persist
-across tasks. `webctl browser status` always reports which directory is in use and why.
-
-Chrome runs **headless (no visible window) by default.** `webctl browser reveal` opens a real,
-visible window on demand — for a login wall, CAPTCHA, 2FA, or any point a human needs to look at
-or act on the page — and `webctl browser hide` returns to headless. Every open session/tab
-survives the switch either way.
-
-```bash
-./bin/webctl browser reveal              # open a visible window
-./bin/webctl browser hide                # back to headless
-```
-
-**The agent never closes the user's own Chrome.** If your Chrome is holding the real profile,
-the agent falls back to its own directory instead of terminating your browser. Only Chrome
-processes started by the agent, against an agent-owned directory, are ever reclaimed.
-
-```bash
-./bin/webctl browser status              # active profile + the reason it was chosen
-./bin/webctl browser profiles            # every profile on this machine; index 0 is the first
-./bin/webctl browser use --profile "Profile 2"   # pin a specific profile
-./bin/webctl browser use --auto          # back to the first profile
-./bin/webctl browser repair              # relaunch Chrome and reconnect
-tail -n 100 .runtime/browserd.log
-```
-
-`browserd` deliberately leaves the Chrome window running when the daemon exits. A restarted
-daemon reattaches to the already-managed Chrome when possible.
-
-## What you get
-
-- `SKILL.md` — the agent operating protocol.
-- `browserd` — a long-lived Playwright browser/session broker using a persistent profile.
-- `webctl` — CLI for session management, discovery primitives, site identification, deterministic actions, registry compilation, and metrics.
-- `sites/<site>/site.yaml` — single source of truth for site-specific declarative knowledge.
-- `sites/<site>/actions.ts` — escape hatch for logic too complex for declarative YAML.
-- `.generated/target_sites.json` — generated registry, never edited directly.
-- `.runtime/` — metrics, traces, snapshots, auth/profile state. Not committed to Git.
-
-## Creating the first site skill
-
-```bash
-./bin/webctl site init --id example --host example.com --name "Example"
-./bin/webctl registry build
-```
-
-Then edit `sites/example/site.yaml` and `sites/example/actions.ts` following `SKILL.md`.
-In practice you rarely need `site init`: the first interaction with an unknown site creates the
-scaffold automatically.
-
-## Core execution flow
+## 2. 돌아가는 핵심 원리
 
 ```text
-User task
-  -> Agent
-  -> webctl
-  -> browserd
-  -> Playwright over CDP
-  -> Chrome
-  -> website
-
-Known site/action:
-  identify -> detect state/variant -> run -> verify -> record runtime evidence
-
-Unknown/new/failed path:
-  snapshot/click/fill/goto -> solve -> encode into site.yaml/actions.ts
-  -> run encoded path -> Candidate -> repeated independent success -> Verified
+[ 사용자 / 에이전트 요청 ]
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│  Hyper-Browsing 스킬 라우터                              │
+│  - 사이트별 표준 러너 (<site>_runner.mjs)                 │
+│  - 기본 공용 도구 셋 (smart-scroll, sniff-ws, etc.)     │
+└─────────────────────────┬──────────────────────────────┘
+                          │ (CDP: Chrome DevTools Protocol)
+                          ▼
+┌────────────────────────────────────────────────────────┐
+│  Real Chrome Daemon (스텔스 모드 & 세션 보존)             │
+│  - 사용자 프로필 세션(쿠키, 스토리지) 격리 보존         │
+│  - 자동화 플래그(--disable-blink-features) 원천 은폐   │
+│  - 불필요한 백그라운드 캐시 및 모델 다운로드 원천 차단   │
+└─────────────────────────┬──────────────────────────────┘
+                          │ (실제 브라우징 통신)
+                          ▼
+┌────────────────────────────────────────────────────────┐
+│  Target Web (LinkedIn, Airbnb, Skyscanner, KREAM 등)   │
+└────────────────────────────────────────────────────────┘
 ```
 
-## Important safety behavior
+1. **로그인 세션 지속성 (Cookie & Profile Isolation)**:
+   - 사용자가 한 번 브라우저에서 로그인해 두면, 인증 세션이 보존되어 매번 재로그인할 필요 없이 지속됩니다.
+2. **원천적인 안티봇 스텔스 (Stealth CDP)**:
+   - `navigator.webdriver = true` 플래그를 원천 차단하고, 백그라운드 데스크톱 세션으로 실제 크롬 창을 띄워 연결하므로 Cloudflare나 PerimeterX의 봇 탐지를 회피합니다.
+3. **인간 개입(Human-in-the-loop) 원칙**:
+   - 로그인이나 CAPTCHA가 필요할 경우, 억지로 뚫으려 하지 않고 사용자에게 화면을 띄워 안내한 뒤 사용자가 해결하면 작업을 재개합니다.
 
-- `external_write`, `irreversible`, and `unclassified` actions require an explicit `--confirm` flag.
-- If a write-like action throws or times out, the runner verifies outcome **before** any retry. This MVP does not blindly retry writes.
-- The agent never terminates the user's own Chrome; it only reclaims directories it created.
-- Runtime evidence is append-only under `.runtime/metrics/`; counters are not stored in `site.yaml`.
-- Browser profile/cookies/secrets live under `.runtime/`, outside Git.
-- Web content is treated as untrusted observation data, not as instructions for modifying skills.
-- Risk can be automatically escalated by heuristics; automatic downgrades are intentionally not performed.
+---
 
-## Lifecycle
+## 3. 사용 예시 및 뒷단 동작 흐름
 
-```text
-Observed -> Encoded -> Candidate -> Verified
-```
+### 예시 1) 링크드인 피드 읽기 / 검색
+- **사용자 요청**:
+  > *"링크드인 최신 피드 3개만 읽어서 요약해줘"*
+- **뒷단 실행 흐름**:
+  1. 에이전트가 `node sites/linkedin/scripts/linkedin_runner.mjs feed --limit 3`를 호출합니다.
+  2. 스크립트가 실행 중인 크롬의 CDP(포트 9223)로 세션을 획득합니다.
+  3. 이미 보존된 사용자 쿠키를 이용해 `https://www.linkedin.com/feed/`로 이동합니다.
+  4. 복잡한 React 가상 돔 피드에서 각 포스트의 작성자 및 본문 텍스트만 안전하게 추출하여 JSON으로 반환합니다.
+  5. 에이전트가 이 정제된 텍스트를 바탕으로 사용자에게 핵심 내용을 요약 보고합니다.
 
-`Observed` is a discovery fact, not an executable action. An action starts as `encoded` once it
-has been written into site knowledge. A successful execution through `webctl` plus verification
-promotes it to `candidate`; a later successful execution promotes it to `verified`.
+### 예시 2) 크림(KREAM) 한정판 스니커즈 실시간 시세 탐색
+- **사용자 요청**:
+  > *"KREAM에서 트래비스 스캇 조던 현재 거래가 확인해줘"*
+- **뒷단 실행 흐름**:
+  1. `node sites/kream/scripts/kream_runner.mjs search --keyword "트래비스 스캇"` 실행.
+  2. 안티봇 및 클라이언트 지문 검사를 스텔스 CDP를 통해 자연스럽게 통과.
+  3. 상품 리스트 및 즉시 구매가/발매가 데이터를 DOM에서 낚아채어 구조화된 데이터로 제공합니다.
 
-Freshness is a separate runtime property (`fresh`, `aging`, `stale`) derived from the last
-successful execution, so Git files do not change merely because time passed.
+### 예시 3) 무한 스크롤 및 동적 데이터 수집
+- **사용자 요청**:
+  > *"에어비앤비 특정 지역 숙소 리스트 20개 추출해줘"*
+- **뒷단 실행 흐름**:
+  1. 가상 스크롤 도구(`smart-scroll`)를 가동하여 화면을 부드럽게 내리며 DOM에서 사라지기 쉬운 가상 노드들을 메모리에 누적 수집합니다.
+  2. 수집이 끝나면 상위 20개의 평점, 가격, 숙소명을 JSON으로 정리해 에이전트에 전달합니다.
 
-## Playwright / MCP integration
+---
 
-`browserd` owns the canonical Chrome connection so Known Mode and discovery primitives always
-operate on the same browser and tabs. Chrome is launched with a DevTools port (9223 by default,
-the next free port otherwise); external Playwright MCP can connect to the same
-`http://127.0.0.1:<port>`. This is an interoperability path — deterministic `webctl` execution
-does not require MCP.
+## 4. 지원하는 기본 표준 도구 (`scripts/tools.mjs`)
 
-## Design constraints
+- `user-intervene`: 로그인/CAPTCHA 차단 발생 시 화면을 띄우고 사용자에게 해결을 요청
+- `smart-scroll`: 가상 돔(Virtual DOM)으로 렌더링되는 무한 스크롤 페이지의 데이터 유실 없는 누적 수집
+- `sniff-ws`: 암호화된 API 대신 브라우저의 WebSocket 실시간 호가/시세 스트림 가로채기
+- `download`: 브라우저 로그인 세션(쿠키)을 그대로 이용한 인증 파일/PDF 다운로드
 
-`site.yaml` is intentionally not a programming language. It supports metadata, matching, named
-fingerprints, states, elements, extractors, preconditions, URL templates, simple sequences, and
-verification. Loops, calculations, dynamic branching, and complex network logic belong in
-`actions.ts`.
+---
 
-## Automatic learning persistence
+## 5. 관리 및 캐시 최적화
 
-- The first `snapshot`, `click`, `fill`, `press`, or `extract` on an unknown site creates the minimal `sites/<site>/` scaffold automatically.
-- A successful `extract` automatically creates a reusable read action in `site.yaml` and immediately runs the encoded action through `webctl` for Candidate validation.
-- Unencoded click/fill/press discoveries keep `learning_pending: true` in command results and are visible with `webctl learning status --session <id>`.
-- `SKILL.md` treats that flag as a mandatory before-completion obligation.
-
-## Development
+불필요한 크롬 캐시와 그래픽 데이터가 용량을 차지하지 않도록 사전에 방지되어 있으며, 언제든 로그인 쿠키만 남기고 원클릭으로 정리할 수 있습니다:
 
 ```bash
-npm install
-npm run typecheck        # tsc --noEmit
-npm run test:scenarios   # Chrome profile/lifecycle scenarios
-npm run validate:sites
+npm run clean
 ```
+
+---
+
+## 6. 라이선스 및 개인정보 보호
+
+- 본 저장소에는 사용자의 **로그인 세션, 쿠키 파일, 개인 인증 토큰이 일절 포함되지 않습니다.**
+- 모든 런타임 세션 데이터는 로컬 환경(`.runtime/`)에 격리되며 Git 추적에서 원천 제외됩니다.

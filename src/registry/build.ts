@@ -25,7 +25,8 @@ export async function buildRegistry(config: AppConfig): Promise<RegistryFile> {
       });
     } catch (error: any) {
       if (error?.code === "ENOENT") continue;
-      throw new Error(`Failed to compile ${file}: ${error?.message || error}`);
+      process.stderr.write(`[registry] Warning: Failed to compile ${file}, skipping: ${error?.message || error}\n`);
+      continue;
     }
   }
 

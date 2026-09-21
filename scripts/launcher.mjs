@@ -269,7 +269,7 @@ async function ensureBrowserd() {
     cwd: ROOT,
     detached: true,
     stdio: ["ignore", out, out],
-    windowsHide: true,
+    windowsHide: false,
     env: { ...process.env, WEBAGENT_HOME: ROOT, WEBAGENT_PORT: String(chosenPort) },
   });
   child.unref();

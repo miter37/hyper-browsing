@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
-set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec node "$ROOT/scripts/launcher.mjs" webctl "$@"
+
+node "$ROOT/scripts/webctl-rpc.mjs" "$@"
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 42 ]; then
+  exec node "$ROOT/scripts/launcher.mjs" webctl "$@"
+fi
+exit "$EXIT_CODE"

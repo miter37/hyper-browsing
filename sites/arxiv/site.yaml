@@ -1,0 +1,14 @@
+site:
+  id: arxiv
+  name: arxiv.org
+  version: 1
+match:
+  hosts:
+    - arxiv.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

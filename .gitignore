@@ -1,16 +1,36 @@
+# Dependencies & Runtime
 node_modules/
 .runtime/
+dist/
 *.log
 .env
 .env.*
 !.env.example
 outputs/
+ask_gpt/
 
-# Keep all reusable site knowledge and site-specific workflows.
-# Runtime state, generated outputs, and caches remain excluded above.
+# Secrets & Authentication Protection
+*.pem
+*.key
+*.token
+*.cookie
+*cookies*
+Cookies*
+Login Data*
+
+# Caches & System Junk
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+Crashpad/
+GPUPersistentCache/
+GrShaderCache/
+ShaderCache/
+component_crx_cache/
+
+# Sites rules
 sites/*
 !sites/
 !sites/*/
 sites/*/outputs/
-__pycache__/
-*.pyc

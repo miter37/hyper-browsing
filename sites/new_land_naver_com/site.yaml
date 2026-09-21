@@ -4,112 +4,129 @@ site:
   version: 2
 match:
   hosts:
-  - new.land.naver.com
+    - new.land.naver.com
 fingerprints: {}
 states: {}
 elements:
   complex_search_box:
     description: Complex/region search input on land.naver.com home.
     strategies:
-    - placeholder: 단지, 지역검색
+      - placeholder: 단지, 지역검색
   complex_result_row:
-    description: 'Search suggestion anchor (a.item_link) on new.land.naver.com/search — visible text = complex name
-      + address + 세대수 lines. The suggestion index usually drops brand prefixes (search ''헬리오시티'', not ''래미안헬리오시티'').
-
-      '
+    description: >
+      Search suggestion anchor (a.item_link) on new.land.naver.com/search —
+      visible text = complex name + address + 세대수 lines. The suggestion index
+      usually drops brand prefixes (search '헬리오시티', not '래미안헬리오시티').
     strategies:
-    - css: a.item_link:has-text('{{complexName}}')
+      - css: a.item_link:has-text('{{complexName}}')
   region_map_div_list_contents_class_item_list:
     strategies:
-    - css: '#region_map + div, .list_contents, [class*=item_list]'
-      exact: false
-    description: 'Complex article-list panel. Reading its text gives every rendered listing row in one shot (complex
-      name/dong, trade type + price, type/area/floor/orientation, memo, brokerage, confirm date).
-
-      '
+      - css: "#region_map + div, .list_contents, [class*=item_list]"
+        exact: false
+    description: >
+      Complex article-list panel. Reading its text gives every rendered listing
+      row in one shot (complex name/dong, trade type + price,
+      type/area/floor/orientation, memo, brokerage, confirm date).
   promo_popup_dismiss:
-    description: '"매물·광고·고객을 부르는 기술" promo modal that frequently covers the screen on first navigation into new.land.naver.com.
-      Blocks clicks on the result list until dismissed.
-
-      '
+    description: >
+      "매물·광고·고객을 부르는 기술" promo modal that frequently covers the screen on first
+      navigation into new.land.naver.com. Blocks clicks on the result list until
+      dismissed.
     strategies:
-    - text: 다시 보지 않기
-    - role: button
-      name: 닫기
+      - text: 다시 보지 않기
+      - role: button
+        name: 닫기
   type_filter_toggle:
-    description: Property-type toggle (aria-pressed) in the complex page top bar; syncs URL a= (APT:ABYG:JGC etc.).
+    description: Property-type toggle (aria-pressed) in the complex page top bar;
+      syncs URL a= (APT:ABYG:JGC etc.).
     strategies:
-    - css: button.filter_type
+      - css: button.filter_type
   trade_checkbox_popup:
-    description: 거래방식 checkboxes values ALL/A1/B1/B2/B3; multi-select colon-joined (tradeType=A1:B1). Clicking the
-      ALREADY-CHECKED box does not refetch the app.
+    description: 거래방식 checkboxes values ALL/A1/B1/B2/B3; multi-select colon-joined
+      (tradeType=A1:B1). Clicking the ALREADY-CHECKED box does not refetch the
+      app.
     strategies:
-    - css: input[name=trad]
+      - css: input[name=trad]
   area_checkbox_popup:
-    description: 면적 checkboxes input[id^=housesize]; option list & codes PER 단지 (housesize0=전체). API areaNos = these
-      values colon-joined.
+    description: 면적 checkboxes input[id^=housesize]; option list & codes PER 단지
+      (housesize0=전체). API areaNos = these values colon-joined.
     strategies:
-    - css: input[id^=housesize]
+      - css: input[id^=housesize]
   dong_checkbox_popup:
     description: 전체동 filter checkboxes (third list_filter_btn popup; buildingNos param).
     strategies:
-    - css: input[id^=building]
+      - css: input[id^=building]
   sorting_option:
     description: Sort anchors 랭킹순/최신순/가격순/면적순 -> order=rank|dateDesc|...
     strategies:
-    - css: .sorting_type
+      - css: .sorting_type
   same_listing_group_checkbox:
     description: 동일매물 묶기 (sameAddressGroup).
     strategies:
-    - css: '#address_group2, label[for=address_group2]'
+      - css: "#address_group2, label[for=address_group2]"
   complex_data_tab:
-    description: Tabs 단지정보/시세·실거래가/동호수·공시가격 — SPA a.complex_link, no route change; data from /api/complexes/{no}
-      with same auth header.
+    description: Tabs 단지정보/시세·실거래가/동호수·공시가격 — SPA a.complex_link, no route change;
+      data from /api/complexes/{no} with same auth header.
     strategies:
-    - css: a.complex_link
+      - css: a.complex_link
   sort_recent:
     description: Sort a complex's article list by most-recently-listed first.
     strategies:
-    - text: 최신순
+      - text: 최신순
   filter_trade_btn:
     description: Trade type filter button in complex detail (e.g. '전체거래방식', '매매', '전세').
     strategies:
-    - css: button.list_filter_btn:nth-of-type(1), button.list_filter_btn
+      - css: button.list_filter_btn:nth-of-type(1), button.list_filter_btn
   filter_area_btn:
     description: Area filter button in complex detail (e.g. '전체면적', '116B㎡,116A㎡...').
     strategies:
-    - css: button.list_filter_btn:nth-of-type(2)
+      - css: button.list_filter_btn:nth-of-type(2)
   filter_dongil_checkbox:
     description: 동일매물 묶기 checkbox and label in article list header.
     strategies:
-    - css: label[for=address_group2], input#address_group2
+      - css: label[for=address_group2], input#address_group2
   tab_sise_real_price:
     description: 시세/실거래가 tab button in complex details.
     strategies:
-    - css: .complex_link:has-text('시세/실거래가'), a:has-text('시세/실거래가')
+      - css: .complex_link:has-text('시세/실거래가'), a:has-text('시세/실거래가')
   item_list_list_contents_item_area:
     strategies:
-    - css: .item_list, .list_contents, .item_area
-      exact: false
+      - css: .item_list, .list_contents, .item_area
+        exact: false
     description: Auto-encoded from a successful discovery extraction.
   complex_title_title_h2_h3:
     strategies:
-    - css: .complex_title, .title, h2, h3
+      - css: .complex_title, .title, h2, h3
     description: Auto-encoded from a successful discovery extraction.
   body:
     strategies:
-    - css: body
-      exact: false
+      - css: body
+        exact: false
     description: Auto-encoded from a successful discovery extraction.
   a_item_link:
     strategies:
-    - css: a.item_link
-      exact: false
+      - css: a.item_link
+        exact: false
     description: Auto-encoded from a successful discovery extraction.
   infinite_scroll_item:
     strategies:
-    - css: .infinite_scroll > .item
-      exact: false
+      - css: .infinite_scroll > .item
+        exact: false
+    description: Auto-encoded from a successful discovery extraction.
+  item_link_complex_link_a_item_div_item:
+    strategies:
+      - css: .item_link, .complex_link, a.item, div.item
+        exact: false
+    description: Auto-encoded from a successful discovery extraction.
+  complex_summary_info_complex_price_info_filter_area:
+    strategies:
+      - css: .complex_summary_info, .complex_price_info, .filter_area
+        exact: false
+    description: Auto-encoded from a successful discovery extraction.
+  complex_title_h3_complex_feature:
+    strategies:
+      - css: .complex_title, h3, .complex_feature
+        exact: false
     description: Auto-encoded from a successful discovery extraction.
 extractors:
   read_region_map_div_list_contents_class_item_list:
@@ -130,44 +147,54 @@ extractors:
   read_infinite_scroll_item:
     element: infinite_scroll_item
     read: text
+  read_item_link_complex_link_a_item_div_item:
+    element: item_link_complex_link_a_item_div_item
+    read: text
+  read_complex_summary_info_complex_price_info_filter_area:
+    element: complex_summary_info_complex_price_info_filter_area
+    read: text
+  read_complex_title_h3_complex_feature:
+    element: complex_title_h3_complex_feature
+    read: text
 urlTemplates:
   complex_page: https://new.land.naver.com/complexes/{{complexId}}?a=APT:ABYG:JGC
   search_page: https://new.land.naver.com/search
 preconditions: {}
 actions:
   search_complex_from_home:
-    description: 'From land.naver.com home, fill the complex/region search box with a complex name and press Enter
-      to reach the search suggestion page.
-
-      '
+    description: >
+      From land.naver.com home, fill the complex/region search box with a
+      complex name and press Enter to reach the search suggestion page.
     risk: read
     lifecycle: candidate
     implementation:
       kind: declarative
       steps:
-      - op: fill
-        element: complex_search_box
-        value: '{{query}}'
-      - op: press
-        element: complex_search_box
-        key: Enter
+        - op: fill
+          element: complex_search_box
+          value: "{{query}}"
+        - op: press
+          element: complex_search_box
+          key: Enter
     verify:
-    - type: element_visible
-      element: complex_result_row
+      - type: element_visible
+        element: complex_result_row
   open_complex_by_name:
-    description: On the search suggestion page, click the a.item_link row for the exact complex name (include the
-      parenthetical suffix, e.g. '(주상복합)', to disambiguate from the 동명 오피스텔 '송도센트럴파크푸르지오시티'). Opens new.land.naver.com/complexes/{complexNo}.
-      Dismiss the promo popup ('다시 보지 않기') first if present.
+    description: On the search suggestion page, click the a.item_link row for the
+      exact complex name (include the parenthetical suffix, e.g. '(주상복합)', to
+      disambiguate from the 동명 오피스텔 '송도센트럴파크푸르지오시티'). Opens
+      new.land.naver.com/complexes/{complexNo}. Dismiss the promo popup ('다시 보지
+      않기') first if present.
     risk: read
     lifecycle: encoded
     implementation:
       kind: declarative
       steps:
-      - op: click
-        element: complex_result_row
+        - op: click
+          element: complex_result_row
     verify:
-    - type: url_matches
-      pattern: '*new.land.naver.com/complexes/*'
+      - type: url_matches
+        pattern: "*new.land.naver.com/complexes/*"
   dismiss_promo_popup:
     description: Close the promo modal that can cover a complex/search page.
     risk: read
@@ -175,11 +202,11 @@ actions:
     implementation:
       kind: declarative
       steps:
-      - op: click
-        element: promo_popup_dismiss
+        - op: click
+          element: promo_popup_dismiss
     verify:
-    - type: element_visible
-      element: region_map_div_list_contents_class_item_list
+      - type: element_visible
+        element: region_map_div_list_contents_class_item_list
   sort_articles_by_recent:
     description: Re-sort the currently open complex's article list to newest-first.
     risk: read
@@ -187,11 +214,11 @@ actions:
     implementation:
       kind: declarative
       steps:
-      - op: click
-        element: sort_recent
+        - op: click
+          element: sort_recent
     verify:
-    - type: element_visible
-      element: region_map_div_list_contents_class_item_list
+      - type: element_visible
+        element: region_map_div_list_contents_class_item_list
   get_item_list_list_contents_item_area:
     description: Read read_item_list_list_contents_item_area learned from discovery
     risk: read
@@ -202,8 +229,8 @@ actions:
     returns:
       extractor: read_item_list_list_contents_item_area
     verify:
-    - type: extractor_exists
-      extractor: read_item_list_list_contents_item_area
+      - type: extractor_exists
+        extractor: read_item_list_list_contents_item_area
   get_complex_title_title_h2_h3:
     description: Read read_complex_title_title_h2_h3 learned from discovery
     risk: read
@@ -214,8 +241,8 @@ actions:
     returns:
       extractor: read_complex_title_title_h2_h3
     verify:
-    - type: extractor_exists
-      extractor: read_complex_title_title_h2_h3
+      - type: extractor_exists
+        extractor: read_complex_title_title_h2_h3
   get_body:
     description: Read read_body learned from discovery
     risk: read
@@ -226,8 +253,8 @@ actions:
     returns:
       extractor: read_body
     verify:
-    - type: extractor_exists
-      extractor: read_body
+      - type: extractor_exists
+        extractor: read_body
   get_a_item_link:
     description: Read read_a_item_link learned from discovery
     risk: read
@@ -238,8 +265,8 @@ actions:
     returns:
       extractor: read_a_item_link
     verify:
-    - type: extractor_exists
-      extractor: read_a_item_link
+      - type: extractor_exists
+        extractor: read_a_item_link
   get_infinite_scroll_item:
     description: Read read_infinite_scroll_item learned from discovery
     risk: read
@@ -250,18 +277,57 @@ actions:
     returns:
       extractor: read_infinite_scroll_item
     verify:
-    - type: extractor_exists
-      extractor: read_infinite_scroll_item
+      - type: extractor_exists
+        extractor: read_infinite_scroll_item
   get_listings_via_api:
-    description: 'READ a complex''s listings via the signed internal API (20/page, isMoreData paging, all trades).
-      Working end-to-end implementation: scripts/scrape-complex.mjs (CDP connectOverCDP; hook XHR.setRequestHeader
-      to capture the app''s Bearer header, trigger load by toggling the checked trade checkbox, replay with overrides
-      tradeType/page/areaNos/order). Direct fetch without the captured header returns ''unauthorized user''.'
+    description: "READ a complex's listings via the signed internal API (20/page,
+      isMoreData paging, all trades). Working end-to-end implementation:
+      scripts/scrape-complex.mjs (CDP connectOverCDP; hook XHR.setRequestHeader
+      to capture the app's Bearer header, trigger load by toggling the checked
+      trade checkbox, replay with overrides tradeType/page/areaNos/order).
+      Direct fetch without the captured header returns 'unauthorized user'."
     risk: read
     lifecycle: encoded
     implementation:
       kind: declarative
       steps: []
     verify:
-    - type: element_visible
-      element: region_map_div_list_contents_class_item_list
+      - type: element_visible
+        element: region_map_div_list_contents_class_item_list
+  get_item_link_complex_link_a_item_div_item:
+    description: Read read_item_link_complex_link_a_item_div_item learned from discovery
+    risk: read
+    lifecycle: candidate
+    implementation:
+      kind: declarative
+      steps: []
+    returns:
+      extractor: read_item_link_complex_link_a_item_div_item
+    verify:
+      - type: extractor_exists
+        extractor: read_item_link_complex_link_a_item_div_item
+  get_complex_summary_info_complex_price_info_filter_area:
+    description: Read read_complex_summary_info_complex_price_info_filter_area
+      learned from discovery
+    risk: read
+    lifecycle: candidate
+    implementation:
+      kind: declarative
+      steps: []
+    returns:
+      extractor: read_complex_summary_info_complex_price_info_filter_area
+    verify:
+      - type: extractor_exists
+        extractor: read_complex_summary_info_complex_price_info_filter_area
+  get_complex_title_h3_complex_feature:
+    description: Read read_complex_title_h3_complex_feature learned from discovery
+    risk: read
+    lifecycle: candidate
+    implementation:
+      kind: declarative
+      steps: []
+    returns:
+      extractor: read_complex_title_h3_complex_feature
+    verify:
+      - type: extractor_exists
+        extractor: read_complex_title_h3_complex_feature

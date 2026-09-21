@@ -744,14 +744,44 @@ export class ChromeManager {
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-session-crashed-bubble",
-      "--disable-features=TranslateUI",
+      "--disable-features=TranslateUI,OptimizationHints,OptimizationGuideModelDownloading",
       "--disable-blink-features=AutomationControlled",
+      "--disable-component-update",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-default-apps",
+      "--disk-cache-size=33554432",
       "about:blank",
     ];
     if (headless) args.unshift("--headless=new");
 
-    this.child = spawn(executable, args, { detached: true, stdio: "ignore", windowsHide: false });
-    this.child.unref();
+    const launchCwd = profile.userDataDir;
+
+    if (process.platform === "win32" && !headless) {
+      const helper = path.join(this.config.root, "scripts", "launch-on-desktop.ps1");
+      const fullCmd = `"${executable}" ${args.map((a) => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`;
+      const shell = which(["powershell.exe", "pwsh.exe"]) || "powershell.exe";
+      try {
+        const out = execFileSync(
+          shell,
+          ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", helper, "-CommandLine", fullCmd, "-WorkingDirectory", launchCwd],
+          { encoding: "utf8", timeout: 10000 }
+        ).trim();
+        const launchedPid = Number(out);
+        if (Number.isFinite(launchedPid) && launchedPid > 0) {
+          this.child = { pid: launchedPid, unref: () => {} } as any;
+        } else {
+          this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: false });
+          this.child.unref();
+        }
+      } catch {
+        this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: false });
+        this.child.unref();
+      }
+    } else {
+      this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: false });
+      this.child.unref();
+    }
     await waitForCdp(port, this.child, this.config.chromeStartupTimeoutMs);
     const context = await this.attach(port);
 
@@ -764,7 +794,7 @@ export class ChromeManager {
       managed: profile.managed,
       headless,
       cdpPort: port,
-      pid: this.child.pid,
+      pid: this.child?.pid,
       startedAt: new Date().toISOString(),
       source: profile.source,
       reason: profile.reason,

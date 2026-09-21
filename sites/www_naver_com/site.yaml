@@ -1,0 +1,14 @@
+site:
+  id: www_naver_com
+  name: www.naver.com
+  version: 1
+match:
+  hosts:
+    - www.naver.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

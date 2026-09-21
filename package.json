@@ -1,5 +1,5 @@
 {
-  "name": "37web",
+  "name": "hyper-browsing",
   "version": "0.3.0",
   "private": true,
   "type": "module",
@@ -12,6 +12,7 @@
     "validate:sites": "node scripts/launcher.mjs webctl site validate",
     "bootstrap": "node scripts/launcher.mjs bootstrap",
     "doctor": "node scripts/launcher.mjs webctl browser status",
+    "clean": "node scripts/clean.mjs",
     "test:scenarios": "node tests/chrome-manager-scenarios.mjs"
   },
   "dependencies": {

@@ -125,16 +125,16 @@ async function main() {
   if (a === "session" && b === "close" && boolFlag("all")) return print(await client.call("session.closeAll"));
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
 
-  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save") }));
+  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query") }));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));
   if (a === "network" && b === "start") return print(await client.call("network.start", { sessionId: required("session") }));
   if (a === "network" && b === "stop") return print(await client.call("network.stop", { sessionId: required("session") }));
-  if (a === "goto") return print(await client.call("page.goto", { sessionId: required("session"), url: required("url") }));
-  if (a === "click") return print(await client.call("page.click", { sessionId: required("session"), locator: locatorFromFlags(), confirmed: boolFlag("confirm"), force: boolFlag("force") }));
-  if (a === "fill") return print(await client.call("page.fill", { sessionId: required("session"), locator: locatorFromFlags(), value: required("value") }));
+  if (a === "goto") return print(await client.call("page.goto", { sessionId: required("session"), url: required("url"), observe: boolFlag("observe") }));
+  if (a === "click") return print(await client.call("page.click", { sessionId: required("session"), locator: locatorFromFlags(), confirmed: boolFlag("confirm"), force: boolFlag("force"), observe: boolFlag("observe") }));
+  if (a === "fill") return print(await client.call("page.fill", { sessionId: required("session"), locator: locatorFromFlags(), value: required("value"), observe: boolFlag("observe") }));
   if (a === "press") {
     const hasLocator = ["role", "testid", "text", "label", "placeholder", "css"].some((x) => flag(x));
-    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator ? locatorFromFlags() : undefined, key: required("key") }));
+    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator ? locatorFromFlags() : undefined, key: required("key"), observe: boolFlag("observe") }));
   }
   if (a === "extract") return print(await client.call("page.extract", {
     sessionId: required("session"), locator: locatorFromFlags(), read: flag("read") || "text", attribute: flag("attribute")
@@ -156,6 +156,25 @@ async function main() {
   }
   if (a === "api-sniff") return print(await client.call("page.sniffApi", { sessionId: required("session"), durationMs: flag("duration-ms") }));
   if (a === "wait-idle") return print(await client.call("page.waitForIdle", { sessionId: required("session"), timeoutMs: flag("timeout-ms") }));
+  if (a === "scroll") return print(await client.call("page.scroll", {
+    sessionId: required("session"),
+    direction: flag("direction") || "down",
+    distance: flag("distance"),
+    times: flag("times"),
+    selector: flag("selector"),
+    delayMs: flag("delay-ms"),
+  }));
+  if (a === "wait-for") return print(await client.call("page.waitFor", {
+    sessionId: required("session"),
+    css: flag("css"),
+    text: flag("text"),
+    timeoutMs: flag("timeout-ms"),
+    state: flag("state"),
+  }));
+  if (a === "eval") return print(await client.call("page.evaluate", {
+    sessionId: required("session"),
+    expression: required("expr"),
+  }));
 
   if (a === "identify") return print(await client.call("site.identify", { sessionId: required("session") }));
   if (a === "actions") return print(await client.call("action.list", { sessionId: required("session") }));

@@ -289,3 +289,66 @@ export async function waitForIdle(page: Page, timeoutMs = 10000, minQuietMs = 50
     return { settled: false, elapsedMs: Date.now() - start };
   }
 }
+
+/**
+ * 6. scrollPage
+ * Smoothly or directly scrolls the page or a target container to trigger lazy loading / infinite scroll.
+ */
+export async function scrollPage(
+  page: Page,
+  options: { direction?: "down" | "up"; distance?: number; times?: number; selector?: string; delayMs?: number } = {}
+): Promise<{ scrolled: boolean; times: number; totalDistance: number }> {
+  const direction = options.direction === "up" ? -1 : 1;
+  const distance = (options.distance || 800) * direction;
+  const times = Math.max(1, Math.min(options.times || 1, 20));
+  const delayMs = options.delayMs || 300;
+  const selector = options.selector;
+
+  let totalDistance = 0;
+  for (let i = 0; i < times; i++) {
+    await page.evaluate(({ dist, sel }) => {
+      if (sel) {
+        const el = document.querySelector(sel);
+        if (el) el.scrollTop += dist;
+      } else {
+        window.scrollBy(0, dist);
+      }
+    }, { dist: distance, sel: selector });
+
+    totalDistance += Math.abs(distance);
+    if (i < times - 1 && delayMs > 0) {
+      await page.waitForTimeout(delayMs);
+    }
+  }
+
+  // Small settle wait
+  await page.waitForTimeout(200);
+  return { scrolled: true, times, totalDistance };
+}
+
+/**
+ * 7. waitForElement
+ * Waits for an element matching a CSS selector or visible text to appear in DOM within timeout.
+ */
+export async function waitForElement(
+  page: Page,
+  options: { css?: string; text?: string; timeoutMs?: number; state?: "visible" | "attached" } = {}
+): Promise<{ found: boolean; selector?: string; elapsedMs: number }> {
+  const start = Date.now();
+  const timeout = options.timeoutMs || 5000;
+  const state = options.state || "visible";
+
+  try {
+    if (options.css) {
+      await page.locator(options.css).first().waitFor({ timeout, state });
+      return { found: true, selector: options.css, elapsedMs: Date.now() - start };
+    }
+    if (options.text) {
+      await page.getByText(options.text).first().waitFor({ timeout, state });
+      return { found: true, selector: `text=${options.text}`, elapsedMs: Date.now() - start };
+    }
+    throw new Error("Specify either --css or --text for wait-for");
+  } catch {
+    return { found: false, selector: options.css || options.text, elapsedMs: Date.now() - start };
+  }
+}

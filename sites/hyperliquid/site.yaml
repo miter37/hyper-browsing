@@ -1,0 +1,14 @@
+site:
+  id: hyperliquid
+  name: app.hyperliquid.xyz
+  version: 1
+match:
+  hosts:
+    - app.hyperliquid.xyz
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}
