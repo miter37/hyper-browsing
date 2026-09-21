@@ -1,12 +1,192 @@
 # Hyper-Browsing
 
+[English](#english) | [한국어](#한국어)
+
+---
+
+<a name="english"></a>
+## English
+
+> - **Enables AI agents to rapidly inspect and interact with any website through Playwright, leveraging your real Chrome browser profile.**
+> - **Self-learns and turns successful interactions into dedicated scripts and knowledge docs for blazing-fast execution on subsequent visits.**
+> - **Ultra-fast, adaptive web browsing agent skill.**
+
+---
+
+### 1. Core Value Proposition (3-Stage Evolution Cycle)
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│ Stage 1: Fast Zero-Shot Inspection & Interaction                       │
+│  - Rapidly scans DOM elements/structures to enable instant Playwright actions │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Stage 2: Deep Analysis via Standard Tooling Suite                      │
+│  - Virtual DOM scrolling, live WebSocket sniffing, diffing, user intervention│
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Stage 3: Permanent Assetization & Acceleration                         │
+│  - Saves successful interaction paths as <site>_runner.mjs & SKILL.md  │
+│  - Subsequent requests run verified scripts directly without re-analysis│
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 2. How It Works
+
+#### 1) Instant Element Inspection & Native Chrome Playwright Connection
+- Never stalls or wastes token context trying to dump massive raw DOM trees.
+- Rapidly extracts interactable elements (buttons, inputs, key cards) into a clean, compact representation so the agent can click and type immediately.
+- Operates directly on the user's authentic Chrome profile session via CDP, seamlessly inheriting existing logins and credentials.
+
+#### 2) Top 6 Core Built-in Discovery & Interaction Tools
+Equipped with 6 battle-tested primitives to handle modern dynamic web complexities (SPAs, virtual DOMs, popups, live streams):
+
+1. **`dismiss-annoyances` (Blocking Overlay Cleaner)**:
+   - Automatically clicks or DOM-purges cookie banners, newsletter modals, and transparent backdrops that intercept pointer events, instantly unlocking body scroll.
+2. **`forms` (Input Form Structure Scanner)**:
+   - Scans `<form>` containers to extract input names, labels, placeholders, required flags, and submit buttons in a single structured JSON schema.
+3. **`smart-scroll` (Virtual DOM Accumulator)**:
+   - Continuously accumulates feed and listing nodes in memory while scrolling, preventing data loss from off-screen virtual DOM unmounting.
+4. **`diff` (State Transition & Error Verifier)**:
+   - Compares before-and-after snapshots of an action to detect URL changes, modal appearances, and system error alerts (`role="alert"`).
+5. **`api-sniff` / `sniff-ws` (Network & WebSocket Sniffers)**:
+   - Bypasses fragile DOM parsing by intercepting internal REST JSON responses and live WebSocket message streams directly from the network layer.
+6. **`user-intervene` (Human-in-the-Loop Helper)**:
+   - Gracefully surfaces the visible Chrome window and pauses execution when human intervention (2FA, CAPTCHAs, payments) is required, then safely resumes.
+
+#### 3) Permanent Assetization into Dedicated Scripts & Knowledge Docs
+- Successful interaction workflows are never thrown away.
+- Saved under `sites/<domain>/`:
+  1. **Site Knowledge Document (`SKILL.md`)**: Records layouts, query quirks, and resilient selector strategies.
+  2. **Universal CLI Runner (`<site>_runner.mjs`)**: Encapsulates navigation, filters, and extraction into clean CLI options.
+- **Fast-Path on Return Visits**:  
+  When the user makes another request for the same site, the agent skips zero-shot discovery and **calls the verified runner script directly**, responding in seconds.
+
+---
+
+### 3. Execution Walkthrough
+
+#### [New Site Scenario: Discovery → Analysis → Assetization]
+- **User Prompt**: *"Check the stock and price of product X on new shopping mall Y."*
+- **Agent Workflow**:
+  1. **Inspection**: Launches Chrome, navigates to the site, and scans buttons and input fields.
+  2. **Tooling**: Uses `smart-scroll` to aggregate product listings and extracts targeted prices.
+  3. **Reporting & Assetization**: Delivers the result to the user, then saves the proven search/extract workflow into `sites/y_mall/scripts/y_mall_runner.mjs` and `SKILL.md`.
+
+#### [Known Site Scenario: Blazing-Fast Direct Path]
+- **User Prompt**: *"Summarize the top 3 latest posts from my LinkedIn feed."*
+- **Agent Workflow**:
+  1. **Asset Detection**: Instantly spots existing `sites/linkedin/SKILL.md` and `linkedin_runner.mjs`.
+  2. **Direct Execution**: Runs `node sites/linkedin/scripts/linkedin_runner.mjs feed --limit 3` without selector probing.
+  3. **Instant Response**: Retrieves feed posts under the authenticated session and delivers the summary in seconds.
+
+---
+
+### 4. Built-in Pre-Assetized Site Runners
+
+Ready for instant out-of-the-box execution:
+- **Social / Communities**: LinkedIn (`linkedin_runner.mjs`), X/Twitter (`x_runner.mjs`), Threads (`threads_runner.mjs`), Instagram (`instagram_runner.mjs`)
+- **E-Commerce / Booking / Travel**: KREAM (`kream_runner.mjs`), Airbnb (`airbnb_runner.mjs`), Ticketmaster (`ticketmaster_runner.mjs`), Skyscanner (`skyscanner_runner.mjs`)
+- **Finance / Research / Data**: Coinbase (`coinbase_runner.mjs`), Hyperliquid (`hyperliquid_runner.mjs`), TradingView (`tradingview_runner.mjs`), arXiv (`arxiv_runner.mjs`), Google Trends (`googletrends_runner.mjs`), Naver Real Estate (`naverland_runner.mjs`)
+
+---
+
+### 5. Handling Website Redesigns (Self-Healing)
+
+When a target website changes its DOM and breaks an existing script, the system gracefully recovers:
+
+1. **Fail-Fast Detection**: Enforces 3–5s timeouts on locators to fail fast rather than hanging for 30s.
+2. **Automatic Fallback to Discovery**: Reverts to Stage 1 zero-shot mode using `dismiss-annoyances`, `diff`, and `forms` to uncover the new layout and complete the user task.
+3. **Self-Healing Update**: Overwrites and patches `sites/<site>/` runners and docs with the newly discovered selectors.
+
+---
+
+### 6. Storage & Session Maintenance
+
+Redundant background model stores, shader caches, and temporary files are blocked proactively. You can clean up runtime bloat with a single command while **100% preserving user login sessions (Cookies)**:
+
+```bash
+npm run clean
+```
+
+---
+
+### 7. Installation & Environment Setup
+
+Requires **Node.js 20+** and **Google Chrome** installed on your machine.
+
+#### Instruct Your AI Agent (Easiest Method)
+Paste this single prompt into your AI coding agent (Claude Code, Antigravity, Hermes, etc.):
+
+> 💬 *"Clone https://github.com/miter37/hyper-browsing into my skills directory, run npm install, and run health check so it's ready to use."*
+
+##### 🤖 Steps for User or Agent to Execute:
+1. **Clone to Skills Directory**:
+   Clone or link into your agent's skills directory (`~/.agents/skills/`):
+   ```bash
+   git clone https://github.com/miter37/hyper-browsing.git
+   cd hyper-browsing
+   ```
+   *(※ The agent recognizes `SKILL.md` and automatically adopts it for browser tasks.)*
+
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+   *(※ The `playwright` package is installed automatically. Since this skill controls your real installed Google Chrome via CDP, downloading heavy Chromium binaries (`npx playwright install`) is NOT required.)*
+
+3. **Verify Daemon & Chrome Health**:
+   Start the browser daemon and verify `status: "ok"`:
+   ```bash
+   # Windows
+   bin\webctl.cmd health
+
+   # macOS / Linux
+   ./bin/webctl health
+   ```
+
+---
+
+### 8. How to Prompt Your Agent (3 Practical Examples)
+
+#### Example 1) Authenticated Social Account Task
+> 💬 *"Go to my Threads feed, read the top 5 recent posts, and summarize key trends in 3 bullet points."*
+- **Expected Agent Reaction**: Connects to Threads using the preserved login session and runs `threads_runner.mjs` to fetch and brief the feed.
+
+#### Example 2) Complex Real-Time Booking / Search Task
+> 💬 *"Use hyper-browsing skill to visit Ticketmaster, and find concerts or shows in Seoul on October 8 suitable to watch with my 20-something daughter."*
+- **Expected Agent Reaction**: Navigates the booking portal, manipulates date/city/genre filters, and compiles available shows.
+
+#### Example 3) New Site Discovery & Explicit Assetization Request
+> 💬 *"Go to https://news.ycombinator.com, extract today's top 10 posts with titles, URLs, and upvotes. Once done, assetize it into a dedicated script so we can use it fast next time."*  
+> *(※ Agents often self-learn autonomously, but explicit prompts guarantee dedicated script creation.)*
+- **Expected Agent Reaction**: Discovers DOM elements, extracts items, and generates `sites/news_ycombinator_com/` runner and skill docs.
+
+---
+
+### 9. Privacy & Security Policy
+
+- **No credentials, login cookies, tokens, or personal identifiers are stored in this repository.**
+- All session profiles and cookies stay strictly isolated in your local `.runtime/` directory and are completely excluded from Git tracking.
+
+---
+
+<a name="한국어"></a>
+## 한국어
+
 > - **사용자의 크롬(Chrome) 브라우저를 기반으로 플레이라이트(Playwright)를 통해 어떤 웹사이트든 빠르게 파악하여 조작할 수 있게 하며,**
 > - **성공한 상호작용을 전용 스크립트와 지식 문서로 자산화하여 다음 방문 시 초고속으로 실행하는**
 > - **초고속 적응형 브라우징 에이전트 스킬**
 
 ---
 
-## 1. 이 스킬이 지향하는 핵심 가치 (3단계 진화 사이클)
+### 1. 이 스킬이 지향하는 핵심 가치 (3단계 진화 사이클)
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -30,14 +210,14 @@
 
 ---
 
-## 2. 핵심 동작 원리
+### 2. 핵심 동작 원리
 
-### 1) 어느 사이트든 즉각적인 요소 파악 및 Playwright 연결
+#### 1) 어느 사이트든 즉각적인 요소 파악 및 Playwright 연결
 - 낯선 페이지를 열었을 때 거대한 DOM 전체를 읽느라 토큰을 낭비하거나 멈추지 않습니다.
 - 상호작용 가능한 요소(버튼, 입력 필드, 주요 카드 등)를 최적화된 형태로 빠르게 파악하여, AI 에이전트가 Playwright를 통해 즉시 클릭하고 입력할 수 있도록 돕습니다.
 - 사용자의 실제 크롬 프로필 세션을 공유하므로, 사용자가 이미 로그인해 둔 상태를 그대로 활용합니다.
 
-### 2) 분석을 빠르게 끝내주는 핵심 기본 도구 6선
+#### 2) 분석을 빠르게 끝내주는 핵심 기본 도구 6선
 복잡한 최신 웹(SPA, 가상 돔, 방해 모달, 실시간 데이터 등)을 만났을 때 에이전트가 맨땅에서 헤매지 않도록 돕는 가장 강력한 6가지 핵심 도구입니다:
 
 1. **`dismiss-annoyances` (방해 요소 자동 청소기)**:
@@ -53,7 +233,7 @@
 6. **`user-intervene` (인간 협업 개입 도구 - Human-in-the-Loop)**:
    - 2단계 인증, 복잡한 캡차, 최종 결제 등 사람의 직접 확인이 필요한 순간에 브라우저 창을 띄워 사용자에게 처리를 요청하고 안전하게 복귀
 
-### 3) 성공 경험의 사이트 전용 문서 및 스크립트 자산화
+#### 3) 성공 경험의 사이트 전용 문서 및 스크립트 자산화
 - 한 번 성공한 상호작용은 일회성으로 버려지지 않습니다.
 - 해당 사이트 폴더(`sites/<domain>/`) 아래에:
   1. **사이트 전용 지식 문서 (`SKILL.md`)**: 사이트의 레이아웃 특징, 동적 렌더링 특이사항, 안정적인 셀렉터 규칙 기록
@@ -63,25 +243,25 @@
 
 ---
 
-## 3. 요청 시 뒷단에서는 어떻게 동작하는가? (구체적 흐름)
+### 3. 요청 시 뒷단에서는 어떻게 동작하는가? (구체적 흐름)
 
-### [처음 방문하는 사이트인 경우: 탐색 → 분석 → 자산화]
+#### [처음 방문하는 사이트인 경우: 탐색 → 분석 → 자산화]
 - **사용자 요청**: *"새로운 쇼핑몰 X에서 특정 상품 재고 좀 확인해줘"*
 - **뒷단 동작**:
   1. **초기 진입 & 요소 파악**: 스킬이 사용자의 크롬으로 사이트에 접속하여 클릭 가능한 버튼과 검색창 요소를 빠르게 식별합니다.
   2. **기본 도구 가동**: 필요시 `smart-scroll`을 돌려 상품 목록을 누적하고, 데이터를 정확히 추출해 냅니다.
   3. **결과 보고 & 자산화**: 사용자에게 재고 현황을 알려준 뒤, 오늘 성공한 검색/추출 로직을 `sites/x_mall/scripts/x_mall_runner.mjs`와 `SKILL.md`로 저장해 둡니다.
 
-### [이미 한 번 방문하여 자산화된 사이트인 경우: 초고속 직행]
-- **사용자 요청**: *"링크드인 최신 피드 3개만 읽어서 요약해줘"*
+#### [이미 한 번 방문하여 자산화된 사이트인 경우: 초고속 직행]
+- **사용자 요청**: *"내 스레드 최신 피드 3개만 읽어서 요약해줘"*
 - **뒷단 동작**:
-  1. **전용 자산 확인**: 에이전트가 이미 구축된 `sites/linkedin/SKILL.md`와 `linkedin_runner.mjs`를 즉시 발견합니다.
-  2. **쾌속 실행**: DOM을 헤매며 셀렉터를 찾는 과정 없이, `node sites/linkedin/scripts/linkedin_runner.mjs feed --limit 3`를 다이렉트로 실행합니다.
+  1. **전용 자산 확인**: 에이전트가 이미 구축된 `sites/threads/`와 `threads_runner.mjs`를 즉시 발견합니다.
+  2. **쾌속 실행**: DOM을 헤매며 셀렉터를 찾는 과정 없이, `node sites/threads/scripts/threads_runner.mjs feed --limit 3`를 다이렉트로 실행합니다.
   3. **초고속 응답**: 사용자의 로그인 세션으로 피드를 즉시 긁어와 요약 결과를 사용자에게 수 초 만에 반환합니다.
 
 ---
 
-## 4. 이미 자산화된 주요 사이트 러너 목록
+### 4. 이미 자산화된 주요 사이트 러너 목록
 
 현재 다음과 같은 주요 사이트들이 전용 스크립트(`<site>_runner.mjs`)와 지식 문서로 자산화되어 있어 즉시 고속 실행이 가능합니다:
 - **소셜/커뮤니티**: LinkedIn (`linkedin_runner.mjs`), X/Twitter (`x_runner.mjs`), Threads (`threads_runner.mjs`), Instagram (`instagram_runner.mjs`)
@@ -90,7 +270,7 @@
 
 ---
 
-## 5. 사이트가 개편되어 기존 자산이 작동하지 않을 때 (자가 치유: Self-Healing)
+### 5. 사이트가 개편되어 기존 자산이 작동하지 않을 때 (자가 치유: Self-Healing)
 
 웹사이트의 UI나 셀렉터가 변경되어 기존 전용 스크립트가 실패하더라도 시스템은 멈추지 않습니다:
 
@@ -100,7 +280,7 @@
 
 ---
 
-## 6. 저장공간 및 세션 관리
+### 6. 저장공간 및 세션 관리
 
 웹페이지 탐색 과정에서 크롬이 생성하는 대용량 셰이더/모델 캐시는 사전에 차단되어 있습니다.  
 작업 후 디스크를 다이어트하고 싶을 때도 **사용자의 로그인 세션(쿠키)은 안전하게 보존**한 채 찌꺼기만 원클릭으로 정리됩니다:
@@ -111,16 +291,16 @@ npm run clean
 
 ---
 
-## 7. 설치 및 환경 구성 (Installation)
+### 7. 설치 및 환경 구성 (Installation)
 
 Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사용 가능합니다.
 
-### AI 에이전트에게 다음과 같이 시키세요
+#### AI 에이전트에게 다음과 같이 시키세요
 터미널에서 직접 명령어를 칠 필요 없이, 사용하시는 AI 에이전트(Claude Code, Antigravity, Hermes 등)의 대화창에 아래 한 줄만 입력하시면 모든 세팅이 완료됩니다:
 
 > 💬 *"https://github.com/miter37/hyper-browsing 저장소를 내 스킬 폴더에 클론하고, npm install 및 헬스체크까지 완료해서 바로 쓸 수 있게 세팅해줘."*
 
-#### 🤖 사용자 또는 에이전트가 이 문서를 읽고 수행해야 할 단계:
+##### 🤖 사용자 또는 에이전트가 이 문서를 읽고 수행해야 할 단계:
 1. **스킬 폴더 확인 및 클론**:
    사용자의 에이전트 스킬 디렉터리(`~/.agents/skills/` 또는 프로젝트 내 `.agents/skills/`) 아래에 저장소를 클론하거나 심볼릭 링크(Junction)를 연결합니다:
    ```bash
@@ -148,26 +328,26 @@ Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사
 
 ---
 
-## 8. 에이전트 대화창에서 시키는 방법 (실전 프롬프트 예시 3선)
+### 8. 에이전트 대화창에서 시키는 방법 (실전 프롬프트 예시 3선)
 
 복잡한 명령어 대신, 에이전트 대화창에서 평소 말하듯 자연어로 요청하면 에이전트가 스스로 스킬을 판단하여 처리합니다:
 
-### 예시 1) 이미 로그인된 소셜/계정 기반 작업 요청
+#### 예시 1) 이미 로그인된 소셜/계정 기반 작업 요청
 > 💬 *"내 스레드(Threads)에 들어가서 최신 피드 상위 5개 글 읽고, 주요 트렌드랑 핵심 내용 3줄로 요약해줘."*
 - **기대하는 에이전트 반응**: 보존된 로그인 세션으로 스레드에 접근하여 전용 러너(`threads_runner.mjs`)를 통해 피드를 안전하게 읽어와 브리핑합니다.
 
-### 예시 2) 복잡한 실시간 탐색 및 맞춤 조건 조사
+#### 예시 2) 복잡한 실시간 탐색 및 맞춤 조건 조사
 > 💬 *"hyper-browsing 스킬 사용해서, 티켓XX 사이트에 접속해 10월 8일 서울에서 20대 딸과 함께 볼 공연을 조사해줘."*
 - **기대하는 에이전트 반응**: 브라우저를 띄워 티켓 예매 사이트의 날짜/지역/카테고리 필터를 매끄럽게 조작하고, 추천 공연 목록과 예매 가능 여부를 정리하여 추천합니다.
 
-### 예시 3) 처음 방문하는 새로운 웹사이트 분석 및 데이터 수집
-> 💬 *"https://news.ycombinator.com 에 접속해서 오늘 1등부터 10등까지 게시글 제목이랑 링크, 추천수 뽑아줘. 성공하면 앞으로도 빠르게 쓸 수 있게 스크립트로 자산화해 놔."*
+#### 예시 3) 처음 방문하는 새로운 웹사이트 분석 및 데이터 수집
+> 💬 *"https://news.ycombinator.com 에 접속해서 오늘 1등부터 10등까지 게시글 제목이랑 링크, 추천수 뽑아줘. 성공하면 앞으로도 빠르게 쓸 수 있게 스크립트로 자산화해 놔."*  
 > *(※ 이렇게 직접적으로 자산화하라고 하지 않아도 스스로 생성하곤 하지만, 이렇게 직접 요청 시 확실하게 생성함)*
 - **기대하는 에이전트 반응**: 1단계 빠른 요소 파악으로 페이지 구조를 분석해 데이터를 추출한 뒤, `sites/news_ycombinator_com/` 아래에 전용 러너와 지식 문서를 스스로 생성하여 저장합니다.
 
 ---
 
-## 9. 개인정보 및 보안 정책
+### 9. 개인정보 및 보안 정책
 
 - 본 저장소의 모든 사이트 지식 문서와 러너 스크립트에는 **사용자의 개인정보, 로그인 쿠키, 비밀번호가 일절 포함되지 않습니다.**
 - 사용자의 실제 브라우징 인증 세션은 로컬 머신의 `.runtime/` 폴더에만 격리 보존되며 Git 추적에서 원천 제외됩니다.
