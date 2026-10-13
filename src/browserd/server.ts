@@ -5,7 +5,9 @@ import { ensureRuntime } from "../runtime/paths";
 import { ensureToken } from "./token";
 import { SessionStore } from "./session-store";
 import { captureSnapshot, saveSnapshot } from "../runtime/snapshot";
+import { actOn, fillOrSelect, goHistory } from "../engine/interact";
 import { locatorFromStrategy } from "../engine/locators";
+import { detectBlock, settle } from "../engine/page-state";
 import { identifySite } from "../engine/identify";
 import { runKnownAction } from "../engine/action-runner";
 import { effectiveRisk, heuristicRiskFromText, requiresConfirmation } from "../engine/risk";
@@ -16,7 +18,7 @@ import { redactText } from "../utils/strings";
 import { recordLearningEvent, encodeObservedExtraction, learningStatus } from "../runtime/learning";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
-import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement } from "../runtime/discovery-tools";
+import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
 async function readJson(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
@@ -55,7 +57,10 @@ export class BrowserDaemon {
       if (req.headers.authorization !== `Bearer ${this.token}`) return json(res, 401, { error: "unauthorized" });
       try {
         const { method, params = {} } = await readJson(req);
+        const started = Date.now();
         const result = await this.dispatch(method, params);
+        // How long each command took, so slow steps are visible to the agent and in transcripts.
+        if (result && typeof result === "object" && !Array.isArray(result)) (result as any).durationMs = Date.now() - started;
         json(res, 200, { ok: true, result });
       } catch (error: any) {
         json(res, 200, { ok: false, error: error?.message || String(error), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
@@ -125,7 +130,27 @@ export class BrowserDaemon {
         sessions: await this.store().list(),
       };
     }
-    if (method === "session.open") return this.store().open(params.url);
+    if (method === "session.open") {
+      const viewport = typeof params.viewport === "string" ? params.viewport.match(/^(\d{3,5})[x,](\d{3,5})$/) : null;
+      const locale = typeof params.locale === "string" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(params.locale) ? params.locale : undefined;
+      const opened: any = await this.store().open(params.url, {
+        prepare: async (p) => {
+          if (viewport) await p.setViewportSize({ width: Number(viewport[1]), height: Number(viewport[2]) });
+          if (locale) {
+            // Accept-Language and navigator.language for this tab only.
+            const cdp = await p.context().newCDPSession(p);
+            const ua = await cdp.send("Browser.getVersion").then((v: any) => v.userAgent).catch(() => undefined);
+            if (ua) await cdp.send("Network.setUserAgentOverride", { userAgent: ua, acceptLanguage: locale });
+            await cdp.send("Emulation.setLocaleOverride", { locale: locale.replace("-", "_") }).catch(() => {});
+          }
+        },
+      });
+      if (params.url && !opened.navigationError) {
+        const blocked = await detectBlock(this.store().get(opened.id));
+        if (blocked) opened.blocked = blocked;
+      }
+      return opened;
+    }
     if (method === "session.list") return this.store().list();
     if (method === "session.close") {
       const learning = await learningStatus(this.config, params.sessionId);
@@ -144,6 +169,8 @@ export class BrowserDaemon {
     if (method === "page.goto") {
       if (!page) throw new Error("sessionId required");
       const res: any = await navigate(page, params.url);
+      const blocked = await detectBlock(page);
+      if (blocked) res.blocked = blocked;
       if (params.observe) {
         res.snapshot = await captureSnapshot(page);
       }
@@ -151,10 +178,14 @@ export class BrowserDaemon {
     }
     if (method === "page.snapshot") {
       if (!page) throw new Error("sessionId required");
-      const snapshot = await captureSnapshot(page, { query: params.query });
+      const snapshot = await captureSnapshot(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
       const file = params.save ? await saveSnapshot(this.config, params.sessionId, snapshot) : undefined;
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "snapshot", { saved: Boolean(params.save), query: params.query });
-      return { snapshot, file, learning, learning_pending: learning.pending };
+      return { snapshot, file, learning_pending: learning.pending };
+    }
+    if (method === "page.list") {
+      if (!page) throw new Error("sessionId required");
+      return await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
     }
     if (method === "page.click") {
       if (!page) throw new Error("sessionId required");
@@ -163,19 +194,34 @@ export class BrowserDaemon {
       if (requiresConfirmation(risk) && !params.confirmed) return { clicked: false, confirmationRequired: true, risk };
       // --force skips actionability checks. Needed when an ad overlay or sticky header sits
       // on top of an otherwise visible control.
-      await locatorFromStrategy(page, params.locator).first().click({ force: Boolean(params.force) });
+      const outcome: any = await actOn(page, "click", params, (locator, timeout) => locator.click({ force: Boolean(params.force), timeout }));
+      if (!outcome.ok) return { clicked: false, risk, ...outcome };
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "click", { locator: params.locator, risk });
-      const res: any = { clicked: true, risk, url: page.url(), learning, learning_pending: learning.pending };
+      const res: any = { clicked: true, risk, url: page.url(), effect: outcome.effect, warning: outcome.warning, resolvedBy: outcome.resolvedBy, learning_pending: learning.pending };
       if (params.observe) {
         res.snapshot = await captureSnapshot(page);
       }
       return res;
     }
-    if (method === "page.fill") {
+    if (method === "page.hover") {
       if (!page) throw new Error("sessionId required");
-      await locatorFromStrategy(page, params.locator).first().fill(params.value);
-      const learning = await recordLearningEvent(this.config, page, params.sessionId, "fill", { locator: params.locator, valuePresent: Boolean(params.value) });
-      const res: any = { ok: true, learning, learning_pending: learning.pending };
+      // Opens hover-only menus and collapsed sub-lists; follow with snapshot (or --observe) to see what appeared.
+      // The pointer stays there until the next pointer action, so a following click on the revealed item works.
+      const outcome: any = await actOn(page, "hover", params, (locator, timeout) => locator.hover({ force: Boolean(params.force), timeout }));
+      if (!outcome.ok) return { hovered: false, ...outcome };
+      const res: any = { hovered: true, url: page.url(), effect: outcome.effect, warning: outcome.warning, resolvedBy: outcome.resolvedBy };
+      if (params.observe) {
+        res.snapshot = await captureSnapshot(page, { query: params.query });
+      }
+      return res;
+    }
+    if (method === "page.fill" || method === "page.select") {
+      if (!page) throw new Error("sessionId required");
+      const res: any = await fillOrSelect(page, method === "page.select" ? "select" : "fill", params);
+      if (!res.ok) return res;
+      const wanted = String(method === "page.select" ? params.option : params.value ?? "");
+      const learning = await recordLearningEvent(this.config, page, params.sessionId, "fill", { locator: params.locator, valuePresent: Boolean(wanted) });
+      res.learning_pending = learning.pending;
       if (params.observe) {
         res.snapshot = await captureSnapshot(page);
       }
@@ -183,33 +229,56 @@ export class BrowserDaemon {
     }
     if (method === "page.press") {
       if (!page) throw new Error("sessionId required");
-      if (params.locator) await locatorFromStrategy(page, params.locator).first().press(params.key);
-      else await page.keyboard.press(params.key);
+      let effect: unknown;
+      if (params.locator) {
+        const outcome: any = await actOn(page, "press", params, (locator, timeout) => locator.press(params.key, { timeout }));
+        if (!outcome.ok) return outcome;
+        effect = outcome.effect;
+      } else {
+        const before = page.url();
+        await page.keyboard.press(params.key);
+        await settle(page, { quietMs: 300, maxMs: 1500 });
+        effect = { urlChanged: page.url() !== before, url: page.url() };
+      }
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "press", { locator: params.locator, key: params.key });
-      const res: any = { ok: true, learning, learning_pending: learning.pending };
+      const res: any = { ok: true, effect, learning_pending: learning.pending };
       if (params.observe) {
         res.snapshot = await captureSnapshot(page);
       }
       return res;
     }
+    if (method === "page.back" || method === "page.forward") {
+      if (!page) throw new Error("sessionId required");
+      return await goHistory(page, method === "page.back" ? "back" : "forward");
+    }
     if (method === "page.extract") {
       if (!page) throw new Error("sessionId required");
-      const locator = locatorFromStrategy(page, params.locator).first();
-      let value: string | null;
-      if (params.read === "value") value = await locator.inputValue();
-      else if (params.read === "attribute") value = await locator.getAttribute(params.attribute);
-      else value = (await locator.innerText()).trim();
-
-      // A successful read is safe to encode immediately as reusable site knowledge.
-      const learned = await encodeObservedExtraction(
-        this.config, page, params.sessionId, params.locator, params.read || "text", params.attribute
-      );
+      const readOne = async (locator: any, timeout: number): Promise<string | null> => {
+        if (params.read === "value") return locator.inputValue({ timeout });
+        if (params.read === "attribute") return locator.getAttribute(params.attribute, { timeout });
+        return (await locator.innerText({ timeout })).trim();
+      };
+      if (params.all) {
+        // Every visible match, in page order: reading a list is not ambiguous.
+        const visible = locatorFromStrategy(page, params.locator).filter({ visible: true });
+        const n = Math.min(await visible.count(), Math.max(1, Math.min(Number(params.limit) || 20, 100)));
+        const values: Array<string | null> = [];
+        for (let i = 0; i < n; i++) values.push(await readOne(visible.nth(i), 2000).catch(() => null));
+        return { values, count: await visible.count() };
+      }
+      const outcome: any = await actOn(page, "extract", params, (locator, timeout) => readOne(locator, timeout));
+      if (!outcome.ok) return outcome;
+      const value: string | null = outcome.value;
+      // Encoding the read as site knowledge writes into sites/<site>/; only when asked (--learn).
+      const learned = params.learn
+        ? await encodeObservedExtraction(this.config, page, params.sessionId, params.locator, params.read || "text", params.attribute)
+        : undefined;
       const learning = await recordLearningEvent(
         this.config, page, params.sessionId, "extract",
         { locator: params.locator, read: params.read || "text", attribute: params.attribute },
-        learned.actionId
+        learned?.actionId
       );
-      return { value, learned, learning, learning_pending: learning.pending };
+      return { value, learned, resolvedBy: outcome.resolvedBy, learning_pending: learning.pending };
     }
 
 
@@ -248,7 +317,7 @@ export class BrowserDaemon {
     // --- Discovery Tools for Unknown Sites ---
     if (method === "page.dismissAnnoyances") {
       if (!page) throw new Error("sessionId required");
-      return await dismissAnnoyances(page);
+      return await dismissAnnoyances(page, { forceHide: Boolean(params.forceHide) });
     }
     if (method === "page.forms") {
       if (!page) throw new Error("sessionId required");
@@ -298,13 +367,20 @@ export class BrowserDaemon {
       if (!page) throw new Error("sessionId required");
       const identified = await identifySite(this.config, page);
       if (!identified) return { known: false, url: page.url() };
+      const def = identified.loaded.definition;
+      const actions = Object.entries(def.actions || {});
+      const knowledge = actions.length + Object.keys(def.urlTemplates || {}).length + Object.keys(def.extractors || {}).length;
+      // A site folder with no actions, URL templates or extractors (an empty scaffold) gives nothing to run.
+      if (!knowledge) return { known: false, scaffoldOnly: true, site: def.site, path: identified.loaded.dir, url: page.url() };
       return {
         known: true,
-        site: identified.loaded.definition.site,
+        site: def.site,
         state: identified.state,
         variant: identified.variant,
         path: identified.loaded.dir,
         url: page.url(),
+        actions: actions.slice(0, 15).map(([id, a]: [string, any]) => ({ id, description: a.description, inputs: a.inputs ? Object.keys(a.inputs) : undefined })),
+        hint: "Run a listed action with `webctl run <id>`; see `webctl actions` for state-specific availability. Read sites/<id>/SKILL.md for notes.",
       };
     }
 

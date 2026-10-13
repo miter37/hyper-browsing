@@ -8,6 +8,13 @@ export interface SessionInfo {
   title: string;
   /** Set when the session opened but navigation did not complete; the session is still usable. */
   navigationError?: string;
+  status?: number;
+  interstitial?: "passed" | "still";
+}
+
+export interface OpenOptions {
+  /** Called on the new tab before it navigates (viewport, locale). */
+  prepare?: (page: Page) => Promise<void>;
 }
 
 interface SessionRecord {
@@ -74,20 +81,23 @@ export class SessionStore {
     await this.adoptExisting();
   }
 
-  async open(url?: string): Promise<SessionInfo> {
+  async open(url?: string, options: OpenOptions = {}): Promise<SessionInfo> {
     const page = await this.context.newPage();
+    if (options.prepare) await options.prepare(page).catch(() => {});
     const id = `task_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     // Claim the page immediately - before navigating, which can take up to tens of seconds -
     // so watchForPopups' grace-period check never races a slow but legitimate navigation.
     this.sessions.set(id, { page, lastUrl: page.url() });
     // A navigation failure must not discard the session: the caller can retry or inspect it.
     let navigationError: string | undefined;
+    let status: number | undefined;
+    let interstitial: SessionInfo["interstitial"];
     if (url) {
-      try { await navigate(page, url); }
+      try { ({ status, interstitial } = await navigate(page, url)); }
       catch (error: any) { navigationError = error?.message || String(error); }
     }
     if (navigationError) return { id, url: page.url(), title: "", navigationError };
-    return { id, url: page.url(), title: await page.title().catch(() => "") };
+    return { id, url: page.url(), title: await page.title().catch(() => ""), status, interstitial };
   }
 
   get(id: string): Page {

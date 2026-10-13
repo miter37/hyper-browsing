@@ -28,6 +28,13 @@ export interface AppConfig {
   chromeExecutable?: string;
   forceProfileTakeover: boolean;
   chromeStartupTimeoutMs: number;
+  /**
+   * Headless window size "W,H". Chrome's headless default (about 800x600) makes many sites switch to their mobile
+   * layout, hiding desktop sidebars (filters) in drawers.
+   */
+  windowSize: string;
+  /** Browser UI/Accept-Language, e.g. "en-US". Unset = Chrome's default (the OS language). */
+  lang?: string;
 }
 
 function boolEnv(name: string, fallback: boolean): boolean {
@@ -75,6 +82,8 @@ export function getConfig(): AppConfig {
     chromeExecutable: strEnv("WEBAGENT_CHROME_EXECUTABLE"),
     forceProfileTakeover: boolEnv("WEBAGENT_FORCE_PROFILE_TAKEOVER", true),
     chromeStartupTimeoutMs: Number(process.env.WEBAGENT_CHROME_STARTUP_TIMEOUT_MS || 20000),
+    windowSize: /^\d{3,5},\d{3,5}$/.test(strEnv("WEBAGENT_WINDOW_SIZE") || "") ? strEnv("WEBAGENT_WINDOW_SIZE")! : "1440,900",
+    lang: strEnv("WEBAGENT_LANG"),
   };
 }
 

@@ -38,6 +38,25 @@ function locatorFromFlags() {
   if (primary.length !== 1) throw new Error("Specify exactly one of --role, --testid, --text, --label, --placeholder, --css");
   return { role, name, testId, text, label, placeholder, css, exact: boolFlag("exact") };
 }
+function nthFlag(): number | undefined {
+  const v = flag("nth");
+  return v === undefined ? undefined : Number(v);
+}
+// Common to click/hover/fill/select/press/extract: which match, within which section, how long to wait.
+function targetFlags() {
+  return { locator: locatorFromFlags(), nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag() };
+}
+function timeoutFlag(): number | undefined {
+  const v = flag("timeout-ms");
+  return v === undefined ? undefined : Number(v);
+}
+// --input-file avoids shell JSON quoting (PowerShell strips the inner quotes of --input '{"a":"b"}').
+async function actionInput(): Promise<Record<string, unknown>> {
+  const file = flag("input-file");
+  if (file) return JSON.parse(await fs.readFile(file, "utf8"));
+  const raw = flag("input");
+  return raw ? JSON.parse(raw) : {};
+}
 function print(value: unknown) { process.stdout.write(JSON.stringify(value, null, 2) + "\n"); }
 
 function help() {
@@ -51,22 +70,27 @@ Daemon/session:
   webctl browser use (--profile NAME | --auto | --managed | --real | --user-data-dir DIR)
   webctl browser reveal               # open a visible Chrome window (for login/CAPTCHA/help)
   webctl browser hide                 # go back to headless (the default)
-  webctl session open [--url URL]
+  webctl session open [--url URL] [--viewport 1440x900] [--locale en-US]
   webctl session list
   webctl session close --session ID
   webctl session close --all           # close every open tab (cleanup sweep)
 
 Discovery primitives (same browser session):
-  webctl snapshot --session ID [--save]
+  webctl snapshot --session ID [--save] [--query TEXT] [--limit N]
   webctl screenshot --session ID [--full-page]
   webctl network start --session ID
   webctl network stop --session ID
   webctl goto --session ID --url URL
-  webctl click --session ID <locator flags> [--confirm] [--force]
-  webctl fill --session ID <locator flags> --value TEXT
+  webctl click --session ID <locator flags> [--confirm] [--force] [--observe]
+  webctl hover --session ID <locator flags> [--observe] [--query TEXT]   # open hover menus / collapsed sub-lists
+  webctl back --session ID
+  webctl forward --session ID
+  webctl fill --session ID <locator flags> --value TEXT [--submit]     # reads the value back; on a <select> it selects
+  webctl select --session ID <locator flags> --option "Text"            # native <select> or custom dropdown
   webctl press --session ID [<locator flags>] --key KEY
-  webctl extract --session ID <locator flags> [--read text|value|attribute] [--attribute NAME]
-  webctl dismiss-annoyances --session ID
+  webctl extract --session ID <locator flags> [--read text|value|attribute] [--attribute NAME] [--all [--limit N]] [--learn]
+  webctl list --session ID [--query TEXT] [--limit N]                    # repeated items (results, cards, rows)
+  webctl dismiss-annoyances --session ID [--force-hide]
   webctl forms --session ID
   webctl diff --session ID --before SNAPSHOT_FILE_OR_JSON
   webctl api-sniff --session ID [--duration-ms MS]
@@ -75,7 +99,7 @@ Discovery primitives (same browser session):
 Knowledge/known mode:
   webctl identify --session ID
   webctl actions --session ID
-  webctl run ACTION --session ID [--input JSON] [--confirm] [--site SITE_ID]
+  webctl run ACTION --session ID [--input JSON | --input-file FILE] [--confirm] [--site SITE_ID]
   webctl site init --id SITE_ID (--host HOST | --session ID) [--name NAME]
   webctl registry build
   webctl site validate [--id SITE_ID]
@@ -93,6 +117,9 @@ Locator flags:
   --placeholder Search
   --css "button[type=submit]"
   --exact
+  --nth N        pick the N-th visible match (0-based) when a locator is ambiguous
+  --within TEXT  only matches whose card heading / form / landmark contains TEXT
+  --timeout-ms N give up after N ms (default 5000) instead of Playwright's 30 s
 `);
 }
 
@@ -120,28 +147,38 @@ async function main() {
     }));
   }
 
-  if (a === "session" && b === "open") return print(await client.call("session.open", { url: flag("url") }));
+  if (a === "session" && b === "open") return print(await client.call("session.open", { url: flag("url"), viewport: flag("viewport"), locale: flag("locale") }));
   if (a === "session" && b === "list") return print(await client.call("session.list"));
   if (a === "session" && b === "close" && boolFlag("all")) return print(await client.call("session.closeAll"));
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
 
-  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query") }));
+  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit") }));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));
   if (a === "network" && b === "start") return print(await client.call("network.start", { sessionId: required("session") }));
   if (a === "network" && b === "stop") return print(await client.call("network.stop", { sessionId: required("session") }));
   if (a === "goto") return print(await client.call("page.goto", { sessionId: required("session"), url: required("url"), observe: boolFlag("observe") }));
-  if (a === "click") return print(await client.call("page.click", { sessionId: required("session"), locator: locatorFromFlags(), confirmed: boolFlag("confirm"), force: boolFlag("force"), observe: boolFlag("observe") }));
-  if (a === "fill") return print(await client.call("page.fill", { sessionId: required("session"), locator: locatorFromFlags(), value: required("value"), observe: boolFlag("observe") }));
+  if (a === "click") return print(await client.call("page.click", { sessionId: required("session"), ...targetFlags(), confirmed: boolFlag("confirm"), force: boolFlag("force"), observe: boolFlag("observe") }));
+  if (a === "hover") return print(await client.call("page.hover", { sessionId: required("session"), ...targetFlags(), force: boolFlag("force"), observe: boolFlag("observe"), query: flag("query") }));
+  if (a === "back") return print(await client.call("page.back", { sessionId: required("session") }));
+  if (a === "forward") return print(await client.call("page.forward", { sessionId: required("session") }));
+  if (a === "fill") {
+    // An empty --value is allowed (clears the field).
+    const value = argv.includes("--value") ? (flag("value") ?? "") : required("value");
+    return print(await client.call("page.fill", { sessionId: required("session"), ...targetFlags(), value, submit: boolFlag("submit"), observe: boolFlag("observe") }));
+  }
+  if (a === "select") return print(await client.call("page.select", { sessionId: required("session"), ...targetFlags(), option: required("option"), observe: boolFlag("observe") }));
+  if (a === "list") return print(await client.call("page.list", { sessionId: required("session"), query: flag("query"), limit: flag("limit") }));
   if (a === "press") {
     const hasLocator = ["role", "testid", "text", "label", "placeholder", "css"].some((x) => flag(x));
-    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator ? locatorFromFlags() : undefined, key: required("key"), observe: boolFlag("observe") }));
+    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator ? locatorFromFlags() : undefined, nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag(), key: required("key"), observe: boolFlag("observe") }));
   }
   if (a === "extract") return print(await client.call("page.extract", {
-    sessionId: required("session"), locator: locatorFromFlags(), read: flag("read") || "text", attribute: flag("attribute")
+    sessionId: required("session"), ...targetFlags(), read: flag("read") || "text", attribute: flag("attribute"),
+    all: boolFlag("all"), limit: flag("limit"), learn: boolFlag("learn")
   }));
 
   // Discovery tools for unknown sites
-  if (a === "dismiss-annoyances") return print(await client.call("page.dismissAnnoyances", { sessionId: required("session") }));
+  if (a === "dismiss-annoyances") return print(await client.call("page.dismissAnnoyances", { sessionId: required("session"), forceHide: boolFlag("force-hide") }));
   if (a === "forms") return print(await client.call("page.forms", { sessionId: required("session") }));
   if (a === "diff") {
     const rawBefore = required("before");
@@ -181,7 +218,7 @@ async function main() {
   if (a === "run") {
     const actionId = b;
     if (!actionId) throw new Error("Usage: webctl run ACTION --session ID");
-    const input = flag("input") ? JSON.parse(flag("input")!) : {};
+    const input = await actionInput();
     return print(await client.call("action.run", {
       sessionId: required("session"), actionId, input, confirmed: boolFlag("confirm"), siteId: flag("site")
     }));

@@ -90,7 +90,7 @@
 Equipped with 6 battle-tested primitives to handle modern dynamic web complexities (SPAs, virtual DOMs, popups, live streams):
 
 1. **`dismiss-annoyances` (Blocking Overlay Cleaner)**:
-   - Automatically clicks or DOM-purges cookie banners, newsletter modals, and transparent backdrops that intercept pointer events, instantly unlocking body scroll.
+   - Closes cookie/consent banners and popups on evidence only (accept buttons inside consent overlays, close buttons inside popups). Other overlays are reported, not hidden; `--force-hide` hides them.
 2. **`forms` (Input Form Structure Scanner)**:
    - Scans `<form>` containers to extract input names, labels, placeholders, required flags, and submit buttons in a single structured JSON schema.
 3. **`smart-scroll` (Virtual DOM Accumulator)**:

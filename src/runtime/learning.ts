@@ -83,6 +83,17 @@ export async function ensureLearningSite(config: AppConfig, page: Page, sessionI
   return { siteId, dir: path.join(config.sitesDir, siteId), created };
 }
 
+/**
+ * The site id a session's journal belongs to, without creating anything: a visit alone must not add a
+ * sites/<id>/ folder to the repository. The folder is created when knowledge is actually encoded
+ * (encodeObservedExtraction, `site init`).
+ */
+async function learningSiteId(config: AppConfig, page: Page): Promise<string> {
+  const identified = await identifySite(config, page).catch(() => null);
+  if (identified) return identified.loaded.definition.site.id;
+  return siteIdFromHost(new URL(page.url()).hostname);
+}
+
 export async function recordLearningEvent(
   config: AppConfig,
   page: Page,
@@ -90,8 +101,8 @@ export async function recordLearningEvent(
   kind: DiscoveryKind,
   details?: Record<string, unknown>,
   encodedAction?: string,
-): Promise<{ siteId: string; siteDir: string; created: boolean; pending: boolean; journal: string; eventCount: number }> {
-  const { siteId, dir, created } = await ensureLearningSite(config, page, sessionId);
+): Promise<{ siteId: string; pending: boolean; journal: string; eventCount: number }> {
+  const siteId = await learningSiteId(config, page);
   const file = journalPath(config, sessionId);
   const host = new URL(page.url()).hostname;
   const now = new Date().toISOString();
@@ -112,10 +123,7 @@ export async function recordLearningEvent(
   await fs.writeFile(file, JSON.stringify(journal, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
 
   const pending = journal.events.some((e) => !e.encodedAction && ["click", "fill", "press"].includes(e.kind));
-  return {
-    siteId, siteDir: dir, created, pending, journal: file, eventCount: journal.events.length,
-    ...(pending ? { requiredNextStep: `Reusable discovery is still unencoded. Before reporting task completion, inspect: webctl learning status --session ${sessionId}` } : {}),
-  } as any;
+  return { siteId, pending, journal: file, eventCount: journal.events.length };
 }
 
 function locatorBase(locator: any): string {

@@ -49,7 +49,7 @@ function parseArgs(args) {
 function parseLocator(flags, boolFlags) {
   const exact = boolFlags.has("exact");
   if (flags.role || flags.name) return { role: flags.role, name: flags.name, exact };
-  if (flags.testid) return { testid: flags.testid, exact };
+  if (flags.testid) return { testId: flags.testid, exact };
   if (flags.text) return { text: flags.text, exact };
   if (flags.label) return { label: flags.label, exact };
   if (flags.placeholder) return { placeholder: flags.placeholder, exact };
@@ -63,7 +63,7 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
   if (a === "health") return { method: "health", params: {} };
   if (a === "browser" && b === "status") return { method: "browser.status", params: {} };
 
-  if (a === "session" && b === "open") return { method: "session.open", params: { url: flags.url } };
+  if (a === "session" && b === "open") return { method: "session.open", params: { url: flags.url, viewport: flags.viewport, locale: flags.locale } };
   if (a === "session" && b === "list") return { method: "session.list", params: {} };
   if (a === "session" && b === "close") {
     if (boolFlags.has("all")) return { method: "session.closeAll", params: {} };
@@ -71,7 +71,27 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
   }
 
   if (a === "snapshot" && flags.session) {
-    return { method: "page.snapshot", params: { sessionId: flags.session, save: boolFlags.has("save"), query: flags.query } };
+    return { method: "page.snapshot", params: { sessionId: flags.session, save: boolFlags.has("save"), query: flags.query, limit: flags.limit } };
+  }
+
+  if (a === "hover" && flags.session) {
+    return {
+      method: "page.hover",
+      params: {
+        sessionId: flags.session,
+        locator: parseLocator(flags, boolFlags),
+        nth: flags.nth !== undefined ? Number(flags.nth) : undefined,
+        within: flags.within,
+        timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
+        force: boolFlags.has("force"),
+        observe: boolFlags.has("observe"),
+        query: flags.query,
+      },
+    };
+  }
+
+  if ((a === "back" || a === "forward") && flags.session) {
+    return { method: a === "back" ? "page.back" : "page.forward", params: { sessionId: flags.session } };
   }
 
   if (a === "screenshot" && flags.session) {
@@ -88,11 +108,33 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
       params: {
         sessionId: flags.session,
         locator: parseLocator(flags, boolFlags),
+        nth: flags.nth !== undefined ? Number(flags.nth) : undefined,
+        within: flags.within,
+        timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
         confirmed: boolFlags.has("confirm"),
         force: boolFlags.has("force"),
         observe: boolFlags.has("observe"),
       },
     };
+  }
+
+  if (a === "select" && flags.session && flags.option !== undefined) {
+    return {
+      method: "page.select",
+      params: {
+        sessionId: flags.session,
+        locator: parseLocator(flags, boolFlags),
+        nth: flags.nth !== undefined ? Number(flags.nth) : undefined,
+        within: flags.within,
+        timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
+        option: flags.option,
+        observe: boolFlags.has("observe"),
+      },
+    };
+  }
+
+  if (a === "list" && flags.session) {
+    return { method: "page.list", params: { sessionId: flags.session, query: flags.query, limit: flags.limit } };
   }
 
   if (a === "fill" && flags.session && flags.value !== undefined) {
@@ -101,7 +143,11 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
       params: {
         sessionId: flags.session,
         locator: parseLocator(flags, boolFlags),
+        nth: flags.nth !== undefined ? Number(flags.nth) : undefined,
+        within: flags.within,
+        timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
         value: flags.value,
+        submit: boolFlags.has("submit"),
         observe: boolFlags.has("observe"),
       },
     };
@@ -113,6 +159,9 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
       params: {
         sessionId: flags.session,
         locator: parseLocator(flags, boolFlags),
+        nth: flags.nth !== undefined ? Number(flags.nth) : undefined,
+        within: flags.within,
+        timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
         key: flags.key,
         observe: boolFlags.has("observe"),
       },
@@ -125,8 +174,14 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
       params: {
         sessionId: flags.session,
         locator: parseLocator(flags, boolFlags),
+        nth: flags.nth !== undefined ? Number(flags.nth) : undefined,
+        within: flags.within,
+        timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
         read: flags.read || "text",
         attribute: flags.attribute,
+        all: boolFlags.has("all"),
+        limit: flags.limit,
+        learn: boolFlags.has("learn"),
       },
     };
   }
@@ -136,11 +191,11 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
   }
 
   if (a === "dismiss-annoyances" && flags.session) {
-    return { method: "page.dismissAnnoyances", params: { sessionId: flags.session } };
+    return { method: "page.dismissAnnoyances", params: { sessionId: flags.session, forceHide: boolFlags.has("force-hide") } };
   }
 
   if (a === "wait-idle" && flags.session) {
-    return { method: "page.waitIdle", params: { sessionId: flags.session, timeoutMs: flags["timeout-ms"] ? Number(flags["timeout-ms"]) : undefined } };
+    return { method: "page.waitForIdle", params: { sessionId: flags.session, timeoutMs: flags["timeout-ms"] ? Number(flags["timeout-ms"]) : undefined } };
   }
 
   if (a === "scroll" && flags.session) {

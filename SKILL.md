@@ -101,16 +101,17 @@ webctl browser reveal               # open a visible window (login/CAPTCHA/help 
 webctl browser hide                 # back to headless (the default)
 
 # --- sessions -----------------------------------------------------------
-webctl session open [--url URL]
+webctl session open [--url URL] [--viewport 1440x900] [--locale en-US]   # headless window is 1440x900 by default
 webctl session list
 webctl session close --session ID
 webctl session close --all           # close every open tab (cleanup sweep)
 
 # --- look at the page (read-only, always safe) --------------------------
-webctl snapshot --session ID [--save] [--query "검색어"]   # live DOM elements (optional keyword filter)
+webctl snapshot --session ID [--save] [--query "검색어"] [--limit N]   # live DOM elements (incl. shadow DOM); --query searches the whole page, best matches first
+webctl list --session ID [--query TEXT] [--limit N]   # read repeated items (search results, cards, rows): title, href, text
 webctl screenshot --session ID [--full-page]
 webctl dismiss-annoyances --session ID     # auto-close cookie banners, modals & popups
-webctl wait-idle --session ID              # wait for dynamic SPA rendering & network to settle
+webctl wait-idle --session ID              # wait until the DOM stops changing (actions already settle by themselves)
 webctl wait-for --session ID (--text "..." | --css "...") [--timeout-ms 5000] # wait until specific element appears
 webctl forms --session ID                  # analyze all forms, inputs, and submit buttons
 webctl diff --session ID --before FILE     # compare before/after snapshot to detect changes & errors
@@ -121,11 +122,18 @@ webctl eval --session ID --expr "JS..."    # evaluate JavaScript & extract struc
 
 # --- act on the page ----------------------------------------------------
 webctl goto    --session ID --url URL
-webctl click   --session ID <locator> [--confirm]
-webctl fill    --session ID <locator> --value TEXT
+webctl click   --session ID <locator> [--confirm] [--force] [--observe]
+webctl hover   --session ID <locator> [--observe] [--query TEXT]   # open hover menus / collapsed sub-lists
+webctl back    --session ID      # history back (Alt+Arrow keys do nothing in headless Chrome)
+webctl forward --session ID
+webctl fill    --session ID <locator> --value TEXT [--submit]   # reads the value back (valueMatches; tokenized for chip inputs)
+# --submit (Enter) submits the field's whole form: with several forms on a page (header search + advanced form),
+# fill the field of the form you mean, or click that form's own submit button.
+webctl select  --session ID <locator> --option "Text"           # <select> or custom dropdown, by option text (partial ok if unique)
 webctl press   --session ID [<locator>] --key Enter
 webctl scroll  --session ID [--direction down|up] [--distance 800] [--times 3] [--selector CSS] # trigger infinite scroll / lazy loading
-webctl extract --session ID <locator> [--read text|value|attribute] [--attribute href]
+webctl extract --session ID <locator> [--read text|value|attribute] [--attribute href] [--all [--limit N]] [--learn]
+# --all: values of every visible match, in order. --learn: also encode the read as site knowledge.
 
 # --- hyper core tools (고급 특화 도구) --------------------------------
 node <skill>/scripts/tools.mjs user-intervene --reason "..." [--until-url URL] [--until-text TEXT]  # 캡차/로그인 인간 개입 요청 및 완료 대기
@@ -136,7 +144,8 @@ node <skill>/scripts/tools.mjs download --url URL [--out PATH]                  
 # --- known-site execution ----------------------------------------------
 webctl identify --session ID
 webctl actions  --session ID
-webctl run ACTION_ID --session ID [--input '{"key":"value"}'] [--confirm] [--site SITE_ID]
+webctl run ACTION_ID --session ID [--input '{"key":"value"}' | --input-file input.json] [--confirm] [--site SITE_ID]
+# PowerShell strips the inner quotes of --input JSON; use --input-file there.
 
 # --- knowledge ----------------------------------------------------------
 webctl site init --id SITE_ID (--host HOST | --session ID) [--name NAME]
@@ -158,6 +167,58 @@ webctl metrics summary
 ```
 
 Prefer them in that order. `--css` breaks when the site restyles; `--role` usually does not.
+
+Add `--within "<text>"` to keep only matches whose card heading, form or landmark contains that text
+(e.g. `click --role link --name Repository --within serde_json`). `--nth N` picks among visible matches.
+
+How a locator resolves (nothing is done unless it resolves to one element):
+- several visible matches, but exactly one has exactly that name/label/text → that one (`resolvedBy: "exact"`;
+  `--label "These words"` no longer means "Not these words"); all links to the same href → one target
+  (`resolvedBy: "same-href"`);
+- otherwise `ambiguous: true` with `candidates` (`nth`, `role`, `name`, `label`, `placeholder`, `href`, `value`,
+  `context` = heading / form / landmark) → re-run with `--nth N` or `--within`;
+- only hidden matches → `reason: "hidden_only"` with `alternatives` (visible elements with the same words, each with
+  ready-to-use flags in `use`); nothing at all → `reason: "no_match"` with `suggestions`. Roles in snapshot are the
+  implicit ones too (input type=search → `searchbox`, select → `combobox`), so `--role` can be copied from it.
+
+Actions give up after 5 s (`--timeout-ms N`) and say why: `reason` is `wrong_element` (e.g. fill on a <select>:
+use `select`), `intercepted` (with `interceptedBy`), `blocked_by_overlay` (an open panel/dialog/backdrop covers the
+page: finish or close it, or press Escape), `not_visible`, `not_stable`, `clipped`, `disabled`, `outside_viewport`
+or `timeout`, plus `log` (Playwright's last steps). A target cut off by a scrolling container is scrolled into view
+automatically; one inside a collapsed container is refused even with `--force` (`clipped`: hover or open its parent).
+`hover` leaves the pointer there, so a following click on the revealed item works.
+
+Every action waits for the page to settle and returns `effect`: `urlChanged` (+ `status`, new `title`, `h1`,
+`blocked` when the new page is a bot check), `targetChanged`, `targetGone`, and `page` = changes elsewhere
+(`valueChanges`, `stateChanges`, dialogs/menus `opened`/`closed`, `interactiveDelta`, `appeared`/`disappeared` button and
+link names — a renamed control shows in both). `session open`/`goto` report `status`; `interstitial: "passed"` means a
+bot check showed first and the real page followed (the status is the check's, e.g. 403). `observed: false` means
+nothing visible changed. Every response has `durationMs`.
+
+`snapshot` (open shadow roots included) gives `viewport`, `open` (visible dialogs/menus/listboxes), and elements with:
+- state when present: `checked`, `selected`, `selectedText`, `expanded`, `pressed`, `disabled`; `value` of text
+  fields (not secrets); `popup` (what it opens); `hint` = the words just before a control ("Sort by:");
+- custom checkboxes whose real input is hidden appear as their visible `label`, carrying that input's `checked`;
+- `transparent: true` = an invisible control lying on top of its look — that is the element to click;
+- `clipped: true` = cut off by a collapsed container (hover/open its parent); `clipped: "scroll"` = inside a scrolling
+  box (actions scroll to it);
+- `context` = the card/section heading, on elements whose role+name repeats on the page;
+- containers (elements holding other controls) have no text name, so `--query` hits the control, not the wrapper.
+With `--query`: best matches first (exact name > starts with > contains; a repeated link also matches by its card
+heading), `hidden` = matching controls that exist but are hidden (+ `openWith`: what probably reveals them), and
+`textHits` = plain text matches (status lines like "489 items", span/div buttons) with a ready `use` locator.
+`headings` are left out when you pass --query. `omitted` says how many matches were cut by the limit, per section. When nothing matches, `collapsed` lists closed
+`<details>` and collapsed toggles (with `use` flags): many sites render a panel's controls only once it is opened, so
+open the likely one and query again. A `<summary>` has no role usable with `--role`; click it by `--text`. An empty list comes with `diagnostics`;
+`blocked` appears when the page is a bot-verification wall (stop, or ask the user with `browser reveal`).
+`diff` lists `stateChanges` (e.g. checked false → true). `forms` (also inside shadow DOM) adds `group` (fieldset
+legend), `selectedText`, `checked`, custom comboboxes (`role: "combobox"`) and `hidden: true` for hidden fields;
+secret fields (password, card, one-time code) show `[HIDDEN]`.
+
+Learning bookkeeping: action responses only carry `learning_pending`; details are in `webctl learning status`.
+Visiting a site no longer creates `sites/<site>/`; it is created when you encode knowledge (`site init`,
+`extract --learn`). `identify` reports `known: true` only when the site has actions/URL templates/extractors, and
+lists its actions.
 
 ## 3. Known site
 
@@ -253,6 +314,10 @@ Web automation scripts frequently hang in a "Running" state for 30–60+ seconds
    - On major portals and global websites (Google, Naver, news sites, cookie-consent GDPR gates), translucent banners and bottom cookie bars intercept pointer events.
    - Even if the target element is fully visible, Playwright will hang for 30s waiting for the intercepting overlay to disappear.
    - **Rule**: ALWAYS run `webctl dismiss-annoyances --session <id>` immediately after opening a session or before interacting with dropdowns and buttons. Removing obstructive overlays at the outset allows clicks to register in under 1 second without retry loops.
+   - It acts only on evidence: accept buttons inside cookie/consent overlays, close buttons inside popups/dialogs
+     (not dialogs holding filled fields). Other keyword-matched overlays are listed in `overlays`, not hidden;
+     buttons it refused are listed in `skipped`. If a listed overlay still blocks clicks, re-run with `--force-hide`
+     or click with `--force`.
 
 6. **Mandatory CDP Disconnect & `process.exit(0)` (Anti-Hang Execution)**:
    - Scripts connecting over CDP (`playwright.chromium.connectOverCDP`) will keep Node.js event loops alive indefinitely via the open WebSocket connection if not explicitly disconnected.

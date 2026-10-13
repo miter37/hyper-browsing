@@ -753,7 +753,8 @@ export class ChromeManager {
       "--disk-cache-size=33554432",
       "about:blank",
     ];
-    if (headless) args.unshift("--headless=new");
+    if (headless) args.unshift("--headless=new", "--window-size=" + this.config.windowSize);
+    if (this.config.lang) args.unshift("--lang=" + this.config.lang, "--accept-lang=" + this.config.lang);
 
     const launchCwd = profile.userDataDir;
 
