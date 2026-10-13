@@ -4,8 +4,10 @@ import type { Page } from "playwright";
 import type { AppConfig } from "../config";
 import { redactText } from "../utils/strings";
 import { DEEP_WALK_JS, detectBlock, type BlockInfo } from "../engine/page-state";
+import { REFERENCE_GUARD, type ElementReferences } from "./references";
 
 export interface SnapshotElement {
+  ref?: string;
   tag: string;
   // Explicit role, or the implicit one from the tag/type (input type=search -> searchbox), usable with --role.
   role?: string;
@@ -373,6 +375,17 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       href: cleanStr(el.getAttribute("href")),
       ...(hiddenControl ? stateOf(hiddenControl, "input") : stateOf(el, tag)),
     };
+    if (opts.refs) {
+      const guard = (${REFERENCE_GUARD})(el);
+      let saved = opts.refs.ids.get(el);
+      if (!saved || saved.guard !== guard) {
+        if (opts.refs.next > opts.refs.max) throw new Error('Reference quota reached; open a new task session');
+        saved = {id:opts.refs.next++,guard}; opts.refs.ids.set(el,saved);
+      }
+      entry.ref = '@e' + saved.id;
+      entry._node = el;
+      entry._guard = guard;
+    }
     if ((tag === "input" && !/checkbox|radio|button|submit|reset|image|file|hidden/.test(el.type)) || tag === "textarea") {
       if (!secret(el) && el.value) entry.value = String(el.value).slice(0, 60);
     }
@@ -485,19 +498,42 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { query?: string; selector?: string; limit?: number } = {}
+  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
-  const opts = JSON.stringify({ query: options.query || "", limit });
-  let data: any = await page.evaluate(`(${SNAPSHOT_SCRIPT})(${opts})`);
+  const opts = { query: options.query || "", limit };
+  const capture = async (): Promise<any> => {
+    if (!options.references) return page.evaluate(`(${SNAPSHOT_SCRIPT})(${JSON.stringify(opts)})`);
+    const state = await options.references.snapshotState();
+    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts, refs: state.state } });
+    try {
+      const data: any = await result.evaluate((data: any) => ({ ...data, elements: data.elements.map(({ _node, ...metadata }: any) => metadata) }));
+      const array = await result.getProperty("elements");
+      const items = await array.getProperties();
+      for (const [index, item] of items) {
+        if (!/^\d+$/.test(index)) { await item.dispose(); continue; }
+        const raw = data.elements[Number(index)];
+        const node = await item.getProperty("_node");
+        const element = node.asElement();
+        if (element && raw?.ref) {
+          const { _node, _guard, ...metadata } = raw;
+          options.references.retain(raw.ref, element as any, _guard, metadata, state.generation);
+        } else await node.dispose();
+        await item.dispose();
+      }
+      await array.dispose();
+      return data;
+    } finally { await result.dispose(); }
+  };
+  let data: any = await capture();
   // Nothing yet right after a navigation: give the page a moment to render once.
   if (!data.elements?.length && !options.query && data.diagnostics?.readyState !== "complete") {
     await page.waitForLoadState("load", { timeout: 3000 }).catch(() => {});
-    data = await page.evaluate(`(${SNAPSHOT_SCRIPT})(${opts})`);
+    data = await capture();
   }
 
-  const elements = (data.elements || []).map((e: any) => ({
+  const elements = (data.elements || []).map(({ _node, _guard, ...e }: any) => ({
     ...e,
     name: e.name ? redactText(e.name) : undefined,
     text: e.text ? redactText(e.text) : undefined,

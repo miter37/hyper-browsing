@@ -7,6 +7,8 @@ export const irreversible = /(delete|destroy|remove_account|close_account|erase|
 export const externalWrite = /(pay|purchase|buy|submit|send|post|comment|invite|refund|transfer|publish|permission|grant|revoke|status|update|edit|save)/i;
 
 export function effectiveRisk(actionId: string, action: ActionDefinition): Risk {
+  // A declarative extraction has no state-changing steps; names like account_status do not make it a write.
+  if (action.risk === "read" && action.implementation.kind === "declarative" && action.implementation.steps.length === 0 && action.returns?.extractor && !action.variants) return "read";
   let inferred: Risk = "read";
   const haystack = [actionId];
   if (action.implementation.kind === "declarative") {

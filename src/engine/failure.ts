@@ -1,7 +1,8 @@
-export type FailureClass = "timeout" | "auth" | "blocking" | "network" | "locator" | "unknown";
+export type FailureClass = "timeout" | "auth" | "blocking" | "network" | "locator" | "structure" | "unknown";
 
 export function classifyError(error: unknown): FailureClass {
   const msg = String((error as any)?.message || error).toLowerCase();
+  if (msg.includes("missing code action export") || msg.includes("unknown url template")) return "structure";
   if (msg.includes("timeout")) return "timeout";
   if (msg.includes("captcha") || msg.includes("blocked") || msg.includes("rate limit")) return "blocking";
   if (msg.includes("net::") || msg.includes("network") || msg.includes("connection")) return "network";

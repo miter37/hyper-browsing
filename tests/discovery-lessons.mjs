@@ -4,6 +4,7 @@
 //   3. dismiss-annoyances acts only on consent/popup evidence and hides overlays only with consent text or forceHide
 // Run: npx tsx tests/discovery-lessons.mjs   (PW_CHROMIUM_PATH=<chrome.exe> to use an existing Chromium build)
 import { chromium } from "playwright";
+import { browserOptions } from './browser-options.mjs';
 import { resolveUnique } from "../src/engine/locators.ts";
 import { captureSnapshot } from "../src/runtime/snapshot.ts";
 import { compareSnapshots, dismissAnnoyances, listItems } from "../src/runtime/discovery-tools.ts";
@@ -48,7 +49,7 @@ const ANNOYANCES = `
 </div>
 <div class="modal-backdrop" style="position:fixed;left:0;top:300px;width:200px;height:50px;opacity:.3;background:#000"></div>`;
 
-const browser = await chromium.launch({ headless: true, executablePath: process.env.PW_CHROMIUM_PATH || undefined });
+const browser = await chromium.launch(browserOptions());
 try {
   const page = await browser.newPage();
 

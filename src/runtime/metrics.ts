@@ -15,6 +15,8 @@ export interface MetricEvent {
   durationMs: number;
   failureClass?: string;
   error?: string;
+  revision?: string;
+  semanticVerified?: boolean;
 }
 
 function metricsPath(config: AppConfig): string {
@@ -35,9 +37,9 @@ export async function readMetrics(config: AppConfig): Promise<MetricEvent[]> {
   }
 }
 
-export async function evidenceFor(config: AppConfig, site: string, action: string, variant: string) {
-  const events = (await readMetrics(config)).filter((e) => e.site === site && e.action === action && e.variant === variant);
-  const successes = events.filter((e) => e.ok && e.verified === "APPLIED");
+export async function evidenceFor(config: AppConfig, site: string, action: string, variant: string, revision?: string) {
+  const events = (await readMetrics(config)).filter((e) => e.site === site && e.action === action && e.variant === variant && (!revision || e.revision === revision));
+  const successes = events.filter((e) => e.ok && e.verified === "APPLIED" && (!revision || e.semanticVerified === true));
   const failures = events.filter((e) => !e.ok);
   const lastSuccess = successes.at(-1)?.timestamp;
   let freshness: "never" | "fresh" | "aging" | "stale" = "never";

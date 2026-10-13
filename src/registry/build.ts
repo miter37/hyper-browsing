@@ -4,8 +4,10 @@ import YAML from "yaml";
 import { SiteSchema } from "../schema/site";
 import type { AppConfig } from "../config";
 import type { RegistryFile } from "./types";
+import { serial, writeJson } from "../runtime/learning-policy";
 
 export async function buildRegistry(config: AppConfig): Promise<RegistryFile> {
+  return serial(path.join(config.generatedDir, "target_sites.json"), async () => {
   await fs.mkdir(config.sitesDir, { recursive: true });
   await fs.mkdir(config.generatedDir, { recursive: true });
   const dirents = await fs.readdir(config.sitesDir, { withFileTypes: true });
@@ -35,6 +37,7 @@ export async function buildRegistry(config: AppConfig): Promise<RegistryFile> {
     entries: entries.sort((a, b) => a.id.localeCompare(b.id)),
   };
   const target = path.join(config.generatedDir, "target_sites.json");
-  await fs.writeFile(target, JSON.stringify(registry, null, 2) + "\n", "utf8");
+  await writeJson(target, registry);
   return registry;
+  });
 }

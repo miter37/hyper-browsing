@@ -2,6 +2,9 @@ import type { Locator, Page, Response } from "playwright";
 import type { LocatorStrategy } from "../schema/site";
 import { resolveUnique, type UniqueResolution } from "./locators";
 import { detectBlock, diffProbe, probePage, settle } from "./page-state";
+import { referencesFor, type ActionTarget } from "../runtime/references";
+import { resolveElement, LocatorResolutionError } from "./locators";
+import type { ElementDefinition } from "../schema/site";
 
 /** Agent-driven actions fail fast instead of Playwright's 30 s default; `--timeout-ms` overrides. */
 export const DEFAULT_ACTION_TIMEOUT_MS = 5000;
@@ -80,7 +83,7 @@ const inspectTarget = (el: Element) => {
   };
 };
 
-async function readTarget(page: Page, locator: Locator): Promise<TargetState> {
+async function readTarget(page: Page, locator: ActionTarget): Promise<TargetState> {
   const url = page.url();
   if ((await locator.count().catch(() => 0)) === 0) return { url, attached: false };
   const info = await locator.evaluate(inspectTarget, undefined, { timeout: 1000 }).catch(() => null);
@@ -180,7 +183,9 @@ export function unresolvedResult(target: Exclude<UniqueResolution, { locator: Lo
 }
 
 export interface ActParams {
-  locator: LocatorStrategy;
+  locator?: LocatorStrategy;
+  ref?: string;
+  element?: ElementDefinition;
   nth?: number;
   within?: string;
   timeoutMs?: number;
@@ -214,11 +219,30 @@ export async function actOn<T>(
   page: Page,
   kind: ActionKind,
   params: ActParams,
-  act: (locator: Locator, timeoutMs: number) => Promise<T>,
+  act: (locator: ActionTarget, timeoutMs: number) => Promise<T>,
 ): Promise<Record<string, any>> {
   const timeoutMs = Number(params.timeoutMs) > 0 ? Number(params.timeoutMs) : DEFAULT_ACTION_TIMEOUT_MS;
-  const target = await resolveUnique(page, params.locator, params.nth, timeoutMs, params.within);
-  if (!("locator" in target)) return unresolvedResult(target);
+  let target: { locator: ActionTarget; resolvedBy?: string; equivalentMatches?: number };
+  if (params.element) {
+    if (params.ref || params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
+    try { target = { locator: await resolveElement(page, params.element) }; }
+    catch (error) {
+      if (error instanceof LocatorResolutionError && !("locator" in error.result)) return { ...unresolvedResult(error.result), reason: "ambiguous" in error.result ? "ambiguous" : "hiddenOnly" in error.result ? "hidden_only" : "no_match", execution: "not_started" };
+      throw error;
+    }
+  } else if (params.ref) {
+    if (params.locator || params.nth !== undefined || params.within) return { ok: false, reason: "invalid_target", execution: "not_started" };
+    const pinned = await referencesFor(page).resolve(params.ref);
+    if (!("locator" in pinned)) return pinned;
+    target = pinned;
+  } else {
+    if (!params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
+    let resolved;
+    try { resolved = await resolveUnique(page, params.locator, params.nth, timeoutMs, params.within || params.locator.within); }
+    catch (error: any) { return { ok: false, reason: "invalid_target", execution: "not_started", error: error.message }; }
+    if (!("locator" in resolved)) return { ...unresolvedResult(resolved), reason: "ambiguous" in resolved ? "ambiguous" : "hiddenOnly" in resolved ? "hidden_only" : "no_match", execution: "not_started" };
+    target = resolved;
+  }
   const resolved = target.resolvedBy ? { resolvedBy: target.resolvedBy, equivalentMatches: target.equivalentMatches } : {};
 
   let before = await readTarget(page, target.locator);
@@ -247,6 +271,7 @@ export async function actOn<T>(
     return {
       ok: false,
       reason: "clipped",
+      execution: "not_started",
       ...resolved,
       collapsedUnder,
       hint: "The target is inside a collapsed container (zero visible area), so it cannot be clicked where it is drawn. " +
@@ -264,7 +289,7 @@ export async function actOn<T>(
     value = await act(target.locator, timeoutMs);
   } catch (error) {
     nav.stop();
-    const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved };
+    const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: "outcome_unknown" };
     if (failure.reason === "intercepted" || failure.reason === "timeout") {
       // Is a large overlay (open panel's scrim, modal) covering the target?
       const cover = await target.locator.evaluate((el) => {
@@ -285,7 +310,7 @@ export async function actOn<T>(
     }
     return failure;
   }
-  if (kind === "extract") { nav.stop(); return { ok: true, value, ...resolved }; }
+  if (kind === "extract") { nav.stop(); return { ok: true, value, ...resolved, execution: "completed" }; }
 
   await settle(page, { quietMs: 300, maxMs: 1500 });
   if (page.url() !== before.url) await page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => {});
@@ -329,24 +354,22 @@ export async function actOn<T>(
   const warning = !effect.observed && params.force
     ? "Forced action reported no observed effect (URL, target and page unchanged). Verify with snapshot before assuming it worked."
     : undefined;
-  return { ok: true, value, effect, warning, ...resolved };
+  return { ok: true, value, effect, warning, ...resolved, execution: "completed" };
 }
 
 /** Selects an option of a native <select> by visible text (then by value), or of a custom combobox by clicking it open. */
-export async function chooseOption(page: Page, locator: Locator, option: string, timeoutMs: number): Promise<string> {
+export async function chooseOption(page: Page, locator: ActionTarget, option: string, timeoutMs: number): Promise<string> {
   const tag = await locator.evaluate((el) => el.tagName).catch(() => "");
   if (tag === "SELECT") {
-    const chosen = await locator.selectOption({ label: option }, { timeout: timeoutMs })
-      .catch(() => locator.selectOption(option, { timeout: timeoutMs }))
-      .catch(async () => {
-        // Partial text ("DC" for "DC - District of Columbia"): pick the single option that starts with / contains it.
-        const labels = await locator.evaluate((el) => Array.from((el as HTMLSelectElement).options).map((o) => (o.textContent || "").trim()));
-        const lower = option.toLowerCase();
-        const starts = labels.filter((l) => l.toLowerCase().startsWith(lower));
-        const pool = starts.length ? starts : labels.filter((l) => l.toLowerCase().includes(lower));
-        if (pool.length !== 1) throw new Error(`No single option matches "${option}". Options: ${labels.slice(0, 30).join(" | ")}`);
-        return locator.selectOption({ label: pool[0] }, { timeout: timeoutMs });
-      });
+    const options = await locator.evaluate(el => Array.from((el as HTMLSelectElement).options).map(o => ({ label: (o.textContent || "").trim(), value: o.value })));
+    const labels = options.filter(o => o.label === option);
+    const values = options.filter(o => o.value === option);
+    const starts = options.filter(o => o.label.toLowerCase().startsWith(option.toLowerCase()));
+    const matches = labels.length ? labels : values.length ? values : starts.length ? starts : options.filter(o => o.label.toLowerCase().includes(option.toLowerCase()));
+    if (matches.length !== 1) throw new Error(`Ambiguous or missing option: ${option}`);
+    // Value is used only when it too identifies a single option; otherwise use its unique label.
+    const selected = matches[0];
+    const chosen = await locator.selectOption(options.filter(o => o.value === selected.value).length === 1 ? { value: selected.value } : { label: selected.label }, { timeout: timeoutMs });
     // Report the chosen option's visible text ("Two"), not its value attribute ("2").
     return locator.evaluate((el) => Array.from((el as HTMLSelectElement).selectedOptions).map((o) => (o.textContent || "").trim()).join(", "))
       .catch(() => chosen.join(", "));
@@ -362,10 +385,11 @@ export async function chooseOption(page: Page, locator: Locator, option: string,
   ];
   for (const pool of pools) {
     const vis = pool.filter({ visible: true });
-    if ((await vis.count()) >= 1) {
-      await vis.first().click({ timeout: timeoutMs });
+    if ((await vis.count()) === 1) {
+      await vis.click({ timeout: timeoutMs });
       return option;
     }
+    if ((await vis.count()) > 1) throw new Error(`Ambiguous option: ${option}`);
   }
   throw new Error(`Opened the dropdown but no visible option named "${option}" appeared.`);
 }
@@ -404,8 +428,8 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   if (v.kind === "choice") res.selected = v.actual;
   else if (v.actual === "" && wanted && !params.submit && outcome.effect?.page?.valueChanges === undefined) {
     // Token/chip inputs move the typed text into a chip and empty the field: look for it next to the field.
-    const target = await resolveUnique(page, params.locator, params.nth, 1000, params.within).catch(() => null);
-    const chip = target && "locator" in target
+    const target = params.element ? { locator: await resolveElement(page, params.element).catch(() => null) } : params.ref ? await referencesFor(page).resolve(params.ref) : params.locator ? await resolveUnique(page, params.locator, params.nth, 1000, params.within).catch(() => null) : null;
+    const chip = target && "locator" in target && target.locator
       ? await target.locator.evaluate((el, w) => {
         let box: Element | null = el.parentElement;
         for (let i = 0; box && i < 3; i++, box = box.parentElement) if ((box as HTMLElement).innerText?.includes(w)) return true;
@@ -427,6 +451,7 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   }
   res.effect = outcome.effect;
   res.resolvedBy = outcome.resolvedBy;
+  res.execution = outcome.execution;
   return res;
 }
 

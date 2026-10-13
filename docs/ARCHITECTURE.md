@@ -4,6 +4,18 @@
 
 ---
 
+## Current Execution Rules
+
+Direct interactions and stored declarative steps use `executePrimitive` for unique target selection, confirmation, input readback and effect reporting. Snapshot references pin live DOM handles and reject replacements, document changes and changed identifying context. Input-only batches share this layer and stop on ambiguity, mismatch or structural change without rollback. RPC requests have bounded in-memory deduplication and status lookup; uncertain responses never replay a transmitted operation. Raw Playwright code remains available for compatibility. See [execution rules](./EXECUTION.md).
+
+## Current Learning and Recovery Policy
+
+The current implementation separates task completion from optional assetization. Notes can be saved on a first task; observed actions are eligible after two independent tasks within 30 days; shallow overview runners are eligible after seven. Overviews reference existing actions and inspect the root plus at most two one-hop screens, with a 30-second budget. Automatic refresh is limited to once per seven days when knowledge changes. Existing workflow runners remain legacy assets, not the default unverified fast path.
+
+Broken asset revisions are suspended only with structural/wrong-result evidence. The agent observes the current page, completes and verifies the user task, then repairs the smallest broken layer and validates the new revision. Environment failures and UNKNOWN verification do not prove code breakage. Repair is exempt from visit/refresh gates; writes are never replayed solely for validation. Revision-scoped evidence controls preferred reuse. See [learning and recovery](./LEARNING.md) for commands and limits. The older runner examples below illustrate retained workflow scripts, rather than an obligation to generate a full program on first use.
+
+---
+
 ## 1. System Overview & Philosophy
 
 Modern web applications present severe roadblocks to traditional, sandboxed automation engines (e.g. headless Puppeteer, isolated Playwright runners, curl/fetch scrapers):

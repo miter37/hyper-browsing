@@ -197,14 +197,22 @@ export async function resolveUnique(
 }
 
 export async function resolveElement(page: Page, element: ElementDefinition): Promise<Locator> {
-  let last: Locator | undefined;
+  const deadline = Date.now() + 5000;
+  let last: UniqueResolution | undefined;
   for (const strategy of element.strategies) {
-    const locator = locatorFromStrategy(page, strategy).first();
-    last = locator;
-    if (await locator.count().catch(() => 0)) return locator;
+    if (!(await locatorFromStrategy(page, strategy).count())) continue;
+    const result = await resolveUnique(page, strategy, undefined, Math.max(1, deadline - Date.now()), strategy.within);
+    if ("locator" in result) return result.locator;
+    if ("ambiguous" in result) throw new LocatorResolutionError(result);
+    last = result;
   }
-  if (last) return last;
-  throw new Error("Element has no locator strategy");
+  if (!last && element.strategies.length) last = await resolveUnique(page, element.strategies[0], undefined, Math.max(1, deadline - Date.now()), element.strategies[0].within);
+  if (last && "locator" in last) return last.locator;
+  throw new LocatorResolutionError(last || { noMatch: true, suggestions: [] });
+}
+
+export class LocatorResolutionError extends Error {
+  constructor(public result: UniqueResolution) { super("Locator did not resolve uniquely"); this.name = "LocatorResolutionError"; }
 }
 
 export async function locatorFor(page: Page, site: SiteDefinition, elementId: string): Promise<Locator> {

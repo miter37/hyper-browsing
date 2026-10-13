@@ -318,9 +318,14 @@ async function main() {
   const tsx = bootstrap();
 
   // Only webctl needs the daemon; running browserd here *is* the daemon.
-  if (target === "webctl") {
+  const offline = args.length === 0 || ['help', '--help', '-h'].includes(args[0]) ||
+    (args[0] === 'learning' && ['status', 'finish'].includes(args[1])) ||
+    (args[0] === 'request' && args[1] === 'status') ||
+    (args[0] === 'site' && args[1] === 'validate') || (args[0] === 'registry' && args[1] === 'build') ||
+    ['metrics', 'baseline', 'test'].includes(args[0]);
+  if (target === "webctl" && !offline) {
     process.env.WEBAGENT_PORT = String(await ensureBrowserd());
-  } else if (!PINNED_PORT) {
+  } else if (target === "browserd" && !PINNED_PORT) {
     // Foreground daemon: claim a port and record it so webctl finds this instance.
     const port = await resolveDaemonPort();
     process.env.WEBAGENT_PORT = String(port);

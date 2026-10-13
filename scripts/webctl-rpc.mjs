@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { postRpc } from './rpc-transport.mjs';
 
 const FALLBACK_CODE = 42;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,8 +58,9 @@ function parseLocator(flags, boolFlags) {
   return undefined;
 }
 
-function mapCommandToRpc(positionals, flags, boolFlags) {
-  const [a, b] = positionals;
+function mapCommandToRpcBase(positionals, flags, boolFlags) {
+  const [a, b, c] = positionals;
+  if (a === 'request' && b === 'status' && flags.id) return { method: 'request.status', params: { requestId: flags.id } };
 
   if (a === "health") return { method: "health", params: {} };
   if (a === "browser" && b === "status") return { method: "browser.status", params: {} };
@@ -182,6 +184,7 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
         all: boolFlags.has("all"),
         limit: flags.limit,
         learn: boolFlags.has("learn"),
+        requested: boolFlags.has("requested"),
       },
     };
   }
@@ -238,55 +241,44 @@ function mapCommandToRpc(positionals, flags, boolFlags) {
   if (a === "learning" && b === "status" && flags.session) {
     return { method: "learning.status", params: { sessionId: flags.session } };
   }
+  const input = () => flags['input-file'] ? JSON.parse(fs.readFileSync(path.resolve(flags['input-file']), 'utf8')) : flags.input ? JSON.parse(flags.input) : {};
+  if (a === 'batch' && flags.session) return { method: 'batch.run', params: { sessionId: flags.session, input: input() } };
+  if (a === 'learning' && b === 'finish' && flags.session) return { method: 'learning.finish', params: { sessionId: flags.session, input: input() } };
+  if (a === 'learning' && b === 'notes' && flags.session) return { method: c === 'save' ? 'learning.notes.save' : 'learning.notes', params: { sessionId: flags.session, capability: flags.capability, input: c === 'save' ? input() : undefined } };
+  if (a === 'learning' && b === 'action' && c === 'save' && flags.session) return { method: 'learning.action.save', params: { sessionId: flags.session, input: input() } };
+  if (a === 'overview' && (b === 'save' || b === 'run') && flags.session) return { method: `overview.${b}`, params: { sessionId: flags.session, siteId: flags.site, input: b === 'save' ? input() : undefined } };
+  if (a === 'asset' && (b === 'status' || b === 'report') && c && flags.session) return { method: `asset.${b}`, params: { sessionId: flags.session, siteId: flags.site, actionId: c, reason: flags.reason } };
+  if (a === 'run' && b && flags.session) return { method: 'action.run', params: { sessionId: flags.session, actionId: b, siteId: flags.site, input: input(), confirmed: boolFlags.has('confirm') } };
 
   // Not a fast-path RPC command
   return null;
 }
+export function mapCommandToRpc(positionals, flags, boolFlags) {
+  const rpc = mapCommandToRpcBase(positionals, flags, boolFlags);
+  if (rpc && flags.ref) {
+    if (!['page.click','page.hover','page.fill','page.select','page.press','page.extract'].includes(rpc.method)) throw new Error('This command does not accept --ref');
+    if (['role','testid','text','label','placeholder','css','nth','within'].some(k=>flags[k]!==undefined) || boolFlags.has('all')) throw new Error('Use --ref alone; references cannot be indexed, scoped, or extracted with --all');
+    rpc.params.ref = flags.ref; rpc.params.locator = undefined;
+  }
+  return rpc;
+}
 
 async function main() {
-  const creds = getEndpointAndToken();
-  if (!creds) process.exit(FALLBACK_CODE);
-
   const { positionals, flags, boolFlags } = parseArgs(process.argv.slice(2));
   const rpc = mapCommandToRpc(positionals, flags, boolFlags);
   if (!rpc) process.exit(FALLBACK_CODE);
-
-  let requestStarted = false;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 35000);
-
-  try {
-    requestStarted = true;
-    const res = await fetch(`http://127.0.0.1:${creds.port}/rpc`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${creds.token}`,
-      },
-      body: JSON.stringify(rpc),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timer);
-    const body = await res.json();
-    if (!res.ok || (body && body.ok === false)) {
-      process.stdout.write(JSON.stringify(body, null, 2) + "\n");
-      process.exit(1);
-    }
-
-    const output = body.result !== undefined ? body.result : body;
-    process.stdout.write(JSON.stringify(output, null, 2) + "\n");
-    process.exit(0);
-  } catch (err) {
-    clearTimeout(timer);
-    // Write-duplication guard: If the request was in flight, do NOT blindly fallback to launcher
-    if (requestStarted && err.name !== "AbortError" && !err.cause?.code?.includes("ECONNREFUSED")) {
-      process.stderr.write(JSON.stringify({ ok: false, error: "Fast RPC failed after request transmission: " + err.message }, null, 2) + "\n");
-      process.exit(1);
-    }
-    // Daemon unreachable before send -> fallback to launcher
-    process.exit(FALLBACK_CODE);
+  rpc.params.verbose = boolFlags.has('verbose');
+  const creds = getEndpointAndToken();
+  if (!creds) {
+    if (rpc.method !== 'request.status') process.exit(FALLBACK_CODE);
+    console.log(JSON.stringify({ok:false,state:'unknown',execution:'outcome_unknown',hint:'Daemon unavailable; observe the page rather than resending.'})); process.exit(1);
   }
+  const response = await postRpc({endpoint:`http://127.0.0.1:${creds.port}`,token:creds.token,...rpc});
+  if (response.fallbackAllowed && rpc.method !== 'request.status') process.exit(FALLBACK_CODE);
+  process.stdout.write(JSON.stringify(response.result,null,2)+'\n');
+  process.exit(!response.rpcOk || response.result?.ok === false ? 1 : 0);
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => {
+  console.error(JSON.stringify({ ok: false, error: error.message })); process.exitCode = 1;
+});

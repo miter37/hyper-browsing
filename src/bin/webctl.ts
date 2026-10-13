@@ -11,6 +11,8 @@ import { detectStateOffline } from "../engine/offline";
 import { validateSites } from "../site-validate";
 import { recordBaseline, baselineSummary } from "../runtime/baseline";
 import type { PageSnapshot } from "../runtime/snapshot";
+import { finishLearning } from "../runtime/learning-policy";
+import { learningStatus } from "../runtime/learning";
 
 const config = getConfig();
 const client = new BrowserdClient(config);
@@ -27,6 +29,11 @@ function required(name: string): string {
   return v;
 }
 function locatorFromFlags() {
+  const ref = flag("ref");
+  if (ref) {
+    if (["role", "testid", "text", "label", "placeholder", "css", "nth", "within"].some(x => flag(x) !== undefined) || boolFlag("all")) throw new Error("Use --ref alone; do not index/scope it or combine with --all");
+    return undefined;
+  }
   const role = flag("role");
   const name = flag("name");
   const testId = flag("testid");
@@ -44,7 +51,7 @@ function nthFlag(): number | undefined {
 }
 // Common to click/hover/fill/select/press/extract: which match, within which section, how long to wait.
 function targetFlags() {
-  return { locator: locatorFromFlags(), nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag() };
+  return { locator: locatorFromFlags(), ref: flag("ref"), nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag() };
 }
 function timeoutFlag(): number | undefined {
   const v = flag("timeout-ms");
@@ -57,7 +64,10 @@ async function actionInput(): Promise<Record<string, unknown>> {
   const raw = flag("input");
   return raw ? JSON.parse(raw) : {};
 }
-function print(value: unknown) { process.stdout.write(JSON.stringify(value, null, 2) + "\n"); }
+function print(value: unknown) {
+  process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+  if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
+}
 
 function help() {
   console.log(`Adaptive Web Agent CLI
@@ -104,12 +114,23 @@ Knowledge/known mode:
   webctl registry build
   webctl site validate [--id SITE_ID]
   webctl learning status --session ID
+  webctl learning finish --session ID --input-file FILE
+  webctl learning notes --session ID [--capability NAME]
+  webctl learning notes save --session ID --input-file FILE
+  webctl learning action save --session ID --input-file FILE
+  webctl overview save --session ID --input-file FILE
+  webctl overview run --session ID --site SITE_ID
+  webctl asset status ACTION --session ID [--site SITE_ID]
+  webctl asset report ACTION --session ID --reason wrong_result|structure|locator [--site SITE_ID]
   webctl metrics summary
   webctl baseline record --task NAME --duration-ms N --success true|false [--site SITE] [--llm-calls N] [--browser-actions N] [--notes TEXT]
   webctl baseline summary
+  webctl batch --session ID --input-file commands.json
+  webctl request status --id REQUEST_ID [--verbose]
   webctl test snapshot --site SITE_ID --file SNAPSHOT_JSON
 
 Locator flags:
+  --ref @e27    current observed element; never combine with locator flags or persist as site knowledge
   --role button --name Save
   --testid save-button
   --text "Save changes"
@@ -120,6 +141,7 @@ Locator flags:
   --nth N        pick the N-th visible match (0-based) when a locator is ambiguous
   --within TEXT  only matches whose card heading / form / landmark contains TEXT
   --timeout-ms N give up after N ms (default 5000) instead of Playwright's 30 s
+  --verbose      include full effects and trace details (default output is compact)
 `);
 }
 
@@ -170,11 +192,11 @@ async function main() {
   if (a === "list") return print(await client.call("page.list", { sessionId: required("session"), query: flag("query"), limit: flag("limit") }));
   if (a === "press") {
     const hasLocator = ["role", "testid", "text", "label", "placeholder", "css"].some((x) => flag(x));
-    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator ? locatorFromFlags() : undefined, nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag(), key: required("key"), observe: boolFlag("observe") }));
+    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator || flag("ref") ? locatorFromFlags() : undefined, ref: flag("ref"), nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag(), key: required("key"), confirmed: boolFlag("confirm"), observe: boolFlag("observe") }));
   }
   if (a === "extract") return print(await client.call("page.extract", {
     sessionId: required("session"), ...targetFlags(), read: flag("read") || "text", attribute: flag("attribute"),
-    all: boolFlag("all"), limit: flag("limit"), learn: boolFlag("learn")
+    all: boolFlag("all"), limit: flag("limit"), learn: boolFlag("learn"), requested: boolFlag("requested")
   }));
 
   // Discovery tools for unknown sites
@@ -214,6 +236,8 @@ async function main() {
   }));
 
   if (a === "identify") return print(await client.call("site.identify", { sessionId: required("session") }));
+  if (a === "batch") return print(await client.call("batch.run", { sessionId: required("session"), input: await actionInput() }));
+  if (a === "request" && b === "status") return print(await client.call("request.status", { requestId: required("id") }));
   if (a === "actions") return print(await client.call("action.list", { sessionId: required("session") }));
   if (a === "run") {
     const actionId = b;
@@ -224,7 +248,19 @@ async function main() {
     }));
   }
 
-  if (a === "learning" && b === "status") return print(await client.call("learning.status", { sessionId: required("session") }));
+  if (a === "learning" && b === "status") return print(await learningStatus(config, required("session")));
+  if (a === "learning" && b === "finish") return print(await finishLearning(config, required("session"), await actionInput()));
+  if (a === "learning" && b === "notes") return print(await client.call(c === "save" ? "learning.notes.save" : "learning.notes", {
+    sessionId: required("session"), capability: flag("capability"), input: c === "save" ? await actionInput() : undefined,
+  }));
+  if (a === "learning" && b === "action" && c === "save") return print(await client.call("learning.action.save", { sessionId: required("session"), input: await actionInput() }));
+  if (a === "overview" && (b === "save" || b === "run")) return print(await client.call(`overview.${b}`, {
+    sessionId: required("session"), siteId: b === "run" ? required("site") : undefined, input: b === "save" ? await actionInput() : undefined,
+  }));
+  if (a === "asset" && (b === "status" || b === "report")) {
+    if (!c) throw new Error("asset status/report requires an action id");
+    return print(await client.call(`asset.${b}`, { sessionId: required("session"), siteId: flag("site"), actionId: c, reason: b === "report" ? required("reason") : undefined }));
+  }
   if (a === "registry" && b === "build") return print(await buildRegistry(config));
   if (a === "site" && b === "init") {
     let host = flag("host");

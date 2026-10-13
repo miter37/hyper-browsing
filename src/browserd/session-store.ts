@@ -32,6 +32,8 @@ interface SessionRecord {
 const POPUP_GRACE_MS = 4000;
 
 export class SessionStore {
+  private ignored = new WeakSet<Page>();
+  ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
 
   constructor(private context: BrowserContext) {
@@ -47,7 +49,7 @@ export class SessionStore {
   private watchForPopups(context: BrowserContext): void {
     context.on("page", (page) => {
       setTimeout(() => {
-        if (page.isClosed()) return;
+        if (page.isClosed() || this.ignored.has(page)) return;
         const claimed = [...this.sessions.values()].some((r) => r.page === page);
         if (!claimed) {
           // Adopt user-opened tabs/OAuth popups instead of closing them

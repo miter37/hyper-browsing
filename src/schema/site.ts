@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const LocatorStrategySchema = z.object({
+export const LocatorStrategySchema = z.object({
   role: z.string().optional(),
   name: z.string().optional(),
   exact: z.boolean().optional(),
@@ -9,6 +9,7 @@ const LocatorStrategySchema = z.object({
   label: z.string().optional(),
   placeholder: z.string().optional(),
   css: z.string().optional(),
+  within: z.string().optional(),
 }).refine((v) => [v.role, v.testId, v.text, v.label, v.placeholder, v.css].filter(Boolean).length === 1, {
   message: "Each locator strategy must define exactly one primary strategy",
 });
@@ -73,6 +74,7 @@ export const ActionVariantSchema = z.object({
 });
 
 export const ActionSchema = z.object({
+  knowledge: z.object({ capability: z.string(), scope: z.string() }).optional(),
   description: z.string().optional(),
   risk: z.enum(["read", "local_write", "external_write", "irreversible", "unclassified"]).default("unclassified"),
   lifecycle: z.enum(["encoded", "candidate", "verified"]).default("encoded"),

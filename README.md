@@ -12,6 +12,11 @@
 > - **Self-learns and turns successful interactions into dedicated scripts and knowledge docs for blazing-fast execution on subsequent visits.**
 > - **Ultra-fast, adaptive web browsing agent skill.**
 
+
+Learning stays small: notes on a first task, observed actions after two independent tasks within 30 days, and shallow exploration overviews after seven. Overviews describe the starting screen, one-hop screens and potential actions while referencing existing actions. Learning can be skipped without blocking task completion. See [learning and recovery](docs/LEARNING.md).
+
+Direct commands and saved declarative actions share ambiguity checks, input verification and effect reporting. Snapshots expose temporary `--ref` targets; `batch --input-file` fills up to ten observed fields without creating assets. Lost RPC replies return `outcome_unknown` with a request ID for status lookup; they never trigger automatic retransmission. See [execution rules](docs/EXECUTION.md) and [commands](docs/COMMANDS.md).
+
 ---
 
 ### 🎬 Demo
@@ -132,7 +137,7 @@ Equipped with 6 battle-tested primitives to handle modern dynamic web complexiti
 
 ### 4. Built-in Pre-Assetized Site Runners
 
-Ready for instant out-of-the-box execution:
+These legacy workflow scripts are preserved. Use them only after checking their current behavior; new shallow exploration runners use `<site>_overview.mjs`:
 - **Social / Communities**: LinkedIn (`linkedin_runner.mjs`), X/Twitter (`x_runner.mjs`), Threads (`threads_runner.mjs`), Instagram (`instagram_runner.mjs`)
 - **E-Commerce / Booking / Travel**: KREAM (`kream_runner.mjs`), Airbnb (`airbnb_runner.mjs`), Ticketmaster (`ticketmaster_runner.mjs`), Skyscanner (`skyscanner_runner.mjs`)
 - **Finance / Research / Data**: Coinbase (`coinbase_runner.mjs`), Hyperliquid (`hyperliquid_runner.mjs`), TradingView (`tradingview_runner.mjs`), arXiv (`arxiv_runner.mjs`), Google Trends (`googletrends_runner.mjs`), Naver Real Estate (`naverland_runner.mjs`)
@@ -145,7 +150,7 @@ When a target website changes its DOM and breaks an existing script, the system 
 
 1. **Fail-Fast Detection**: Enforces 3–5s timeouts on locators to fail fast rather than hanging for 30s.
 2. **Automatic Fallback to Discovery**: Reverts to Stage 1 zero-shot mode using `dismiss-annoyances`, `diff`, and `forms` to uncover the new layout and complete the user task.
-3. **Self-Healing Update**: Overwrites and patches `sites/<site>/` runners and docs with the newly discovered selectors.
+3. **Minimal Repair and Revalidation**: The agent patches the broken asset after completing and verifying the current task through discovery. Changed versions need fresh evidence. Login/network failures alone do not justify script changes; writes are never replayed just to validate a repair. Task success and repair success are reported separately.
 
 ---
 
