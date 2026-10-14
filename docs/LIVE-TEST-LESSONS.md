@@ -147,6 +147,7 @@
 
 ## 100사이트 종합 (세트 1~10 재확인된 일반 규칙)
 - 상태 신호: `session open`의 status/setupStatus/pageState(+evidence)/navigationError/blocked가 1차 분류를 담당하고, 재관찰 overview가 시점 정정(shopee/skyscanner/spotify/airbnb 패턴)을 담당했다.
+- 완료 검증 (2026-10-15): test:execution의 transport 2건(`unavailable request history…`, `status polling is bounded…`)이 실패했다. 원인은 프로덕션 코드가 아니라 fixture의 단정 대상이었고, `request.status` poll은 그 자체가 postRpc 호출이라 envelope의 `requestId`는 새 UUID이며 원래 id는 `params.requestId`로 실린다는 실제 동작에 맞춰 단정을 바로잡았다(사이트 분기 없음, skipped 0 유지). 수정 후 test:execution pass 62 fail 0 exit 0으로 확인했다.
 - gap reason 분포(view-budget/not-rendered/budget/frame-not-scanned)는 페이지 유형(lazy 뉴스/SPA/마케팅/단순)을 사이트 무관로 식별했다.
 - diff는 document 교체를 `incomparable/document-identity-changed`(replacement:"unconfirmed")로, 이동·value 변경은 signal change로 보존했다.
 - eval은 `--expr`이며 결과는 expression 스코프로 자체 표기됐다. batch는 fill/select/extract를 한 왕복에서 받았다.
