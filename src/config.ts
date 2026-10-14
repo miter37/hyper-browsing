@@ -10,6 +10,8 @@ export interface AppConfig {
   port: number;
   host: string;
   headless: boolean;
+  /** Benchmark/offline evaluation: disable optional learning observations. */
+  learningDisabled?: boolean;
   browserChannel?: string;
   cdpPort?: number;
   /**
@@ -73,6 +75,7 @@ export function getConfig(): AppConfig {
     // (persisted in .runtime/display-preference.json) always wins over this default - see
     // resolveHeadless() in chrome-manager.ts.
     headless: boolEnv("WEBAGENT_HEADLESS", true),
+    learningDisabled: boolEnv("WEBAGENT_LEARNING_DISABLED", false),
     browserChannel: process.env.WEBAGENT_BROWSER_CHANNEL || "chrome",
     cdpPort: process.env.WEBAGENT_CDP_PORT ? Number(process.env.WEBAGENT_CDP_PORT) : 9223,
     chromeProfileName: strEnv("WEBAGENT_CHROME_PROFILE_NAME"),

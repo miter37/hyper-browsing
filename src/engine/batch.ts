@@ -5,7 +5,7 @@ import { executePrimitive } from "./execute";
 import { DEEP_WALK_JS } from "./page-state";
 
 const CommandSchema = z.object({
-  op: z.enum(["fill", "select"]), locator: LocatorStrategySchema.optional(), ref: z.string().regex(/^@e\d+$/).optional(),
+  op: z.enum(["fill", "select"]), locator: LocatorStrategySchema.optional(), ref: z.string().regex(/^@?e\d+$/).optional(),
   nth: z.number().int().nonnegative().optional(), within: z.string().optional(),
   value: z.string().optional(), option: z.string().optional(), timeoutMs: z.number().int().min(1).max(5000).optional(),
 }).strict().refine(v => Boolean(v.locator) !== Boolean(v.ref), "Use exactly one locator or reference")
@@ -42,7 +42,7 @@ export async function runBatch(page: Page, input: unknown, onStep?: (command: an
     results.push({ index: i, op: command.op, ...result });
     if (onStep) await onStep(command, result);
     const changed = await structure() !== initial || result.effect?.urlChanged || result.effect?.page?.opened?.length || result.effect?.page?.closed?.length || result.effect?.page?.appeared?.length || result.effect?.page?.disappeared?.length;
-    if (!result.ok || result.valueMatches === false || changed) return { ok: false, execution: result.execution === "outcome_unknown" ? "outcome_unknown" : "partial", stoppedAt: i,
+    if (!result.ok || result.observationRequired || result.valueMatches === false || changed) return { ok: false, execution: result.execution === "outcome_unknown" ? "outcome_unknown" : "partial", stoppedAt: i,
       reason: changed ? "observation_required" : result.reason || "step_failed", results, rollback: false };
   }
   return { ok: true, execution: "completed", results, rollback: false };

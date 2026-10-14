@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-10-14T01:02:42.440Z",
+  "scope": "4 completed HB trials; stopped by user after eBay",
+  "newBrowserUseTrials": 0,
+  "newVanillaTrials": 0,
+  "learning": false,
+  "n": 4,
+  "strictSuccess": 2,
+  "checkpointPassed": 10,
+  "checkpointPossible": 16,
+  "commandCount": 54,
+  "headedSwitches": 3,
+  "duplicateSequences": 0,
+  "lateCommands": 0,
+  "excluded": [
+    "Best Buy: user-interrupted before completion",
+    "Booking: prepared only; no site command"
+  ],
+  "historical": {
+    "date": "2026-10-13",
+    "n": 60,
+    "browserUseSuccess": 13,
+    "browserUseN": 30,
+    "hyperBrowsingSuccess": 19,
+    "hyperBrowsingN": 30
+  },
+  "limitations": [
+    "One new trial per site, four sites only",
+    "Historical trials from a different day; no same-day control",
+    "Final code contains post-trial fixes not live-retested",
+    "Actual pure reasoning time is unavailable; nonToolMs is an upper proxy including other overhead",
+    "US sites were accessed from this Korean environment; Amazon displayed KRW/Korea delivery",
+    "Verifier was regression-tested but not invoked in these four live trials"
+  ]
+}

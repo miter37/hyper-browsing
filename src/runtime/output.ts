@@ -5,7 +5,7 @@ export function compactResult(value: any): any {
   const result: Record<string, any> = {};
   for (const [key, child] of Object.entries(value)) {
     if (key === "snapshot") {
-      if (child && typeof child === "object") for (const field of ["blocked", "truncated", "omitted", "diagnostics"]) {
+      if (child && typeof child === "object") for (const field of ["blocked", "truncated", "omitted", "diagnostics", "observation", "pageState"]) {
         if ((child as any)[field] !== undefined && result[field] === undefined) result[field] = (child as any)[field];
       }
       result.snapshotAvailable = true; continue;

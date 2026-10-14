@@ -1,0 +1,3475 @@
+[
+  {
+    "id": "r1_google_bu",
+    "status": "blocked",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "검색 입력창에서 textarea[name=q]를 관찰했고, NASA Artemis program 값을 입력했다. Enter 및 관찰된 Google 검색 버튼 조작 후 정상 결과 화면 대신 Google sorry 차단 페이지로 전환됐다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGNqVuNYGIjCGPe7n31tamBFFJzChXjuHFgPuLgwPDQbIjMnphcKt0GT8FulSRA2wK4ZD1vIi51wyAVJaAUNgoNDB8ZCN3b01"
+      },
+      {
+        "passed": false,
+        "evidence": "Google 공식 NASA 결과 목록을 확인하지 못했다. sorry 페이지의 문구는 unusual traffic 및 본인 여부 확인 요청이었다.",
+        "commandSequence": 9,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGNqVuNYGIjCGPe7n31tamBFFJzChXjuHFgPuLgwPDQbIjMnphcKt0GT8FulSRA2wK4ZD1vIi51wyAVJaAUNgoNDB8ZCN3b01"
+      },
+      {
+        "passed": false,
+        "evidence": "차단 화면에서 관찰한 링크로 NASA 공식 페이지에 진입하지 못했다.",
+        "commandSequence": 10,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGNqVuNYGIjCGPe7n31tamBFFJzChXjuHFgPuLgwPDQbIjMnphcKt0GT8FulSRA2wK4ZD1vIi51wyAVJaAUNgoNDB8ZCN3b01"
+      },
+      {
+        "passed": false,
+        "evidence": "현재 페이지는 Google unusual traffic 확인 화면이었고 NASA 프로그램 제목·설명은 읽히지 않았다.",
+        "commandSequence": 10,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGNqVuNYGIjCGPe7n31tamBFFJzChXjuHFgPuLgwPDQbIjMnphcKt0GT8FulSRA2wK4ZD1vIi51wyAVJaAUNgoNDB8ZCN3b01"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {},
+    "difficulties": [
+      {
+        "type": "initial_page_not_ready",
+        "detail": "첫 페이지 관찰에서 document.body가 null이어서 본문 추출이 실패했다.",
+        "firstCommand": 1,
+        "recovery": "다음 명령에서 wait_for_load 후 재관찰했고 Google 홈페이지 본문이 표시되어 해결됨."
+      },
+      {
+        "type": "search_submission_and_block",
+        "detail": "입력값은 검색 UI에 반영됐으나 Enter 뒤 페이지가 바뀌지 않았고, 관찰된 Google 검색 버튼을 클릭한 후 unusual traffic 확인 페이지가 나타났다.",
+        "firstCommand": 5,
+        "recovery": "허용된 reveal 환경 복구 1회를 실행하고 관찰한 마지막 URL을 다시 열었지만 같은 인간 확인 화면이 남아 중단함."
+      }
+    ]
+  },
+  {
+    "id": "r1_google_hb",
+    "status": "blocked",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Google 홈의 검색 입력란에 정확한 질의 'NASA Artemis program'을 입력했고 Enter 제출 후 URL의 search 쿼리에 q=NASA+Artemis+program이 표시됨. 검색 요청이 비정상 트래픽 확인 페이지로 이동함.",
+        "commandSequence": 5,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGI6XuNYGIjCJu2iV9eY5YaXix7fXJuxUXZv6Zwq4MkQWxhRM6LJpOx-yh6mXeYbKHEKig9q3MMQyAVJaAUNg54_6l9Oys9-EAQ"
+      },
+      {
+        "passed": false,
+        "evidence": "결과 목록 대신 Google이 'Our systems have detected unusual traffic from your computer network'라고 표시하는 human-verification/CAPTCHA 페이지를 반환함. NASA 공식 결과를 확인하지 못함.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGI6XuNYGIjCJu2iV9eY5YaXix7fXJuxUXZv6Zwq4MkQWxhRM6LJpOx-yh6mXeYbKHEKig9q3MMQyAVJaAUNg54_6l9Oys9-EAQ"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 목록이 나타나지 않아 관찰한 NASA 결과 링크로 이동할 수 없었음.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index?q=EgRqZYQRGI6XuNYGIjCJu2iV9eY5YaXix7fXJuxUXZv6Zwq4MkQWxhRM6LJpOx-yh6mXeYbKHEKig9q3MMQyAVJaAUNg54_6l9Oys9-EAQ"
+      },
+      {
+        "passed": false,
+        "evidence": "공식 NASA 페이지에 진입하지 못해 페이지 제목과 임무 설명을 확인하지 못함.",
+        "commandSequence": 7,
+        "url": null
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "query": "NASA Artemis program",
+      "officialResultDomain": null,
+      "pageTitle": null,
+      "programPurposeOrMissionDescription": null
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "snapshot에서 본 @e8 ref로 fill을 전달했지만 CLI 인자 해석 중 ref 값이 누락되어 invalid_target/not_started가 반환됨.",
+        "firstCommand": 3,
+        "recovery": "관찰된 입력의 semantic locator인 role=combobox, name=검색으로 다시 지정해 질의 입력에 성공함.",
+        "resolved": true
+      },
+      {
+        "type": "captcha_or_unusual_traffic_block",
+        "detail": "검색 제출 후 Google이 unusual traffic 인간 확인 페이지를 반환했고, 스냅샷에서 CAPTCHA iframe과 blocked.kind=captcha를 확인함.",
+        "firstCommand": 5,
+        "recovery": "새 snapshot으로 현재 페이지를 확인했으나 검증 페이지가 계속 표시됨. 우회 없이 중단함.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_amazon_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Homepage searchbox observed; submitted exact query Logitech M185 wireless mouse and results heading showed 1-16 of 173 results.",
+        "commandSequence": 7,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Observed Apply Logitech filter link; clicking it produced results URL with refinements=p_123%3A213704 and title identifying Logitech M185 Wireless Mouse.",
+        "commandSequence": 15,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse&rh=p_123%3A213704"
+      },
+      {
+        "passed": true,
+        "evidence": "Opened observed Logitech M185 result via visible title text; product detail page loaded with status 200.",
+        "commandSequence": 22,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      },
+      {
+        "passed": true,
+        "evidence": "Product detail screenshot showed Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue; KRW 20,001; FREE delivery October 19-24 to Republic of Korea and Only 15 left in stock (more on the way).",
+        "commandSequence": 24,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조. 최종 상품 스크린샷도 직접 확인. KRW/한국 배송을 실제 표시값으로 기록하며 미국 IP라고 해석하지 않음.",
+    "output": {
+      "product_name": "Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue",
+      "display_price": "KRW 20,001",
+      "delivery": "FREE delivery October 19 - 24 to Republic of Korea on eligible orders over KRW 65,380; fastest delivery Monday, October 19",
+      "stock": "Only 15 left in stock (more on the way)."
+    },
+    "difficulties": [
+      {
+        "type": "locator_mismatch",
+        "detail": "Checkbox role locator did not match Amazon's Logitech brand filter; screenshot showed checkbox and a semantic Apply Logitech filter link was visible.",
+        "firstCommand": 12,
+        "recovery": "Fresh snapshot identified observed Apply Logitech filter link; clicked it and verified brand filter URL.",
+        "resolved": true
+      },
+      {
+        "type": "locator_mismatch",
+        "detail": "Product title role/ref targeting returned no_match/invalid_target for dynamic result anchors.",
+        "firstCommand": 17,
+        "recovery": "Used observed product title text from snapshot/list; navigation reached corresponding detail page.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_amazon_bu",
+    "status": "failed",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "홈 URL https://www.amazon.com/ 에서 page_info가 1440x900을 보고했으나 본문 텍스트가 비었고 title은 horse marker만 표시됨. 검색 UI나 결과 증거 없음.",
+        "commandSequence": 1,
+        "url": "https://www.amazon.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "환경 복구 후 재탐색에서도 document.readyState=complete, title='🐴', body=''로 반환됨. 브랜드 필터 UI나 적용 상태 증거 없음.",
+        "commandSequence": 4,
+        "url": "https://www.amazon.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "관찰된 상품 결과 또는 상세 페이지가 없어 상세 진입 확인 불가.",
+        "commandSequence": 4,
+        "url": "https://www.amazon.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "페이지 본문이 비어 있어 상품명·가격·배송/재고 안내를 읽지 못함.",
+        "commandSequence": 4,
+        "url": "https://www.amazon.com/"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조. 마지막 AX 출력에는 실제 Amazon 페이지 구조가 있으므로 지속 빈 화면이 원인이라는 단정은 불가. 진행 중 출력 확인을 멈춘 에이전트 종료/준비 상태 판단 문제로 구분.",
+    "output": {
+      "productName": null,
+      "displayPrice": null,
+      "shippingOrAvailability": null
+    },
+    "difficulties": [
+      {
+        "type": "blank_page_or_navigation_failure",
+        "detail": "홈페이지 탐색 후 body text가 비었으며 두 번째 DOM 표현식은 document.body null 예외를 냄. 허용된 환경 복구 후에도 페이지 제목은 horse marker, 본문은 빈 문자열로 남음.",
+        "firstCommand": 1,
+        "recovery": "한 차례 reveal을 실행하고 관찰된 홈 URL을 새 탭에서 열어 뷰포트를 복원한 뒤 다시 확인했으나 개선되지 않음.",
+        "resolved": false
+      },
+      {
+        "type": "wrapper_command_output_missing",
+        "detail": "마지막 AX/screenshot snippet 호출은 10초 동안 stdout/stderr와 종료 정보가 반환되지 않았고 commands.jsonl에 해당 호출 기록도 나타나지 않음.",
+        "firstCommand": 5,
+        "recovery": "동일 명령을 재전송하지 않고 확인 가능한 기존 로그와 화면 증거로 종료함.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_walmart_bu",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에 wireless mouse를 입력하고 검색 결과를 확인함. URL https://www.walmart.com/search?q=wireless+mouse, 제목 wireless mouse - Walmart.com 및 결과 for 'wireless mouse' 증거.",
+        "commandSequence": 23,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "정렬 UI에서 Price: Low to High를 선택함. 화면 텍스트에 해당 정렬이 표시되고 URL에 sort=price_low가 반영됨.",
+        "commandSequence": 30,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "목록에 WZXPWT wireless gaming mouse 카드가 보였지만 상세 페이지로 진입하지 못함. 상품 상세 진입 증거 없음.",
+        "commandSequence": 32,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "상세 페이지의 상품명·가격·배송/재고 필드를 확인하지 못함.",
+        "commandSequence": 32,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "query": "wireless mouse",
+      "sort": "Price: Low to High",
+      "listing_example": {
+        "name": "WZXPWT 2.4GHz Wireless Gaming Mouse: 6-Key Optical Mouse with USB Receiver, 2000 DPI - Red, 3.9 x 2.4 x 1.4",
+        "listing_price": "$1.99",
+        "shipping": "+ $4.49 shipping"
+      }
+    },
+    "difficulties": [
+      {
+        "type": "headless_page_failure",
+        "detail": "첫 실행에서 Walmart DOM이 준비되지 않아 page_info()가 document.documentElement.scrollWidth null 오류를 냄.",
+        "firstCommand": 1,
+        "recovery": "허용된 reveal 1회 후 Walmart 홈을 새 탭에서 열고 1440×900 viewport를 복원함.",
+        "resolved": true
+      },
+      {
+        "type": "scroll_timeout",
+        "detail": "결과 목록을 아래로 이동하려던 두 scroll 입력이 각각 5초 CDP IPC timeout을 냄. 이어서 PageDown 입력도 스크롤 위치를 바꾸지 못함.",
+        "firstCommand": 34,
+        "recovery": "scroll 재시도 및 PageDown 입력을 수행했으나 위치 변화 없음. 예산 초과로 상세 화면 진입 중지.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_walmart_hb",
+    "status": "partial",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "검색 제출 뒤 현재 URL이 https://www.walmart.com/search?q=wireless+mouse 로 변경됨; 상단 검색 입력도 wireless mouse 표시",
+        "commandSequence": 5,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "정렬 관련 스냅샷은 elements=[]였고 결과 영역은 skeleton placeholder만 표시; 가격 낮은 순 선택 증거 없음",
+        "commandSequence": 9,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 상품 링크/카드가 DOM에 표시되지 않아 상품 상세 진입 못함",
+        "commandSequence": 11,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "상품 상세에 진입하지 못해 상품명·가격·배송 또는 재고를 읽지 못함",
+        "commandSequence": 11,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "query": "wireless mouse",
+      "sort": null,
+      "productName": null,
+      "displayPrice": null,
+      "shippingOrAvailability": null
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "첫 fill --ref @e8은 invalid_target / not_started로 실행 전에 거부됨",
+        "firstCommand": 3,
+        "recovery": "검색창을 새 snapshot으로 다시 관찰한 후 관찰된 고유 placeholder locator로 입력 및 제출 성공",
+        "resolved": true
+      },
+      {
+        "type": "results_stuck_loading",
+        "detail": "검색 URL 이동 후 검색 본문이 skeleton UI 상태로 지속됐고 body text에는 검색 URL 외 결과 정보가 없었음",
+        "firstCommand": 6,
+        "recovery": "wait-idle 실행 후 snapshot·screenshot·DOM text로 재관찰했으나 변함없음. wrapper reveal은 B 방법에서 허용되지 않는 것으로 거부되어 추가 폴백 불가",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_ebay_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "eBay 검색 결과 제목에 '753 results for Logitech M185'가 표시됨. 검색 URL의 _nkw=Logitech+M185 확인.",
+        "commandSequence": 6,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": true,
+        "evidence": "필터 URL에 LH_ItemCondition=1000 및 LH_BIN=1 포함. Buy It Now selected 및 New 필터 표식 확인.",
+        "commandSequence": 13,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_ItemCondition=1000&LH_BIN=1"
+      },
+      {
+        "passed": true,
+        "evidence": "필터된 검색 결과에서 'Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop' 상품 상세 페이지를 열고 페이지 제목과 item URL 확인.",
+        "commandSequence": 18,
+        "url": "https://www.ebay.com/itm/296754422562?LH_BIN=1&LH_ItemCondition=1000"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 본문에 제목, GBP 7.99, Condition: New, 판매자 shapestechnology가 표시됨.",
+        "commandSequence": 21,
+        "url": "https://www.ebay.com/itm/296754422562?LH_BIN=1&LH_ItemCondition=1000"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "title": "Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop",
+      "price": "GBP 7.99",
+      "condition": "New",
+      "seller": "shapestechnology"
+    },
+    "difficulties": [
+      {
+        "type": "argument_parsing",
+        "detail": "첫 fill에서 PowerShell이 @e18을 splatting 구문으로 해석해 --ref 값이 빠졌고 invalid_target/not_started가 발생.",
+        "firstCommand": 3,
+        "recovery": "새 snapshot으로 현재 검색 입력을 확인한 뒤 ref 대신 관찰한 placeholder 'Search for anything' locator로 입력을 수행.",
+        "resolved": true
+      },
+      {
+        "type": "confirmation_required",
+        "detail": "Buy It Now 필터 링크 클릭이 risk external_write로 분류되어 --confirm 없이 거부됨.",
+        "firstCommand": 11,
+        "recovery": "시나리오가 허용한 검색 조건 적용 범위에서 --confirm을 붙여 클릭하고, 이어서 필터 URL과 selected 텍스트로 적용 확인.",
+        "resolved": true
+      },
+      {
+        "type": "new_tab",
+        "detail": "상세 링크 클릭 시 현재 결과 탭은 유지되고 popup session이 새로 열림.",
+        "firstCommand": 15,
+        "recovery": "session list로 생성된 popup을 식별한 뒤 해당 상세 화면을 snapshot/eval로 관찰.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_ebay_bu",
+    "status": "partial",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "eBay 홈의 검색 입력에 Logitech M185를 입력해 결과 페이지로 이동. URL: https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&_sacat=0&_from=R40&_trksid=m570.l1313",
+        "commandSequence": 18,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": false,
+        "evidence": "결과 화면에 New(518) Items와 Buy It Now(896) Items가 보였으나 두 필터를 선택하지 못함.",
+        "commandSequence": 19,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 목록은 관찰했지만 조건이 적용된 결과 상세 페이지에 진입하지 못함.",
+        "commandSequence": 19,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": false,
+        "evidence": "상세 페이지에서 제목·가격·상태·판매자를 모두 추출하지 못함. 검색 목록에는 첫 항목 제목 'Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop', 표시가격 KRW14,082.50, 상태 Brand New, 판매자 shapestechnology가 보였으나 상세 화면 검증은 아님.",
+        "commandSequence": 19,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "검색어": "Logitech M185",
+      "New 필터 적용": null,
+      "Buy It Now 필터 적용": null,
+      "첫 검색 목록 항목 제목 (상세 페이지 미검증)": "Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop",
+      "첫 검색 목록 항목 표시 가격 (상세 페이지 미검증)": "KRW14,082.50",
+      "첫 검색 목록 항목 상태 (상세 페이지 미검증)": "Brand New",
+      "첫 검색 목록 항목 판매자 (상세 페이지 미검증)": "shapestechnology"
+    },
+    "difficulties": [
+      {
+        "type": "headless_site_error",
+        "detail": "첫 eBay 홈 방문이 SORRY / Something went wrong on our end 오류 페이지로 열림.",
+        "firstCommand": 1,
+        "recovery": "프로토콜에서 허용된 reveal 1회로 headed Chrome을 복구한 뒤 관찰한 홈페이지 URL로 새 탭을 열어 정상 홈 화면을 확인함.",
+        "resolved": true
+      },
+      {
+        "type": "browser_interaction_timeout",
+        "detail": "결과 목록에서 조건 필터가 보이는 영역으로 스크롤하려다 Input.dispatchMouseEvent가 5초 IPC timeout. 후속 상태 관찰은 가능했지만 스크롤 재시도와 PageDown으로는 페이지가 이동하지 않음.",
+        "firstCommand": 21,
+        "recovery": "현재 URL과 scrollY를 다시 관찰하고 키보드 PageDown도 한 차례 확인함. 무작정 같은 스크롤을 반복하지 않고 중단.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_bestbuy_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에 wireless mouse를 입력해 검색 실행; 결과 제목/URL은 wireless mouse - Best Buy, https://www.bestbuy.com/site/searchpage.jsp?id=pcat17071&st=wireless%20mouse",
+        "commandSequence": 20,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 화면에서 Logitech quick filter 선택 표시와 Brand 영역 체크박스를 확인. 결과 개수 3636에서 필터 적용 후 266으로 변경됨.",
+        "commandSequence": 24,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 Logitech Signature M650 L 결과 링크를 열어 상품 상세 화면 진입. 제목 Logitech - Signature M650 L Full-size Wireless Optical Scroll Mouse with Silent Clicks - Wireless - Graphite; SKU 6491142.",
+        "commandSequence": 29,
+        "url": "https://www.bestbuy.com/product/logitech-signature-m650-l-full-size-wireless-optical-scroll-mouse-with-silent-clicks-wireless-graphite/J7H7ZY3W2L/sku/6491142"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 화면 텍스트에 $39.99, Rating 4.8 out of 5 stars with 2563 reviews 및 (2,563)가 표시됨.",
+        "commandSequence": 29,
+        "url": "https://www.bestbuy.com/product/logitech-signature-m650-l-full-size-wireless-optical-scroll-mouse-with-silent-clicks-wireless-graphite/J7H7ZY3W2L/sku/6491142"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "productName": "Logitech - Signature M650 L Full-size Wireless Optical Scroll Mouse with Silent Clicks - Wireless - Graphite",
+      "price": "$39.99",
+      "customerRating": "4.8 out of 5 stars",
+      "reviewCount": 2563,
+      "sku": "6491142",
+      "detailUrl": "https://www.bestbuy.com/product/logitech-signature-m650-l-full-size-wireless-optical-scroll-mouse-with-silent-clicks-wireless-graphite/J7H7ZY3W2L/sku/6491142"
+    },
+    "difficulties": [
+      {
+        "type": "CDP 응답 시간 초과",
+        "detail": "첫 new_tab(https://www.bestbuy.com/)의 Page.navigate가 데몬 응답 대기 5초 제한으로 시간 초과됨.",
+        "firstCommand": 1,
+        "recovery": "같은 탐색을 재전송하지 않고 command 2에서 현재 탭을 관찰해 Best Buy 국가 선택 화면을 확인했으며, 진행을 계속함.",
+        "resolved": true
+      },
+      {
+        "type": "국가 선택 화면에서 진행 정체",
+        "detail": "United States 링크를 활성화했으나 헤드리스 화면에 국가 선택 게이트가 유지됨.",
+        "firstCommand": 4,
+        "recovery": "허용된 1회 headed 환경 복구(reveal) 후 마지막 관찰 URL https://www.bestbuy.com/#?intl=nosplash 를 새 탭으로 열고 viewport를 복원. 이후 홈이 로드되어 과업을 완료함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_bestbuy_hb",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에 wireless mouse를 입력하고 제출. 결과 제목은 'wireless mouse - Best Buy', h1은 'wireless mouse search results', URL은 https://www.bestbuy.com/site/searchpage.jsp?id=pcat17071&st=wireless%20mouse.",
+        "commandSequence": 14,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 필터에서 Logitech 체크박스를 선택한 뒤 현재 URL에 qp=brand_facet%3DBrand%7ELogitech가 포함됐고, 새 snapshot에서 Logitech 체크박스 checked=true 확인.",
+        "commandSequence": 17,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "필터 결과의 Logitech 상품 링크를 두 번 따라갔지만 M220 및 Signature M650 모두 chrome-error://chromewebdata/와 'This site can’t be reached' 화면으로 이동. 상품 상세 화면은 확인하지 못함.",
+        "commandSequence": 35,
+        "url": "chrome-error://chromewebdata/"
+      },
+      {
+        "passed": false,
+        "evidence": "필터 결과 페이지의 화면 텍스트에서 'Logitech - M220 SILENT Wireless Optical Ambidextrous Mouse - Wireless - Graphite', '$17.99', '4.7', '(2,380 reviews)'를 추출. 값은 상세 페이지가 아니라 검색 결과 카드에서 관찰함.",
+        "commandSequence": 37,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조. 상품 상세 진입이 실패했고 필드 출처는 목록 카드이므로 CP4를 불인정. 자체 3/4 보고를 2/4로 정정.",
+    "output": {
+      "상품명": "Logitech - M220 SILENT Wireless Optical Ambidextrous Mouse - Wireless - Graphite",
+      "표시 가격": "$17.99",
+      "고객 평점": "4.7 / 5",
+      "리뷰 수": "2,380",
+      "상세 페이지 URL": null,
+      "값 출처": "필터 적용된 검색 결과 카드"
+    },
+    "difficulties": [
+      {
+        "type": "locator_argument_parse",
+        "detail": "PowerShell에서 따옴표 없이 전달한 @e 참조값이 wrapper에 전달되지 않아 invalid_target이 발생함.",
+        "firstCommand": 3,
+        "recovery": "새 snapshot의 참조를 PowerShell 단일 인용부호로 감싸 전달함.",
+        "resolved": true
+      },
+      {
+        "type": "not_visible_headed_fallback",
+        "detail": "국가 선택 페이지에서 United States 의미 선택자 클릭이 not_visible로 실패했고, headedFallback이 한 번 발생함.",
+        "firstCommand": 6,
+        "recovery": "전환 후 새 snapshot에서 보이는 United States 링크를 확인하고 quoted ref와 --confirm으로 선택함.",
+        "resolved": true
+      },
+      {
+        "type": "search_results_rendering",
+        "detail": "Logitech 필터를 적용한 직후 본문에 상품 카드가 없었고 화면 캡처에서도 빈 결과 영역이 보임.",
+        "firstCommand": 16,
+        "recovery": "화면에 노출된 필터 적용 URL로 재탐색하자 카드와 가격·평점 텍스트가 렌더링됨.",
+        "resolved": true
+      },
+      {
+        "type": "product_detail_navigation_error",
+        "detail": "관찰된 M220과 Signature M650 링크 클릭 후 모두 chrome-error://chromewebdata/로 이동해 상세 페이지를 열지 못함.",
+        "firstCommand": 31,
+        "recovery": "첫 오류에서 결과 페이지로 복귀해 다른 상품 링크를 한 차례 시도했으며 같은 오류를 확인한 뒤 중지함.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_booking_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 자동완성에서 ‘New York (New York City) New York, United States’를 선택. 검색 결과 URL의 dest_id=20088325 및 dest_type=city로 목적지를 확인.",
+        "commandSequence": 13,
+        "url": "https://www.booking.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 URL에 checkin=2026-11-17, checkout=2026-11-19, group_adults=2, no_rooms=1, group_children=0가 명시됨.",
+        "commandSequence": 22,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1"
+      },
+      {
+        "passed": true,
+        "evidence": "‘Free cancellation: 507 properties’ 체크박스를 Popular filters 문맥에서 선택했고 URL에 nflt=fc%3D2 적용을 확인.",
+        "commandSequence": 24,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1&nflt=fc%3D2"
+      },
+      {
+        "passed": true,
+        "evidence": "현재 검색 결과의 property-card DOM에서 Pod Times Square, Scored 8.6 (Excellent), 2 nights / 2 adults, US$406 및 +US$67 taxes를 읽음. 카드에 Free cancellation도 표시됨.",
+        "commandSequence": 29,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1&nflt=fc%3D2"
+      }
+    ],
+    "auditNotes": "사전 정의 조건 및 원문 요청 URL·페이지 필드·현재 화면과 대조.",
+    "output": {
+      "destination": "New York (New York City), New York, United States",
+      "checkin": "2026-11-17",
+      "checkout": "2026-11-19",
+      "adults": 2,
+      "rooms": 1,
+      "filter": "Free cancellation (nflt=fc%3D2)",
+      "property": "Pod Times Square",
+      "rating": "8.6 Excellent (16,617 reviews)",
+      "stayPrice": "US$406 for 2 nights / 2 adults; +US$67 taxes"
+    },
+    "difficulties": [
+      {
+        "type": "input_value_mismatch",
+        "detail": "초기 자동완성 입력은 ‘Search in your own words’ 라벨로 지정했으나 직후 값이 빈 문자열로 보고됨; 자동완성 제안은 나타났음.",
+        "firstCommand": 5,
+        "recovery": "새 snapshot에서 현재 검색 입력을 관찰하고 headed 전환 뒤 나타난 ‘Enter destination’ combobox에 다시 입력해 값 일치를 확인.",
+        "resolved": true
+      },
+      {
+        "type": "invalid_target",
+        "detail": "관찰된 자동완성 링크 ref 클릭이 invalid_target로 실행 전에 거부됨.",
+        "firstCommand": 7,
+        "recovery": "새 snapshot 후 role/name locator를 사용했으나 sign-in overlay가 클릭을 가려 headed 전환 발생. 전환 후 다시 관찰하고 정확한 목적지 option을 선택.",
+        "resolved": true
+      },
+      {
+        "type": "blocked_by_overlay",
+        "detail": "‘New York, United States’ 링크 클릭 시 로그인 할인 dialog overlay가 차단해 5초 timeout, outcome_unknown; fallback은 재실행 없이 observationRequired로 headed 전환.",
+        "firstCommand": 9,
+        "recovery": "새 snapshot으로 전환 후 화면 상태를 관찰하고 새 입력/option 선택 흐름으로 이어감.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_booking_bu",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 목적지 자동완성에서 'New York (New York City), New York, United States'를 선택했고 숙소 목록 화면의 제목이 'New York – 1787 hotels and places to stay'로 확인됨.",
+        "commandSequence": 17,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": false,
+        "evidence": "날짜 선택 UI에 Tue, Nov 17 — Thu, Nov 19 및 2 adults · 0 children · 1 room이 표시된 적은 있으나, Search 후 결과 화면이 날짜를 비우고 '1 night, 2 adults' 가격 안내를 보여 날짜 조건이 반영된 결과는 확인하지 못함.",
+        "commandSequence": 29,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": false,
+        "evidence": "결과 목록의 필터 영역에는 Property rating과 Review score 등이 나타났으며, 현재 화면 텍스트와 컨트롤에서 Free cancellation 필터를 찾거나 적용하지 못함.",
+        "commandSequence": 32,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 카드에서 The Wallace Hotel, 평점 9.3, Price from $415, 1 night, 2 adults를 읽음. 단, 요청한 날짜 및 무료 취소 조건이 반영되지 않은 결과 카드임.",
+        "commandSequence": 17,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      }
+    ],
+    "auditNotes": "도시 선택과 카드 읽기의 부분 능력만 인정. 카드 가격은 요청 날짜 미반영 1박이므로 요청 결과 성공 또는 2박 가격으로 사용하지 않음.",
+    "output": {
+      "destination": "New York (New York City), New York, United States",
+      "checkIn": "2026-11-17 (UI selected; not confirmed in final results)",
+      "checkOut": "2026-11-19 (UI selected; not confirmed in final results)",
+      "adults": 2,
+      "rooms": 1,
+      "freeCancellation": null,
+      "propertyName": "The Wallace Hotel",
+      "rating": "9.3/10",
+      "displayedPrice": "Price from $415; 1 night, 2 adults (dates not applied)"
+    },
+    "difficulties": [
+      {
+        "type": "unsaved_search_dates",
+        "detail": "날짜 위젯에는 2026-11-17~2026-11-19가 표시됐지만 Search 후 결과 화면과 가격이 기본 날짜 미지정 상태로 돌아감. 2회 선택·검색 후에도 URL은 도시 목록에 머물렀고 결과 상단의 날짜 필드는 비어 있었음.",
+        "firstCommand": 15,
+        "recovery": "결과 화면에서 날짜를 다시 선택하고 달력 바깥을 눌러 선택 상태를 확인한 뒤 Search를 실행했으나, 다음 관찰에서도 날짜가 초기화됨. 추가 재시도는 중단함.",
+        "resolved": false
+      },
+      {
+        "type": "unavailable_filter",
+        "detail": "결과 목록의 표시된 필터에는 숙소 등급과 리뷰 점수만 있었고 Free cancellation 항목은 관찰되지 않음.",
+        "firstCommand": 32,
+        "recovery": "현재 필터 텍스트 및 체크박스 컨트롤을 확인했으나 취소 필터를 찾지 못함.",
+        "resolved": false
+      },
+      {
+        "type": "signin_modal",
+        "detail": "목적지 필드 입력 시 자동 로그인 권유 모달이 열림.",
+        "firstCommand": 5,
+        "recovery": "모달 닫기 버튼을 눌러 홈 검색을 계속함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_expedia_bu",
+    "status": "failed",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "Expedia 홈의 여행 검색 UI에서 Stays 탭이 표시되고 목적지·날짜·여행자 필드가 나타남. 기본 여행자 값은 2 travelers, 1 room.",
+        "commandSequence": 3,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "New York City가 선택된 검색 결과 화면에 도달하지 못함. 목적지 자동완성 입력이 누적되어 검색 미실행.",
+        "commandSequence": 14,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": null,
+        "commandSequence": 14,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": null,
+        "commandSequence": 14,
+        "url": "https://www.expedia.com/"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조. Stays 홈 접근만 확인됐고 New York City 선택 미완료이므로 CP1을 불인정. 자체 1/4 보고를 0/4로 정정.",
+    "output": {
+      "hotelName": null,
+      "rating": null,
+      "displayedPrice": null
+    },
+    "difficulties": [
+      {
+        "type": "bot_detection",
+        "detail": "초기 홈 접속에서 Bot or Not 인간 확인 차단 화면이 노출됨.",
+        "firstCommand": 1,
+        "recovery": "환경 복구 reveal 1회 후 동일 홈 URL을 새 탭으로 열어 Expedia 페이지 접근 성공.",
+        "resolved": true
+      },
+      {
+        "type": "autocomplete_input",
+        "detail": "목적지 입력 시 기존 입력 텍스트가 누적되어 Expedia가 목적지 확정 상태를 만들지 못했고 결과를 검색하지 못함.",
+        "firstCommand": 6,
+        "recovery": "홈 UI 입력 필드에 다시 초점을 주고 키 입력으로 수정 시도했으나 입력값이 계속 누적됨.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_expedia_hb",
+    "status": "blocked",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "Expedia 홈 URL로 열렸지만 CAPTCHA frame이 있는 거의 빈 human-verification 화면이 확인됨. Stays 목적지를 선택하지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 폼에 도달하지 못해 날짜, 성인 수, 객실 수가 반영된 결과를 확인하지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과가 없어 Guest rating 8+ 또는 Very good 필터를 확인하지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "숙소 결과 카드가 없어 숙소 이름, 평점, 표시 가격을 읽지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력과 체크포인트 대조.",
+    "output": {
+      "destination": null,
+      "checkIn": null,
+      "checkOut": null,
+      "adults": null,
+      "rooms": null,
+      "guestRatingFilter": null,
+      "propertyName": null,
+      "rating": null,
+      "displayedPrice": null
+    },
+    "difficulties": [
+      {
+        "type": "captcha/human-verification",
+        "detail": "첫 session open에서 CAPTCHA frame이 있는 거의 빈 페이지로 진입했다. headedFallback attempted=true, switched=true, retried=true였으나 체크포인트 수행 화면으로 전환되지 않았다.",
+        "firstCommand": 1,
+        "recovery": "프로젝트가 자동으로 한 차례 headed fallback 및 안전한 재시도를 수행했다. 사람 인증은 우회하지 않고 중단했다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r1_wikipedia_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI 자동완성에서 관찰한 ‘Apollo 11 First crewed Moon landing (1969)’ 항목을 선택해 제목 Apollo 11 문서가 열림.",
+        "commandSequence": 7,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 문서 본문에 ‘Landing date July 20, 1969, 20:17:40 UTC’와 Crew Members Neil Armstrong, Michael Collins, Buzz Aldrin이 표시됨.",
+        "commandSequence": 8,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "문서에서 관찰한 Neil Armstrong 링크(승무원 섹션 내 링크)를 눌러 Neil_Armstrong 페이지로 이동했고 제목이 Neil Armstrong임을 확인.",
+        "commandSequence": 11,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      },
+      {
+        "passed": true,
+        "evidence": "인물 문서 상단에 제목 Neil Armstrong 및 Born 항목의 생년월일 August 5, 1930이 표시됨.",
+        "commandSequence": 12,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      }
+    ],
+    "auditNotes": "원문 명령 출력·시나리오 조건과 대조.",
+    "output": {
+      "달 착륙 날짜": "July 20, 1969 (20:17:40 UTC)",
+      "승무원 이름": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Buzz Aldrin (Edwin ‘Buzz’ Aldrin)"
+      ],
+      "인물 문서 제목": "Neil Armstrong",
+      "생년월일": "August 5, 1930"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "처음 검색 입력을 snapshot의 @e4 참조로 채우려 했으나 invalid_target/not_started로 거부됨.",
+        "firstCommand": 3,
+        "recovery": "최신 스냅샷으로 검색 입력을 확인하고 의미 locator placeholder ‘Search Wikipedia’를 사용해 입력함.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous",
+        "detail": "Neil Armstrong 링크 이름이 여러 위치에서 반복되어 단순 이름 선택은 18개 후보로 모호함.",
+        "firstCommand": 10,
+        "recovery": "재관찰된 승무원 문맥을 이용해 --within ‘Crew’를 지정하고, 실제 링크로 인물 문서를 열었음을 확인함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_wikipedia_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 입력창에서 Apollo 11 검색 후 문서 제목 Apollo 11 확인",
+        "commandSequence": 5,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "본문 인포박스에 달 착륙 날짜 July 20, 1969, 20:17:40 UTC; Crew Members Neil Armstrong, Michael Collins, Buzz Aldrin 확인",
+        "commandSequence": 5,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 본문에서 관찰한 Neil Armstrong 링크를 클릭해 인물 문서 진입",
+        "commandSequence": 8,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      },
+      {
+        "passed": true,
+        "evidence": "문서 제목 Neil Armstrong, 인포박스 Born에 August 5, 1930 확인",
+        "commandSequence": 8,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력과 체크포인트 대조.",
+    "output": {
+      "Apollo 11 달 착륙 날짜": "July 20, 1969, 20:17:40 UTC",
+      "Apollo 11 승무원": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Buzz Aldrin"
+      ],
+      "인물 문서 제목": "Neil Armstrong",
+      "생년월일": "August 5, 1930"
+    },
+    "difficulties": [
+      {
+        "type": "navigation_observation_delay",
+        "detail": "검색 Enter 직후 wait_for_load/page_info에서는 Main Page가 남았지만 다음 관찰에서는 Apollo 11 문서 화면과 URL이 확인됨",
+        "firstCommand": 2,
+        "recovery": "같은 쓰기를 반복하지 않고 이후 DOM·URL을 다시 관찰함",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_weather_bu",
+    "status": "partial",
+    "checkpointScore": 3,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Weather.com 위치 검색 UI에서 ‘New York, NY’를 입력한 뒤 첫 제안 ‘New York City, New York’을 선택. 해당 도시 헤더와 예보가 관찰됨.",
+        "commandSequence": 7,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": false,
+        "evidence": "예보 기온이 68°, 74°처럼 표시되었으나 화면에 °F 또는 Fahrenheit 명시가 없어 Fahrenheit 선택을 증명하지 못함.",
+        "commandSequence": 7,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "10 Day 탭과 ‘New York City Daily Forecast’ 표가 보이고 URL 경로가 /tenday임.",
+        "commandSequence": 7,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "첫 예보 행: Today, Chance 5%, Low 68°, High 74°.",
+        "commandSequence": 7,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      }
+    ],
+    "auditNotes": "위치/10 Day/행 필드는 원문 확인. Fahrenheit는 명시적 근거 없음으로 실패 유지. 값이 미국 기온처럼 보인다는 추측으로 단위 성공 처리하지 않음.",
+    "output": {
+      "location": "New York City, New York",
+      "temperature_unit": null,
+      "first_forecast_date": "Today",
+      "high": "74°",
+      "low": "68°",
+      "precipitation_chance": "5%"
+    },
+    "difficulties": [
+      {
+        "type": "unit_not_explicit",
+        "detail": "예보는 도 단위 기호만 표시하고 °F/Fahrenheit 라벨을 노출하지 않음.",
+        "firstCommand": 7,
+        "recovery": "위치 선택 및 10 Day 예보 진입을 완료한 뒤 접근성/DOM 화면 증거를 확인했으나 단위 라벨을 찾지 못함.",
+        "resolved": false
+      },
+      {
+        "type": "transient_command_error",
+        "detail": "시행 중 파일 경로에 잘못된 날짜 구분을 넣어 wrapper가 파일을 열지 못하는 호출이 있었음. 브라우저 명령으로 기록되지 않음.",
+        "firstCommand": 0,
+        "recovery": "올바른 trial 경로로 다음 명령을 실행함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_weather_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 위치 검색에 New York, NY 입력 후 ‘New York City New York’ 결과를 선택했고 현재 헤더에 New York City가 표시됨.",
+        "commandSequence": 8,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "More 설정 대화상자의 라디오 ‘°F’가 checked:true로 표시됨.",
+        "commandSequence": 17,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "페이지 제목이 ‘10-Day Weather Forecast for New York City, New York’이고 URL이 /tenday임.",
+        "commandSequence": 9,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "첫 예보 카드가 Today이며 펼친 영역에 High 74F, 카드 값 68°/74°, Rain Drop 5%가 표시됨. 페이지에는 구체 날짜 대신 Today로 표시됨.",
+        "commandSequence": 23,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      }
+    ],
+    "auditNotes": "사전 정의 조건 및 원문 요청 URL·페이지 필드·현재 화면과 대조.",
+    "output": {
+      "location": "New York City, New York",
+      "temperatureUnit": "Fahrenheit (°F; checked)",
+      "forecastScreen": "10 Day",
+      "firstForecastDate": "Today (날짜 숫자 미표시)",
+      "lowTemperature": "68°F",
+      "highTemperature": "74°F",
+      "precipitationChance": "5%"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "처음 위치 선택 버튼의 snapshot ref(@e8) 클릭이 invalid_target으로 거부됨.",
+        "firstCommand": 3,
+        "recovery": "snapshot에서 확인한 testId location-picker-trigger로 다시 관찰·클릭함.",
+        "resolved": true
+      },
+      {
+        "type": "transport_uncertain / headedFallback",
+        "detail": "More 버튼 role/name 클릭이 35초 후 outcome_unknown으로 끝났고 상태 조회에서 no_match, clicked:false 및 Chrome의 headed 전환을 확인함.",
+        "firstCommand": 12,
+        "recovery": "요청 상태를 조회하고 새 snapshot을 읽은 뒤, snapshot 후보 중 첫 More 텍스트를 지정해 설정 대화상자를 열고 °F checked를 확인함.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous",
+        "detail": "‘More’ 텍스트가 sidebar와 footer 두 개 일치하여 모호함이 반환됨.",
+        "firstCommand": 15,
+        "recovery": "관찰된 후보 목록에서 sidebar의 nth 0을 지정함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_imdb_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 Search IMDb 필드에 The Shawshank Redemption을 입력하고 제안 결과에 ‘The Shawshank Redemption 1994 Tim Robbins, Morgan Freeman’이 표시됨.",
+        "commandSequence": 4,
+        "url": "https://www.imdb.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "선택한 결과에서 제목 The Shawshank Redemption, 연도 1994가 브라우저 제목 ‘The Shawshank Redemption (1994) - IMDb’ 및 /title/tt0111161/ 상세 URL로 확인됨.",
+        "commandSequence": 7,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 화면 h1은 The Shawshank Redemption. hero-rating-bar 점수 텍스트 9.3 /10, View User Ratings 링크 텍스트의 평가 수 3.3M 확인.",
+        "commandSequence": 14,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 Top Cast 74 링크를 열어 Full cast & crew 화면 진입. 출연자 링크 Tim Robbins와 Morgan Freeman을 각각 현재 페이지에서 확인.",
+        "commandSequence": 17,
+        "url": "https://www.imdb.com/title/tt0111161/fullcredits/"
+      }
+    ],
+    "auditNotes": "사전 정의 조건 및 원문 요청 URL·페이지 필드·현재 화면과 대조.",
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "IMDb rating": "9.3/10",
+      "ratings count": "3.3M",
+      "Top Cast": [
+        "Tim Robbins",
+        "Morgan Freeman"
+      ]
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "검색 결과 snapshot에서 반환된 @e327 참조로 클릭했을 때 execution not_started / invalid_target이 반환됨.",
+        "firstCommand": 5,
+        "recovery": "현재 화면에서 새 검색 결과 snapshot을 읽고 의미 선택자(결과 전체 이름)로 클릭해 상세 페이지에 진입.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r1_imdb_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 입력창에 The Shawshank Redemption을 입력했고, 자동완성 UI에 'The Shawshank Redemption / 1994 / Tim Robbins, Morgan Freeman' 결과가 표시됨.",
+        "commandSequence": 12,
+        "url": "https://www.imdb.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "UI 결과 링크를 눌러 /title/tt0111161/ 상세 페이지 진입. 제목 The Shawshank Redemption (1994) - IMDb 및 페이지 내 연도 1994 확인.",
+        "commandSequence": 22,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 텍스트에 IMDb RATING 9.3 /10과 평가 수 3.3M 표시.",
+        "commandSequence": 22,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 본문에서 Top Cast 섹션과 첫 두 배우 Tim Robbins, Morgan Freeman 확인.",
+        "commandSequence": 22,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      }
+    ],
+    "auditNotes": "Top Cast의 현재 DOM 본문에서 배우 확인. 스크롤 입력 실패를 감추지 않고 읽기 결과와 구분.",
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "IMDb rating": "9.3/10",
+      "rating count": "3.3M",
+      "Top Cast": "Tim Robbins; Morgan Freeman"
+    },
+    "difficulties": [
+      {
+        "type": "headless access block",
+        "detail": "첫 홈 진입에서 IMDb가 403 Forbidden을 반환.",
+        "firstCommand": 1,
+        "recovery": "허용된 reveal 1회를 실행하고 마지막 관찰 URL인 홈을 새 탭으로 열어 화면 크기를 다시 설정. 재관찰 후 홈페이지가 정상 로드됨.",
+        "resolved": true
+      },
+      {
+        "type": "input helper did not retain text",
+        "detail": "fill_input 실행 후 검색 입력 값이 빈 문자열로 남아 검색을 시작하지 못함.",
+        "firstCommand": 6,
+        "recovery": "검색 입력 UI에 포커스한 뒤 Input.insertText로 입력하고 값과 자동완성 결과를 검증.",
+        "resolved": true
+      },
+      {
+        "type": "scroll IPC timeout",
+        "detail": "Top Cast로 내리려는 mouse wheel scroll 명령이 5초 IPC timeout으로 실패함.",
+        "firstCommand": 24,
+        "recovery": "현재 상세 페이지의 관찰된 본문 텍스트에 Top Cast 제목과 배우 두 명이 이미 포함되어 있음을 확인. 스크롤 재시도는 하지 않음.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_google_hb",
+    "status": "blocked",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Google 홈페이지 검색 UI에 'NASA Artemis program'을 입력했고 Enter로 실행했다. 검색 요청은 https://www.google.com/search?q=NASA+Artemis+program 으로 진행됐으나 Google이 429를 반환하고 /sorry/index CAPTCHA 화면으로 보냈다.",
+        "commandSequence": 6,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "검색결과 대신 Google의 CAPTCHA interstitial(HTTP 429)이 표시되어 NASA 공식 도메인 결과를 확인하지 못했다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "관찰 가능한 검색 결과 링크가 없어서 NASA 공식 페이지로 진입하지 못했다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "대상 페이지 제목과 프로그램 설명은 읽지 못했다. CAPTCHA 화면만 관찰됐다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      }
+    ],
+    "auditNotes": "검색 질의 실행만 인정; headed 복구 호출의 출력 미확인은 브라우저 전환 성공으로 단정하지 않음. 로그 번호 중복 확인: 7. 동시 호출 두 행의 시간/인자/코드는 append 로그에 남지만 같은 번호 출력 파일 하나가 덮어써졌다. 주요 성공/차단 체크포인트는 보존된 별도 명령으로 대조됨. 실제 행 수를 호출 수로 사용하고 파일 수의 helper/nativeActions는 비교에서 제외.",
+    "output": {
+      "pageTitle": null,
+      "programPurposeOrMissionDescription": null,
+      "url": "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3DNASA%2BArtemis%2Bprogram"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "검색 textarea를 snapshot ref(@e8)로 fill하려 했으나 invalid_target/not_started 반환.",
+        "firstCommand": 3,
+        "recovery": "새 snapshot으로 검색 UI를 재확인하고 관찰된 combobox 역할·이름 locator로 정확한 검색어를 입력했다.",
+        "resolved": true
+      },
+      {
+        "type": "captcha",
+        "detail": "검색 제출 뒤 Google /sorry/index에서 429와 CAPTCHA frame on a nearly empty page 증거가 관찰됐다.",
+        "firstCommand": 6,
+        "recovery": "headed reveal 기본 복구를 호출했으나 wrapper가 결과/계측 행을 남기지 않아 전환 여부를 확인할 수 없었다. CAPTCHA 상태에서 중단했고 우회·재제출은 하지 않았다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_google_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "evidence": "Google 검색 결과 URL에 q=nasa+artemis+program 확인",
+        "url": "https://www.google.com/search?q=nasa+artemis+program",
+        "passed": true,
+        "commandSequence": 10
+      },
+      {
+        "evidence": "검색 결과에 ‘Moon to Mars | NASA's Artemis Program’ 및 NASA (.gov) 표시 확인",
+        "url": "https://www.google.com/search?q=nasa+artemis+program",
+        "passed": true,
+        "commandSequence": 12
+      },
+      {
+        "evidence": "관찰한 Google 결과 링크를 클릭해 nasa.gov/humans-in-space/artemis/ 진입",
+        "url": "https://www.nasa.gov/humans-in-space/artemis/",
+        "passed": true,
+        "commandSequence": 16
+      },
+      {
+        "evidence": "페이지 제목 ‘Moon to Mars | NASA''s Artemis Program - NASA’; 본문: Under Artemis, NASA will send astronauts on increasingly difficult missions to explore more of the Moon for scientific discovery, economic benefits, and to build on our foundation for the first crewed missions to Mars.",
+        "url": "https://www.nasa.gov/humans-in-space/artemis/",
+        "passed": true,
+        "commandSequence": 17
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력·URL 적용 조건·현재 페이지 필드와 대조. 로그 번호 중복 확인: 14. 동시 호출 두 행의 시간/인자/코드는 append 로그에 남지만 같은 번호 출력 파일 하나가 덮어써졌다. 주요 성공/차단 체크포인트는 보존된 별도 명령으로 대조됨. 실제 행 수를 호출 수로 사용하고 파일 수의 helper/nativeActions는 비교에서 제외.",
+    "output": {
+      "title": "Moon to Mars | NASA's Artemis Program - NASA",
+      "query": "NASA Artemis program",
+      "programPurpose": "Under Artemis, NASA will send astronauts on increasingly difficult missions to explore more of the Moon for scientific discovery, economic benefits, and to build on our foundation for the first crewed missions to Mars."
+    },
+    "difficulties": [
+      {
+        "detail": "검색 제출 직후 unusual traffic 안내와 reCAPTCHA가 표시되어 첫 결과 관찰 실패",
+        "firstCommand": 4,
+        "recovery": "허용된 1회 reveal로 headed Chrome 재시작 후 관찰된 검색 URL을 재방문. 결과가 열렸고 CAPTCHA는 다시 나타나지 않음",
+        "resolved": true,
+        "type": "Google unusual-traffic CAPTCHA"
+      }
+    ]
+  },
+  {
+    "id": "r2_amazon_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse",
+        "evidence": "홈에서 검색 UI에 “Logitech M185 wireless mouse” 입력 후 결과 페이지로 전환, 1–16 of 172 results for 해당 검색어 확인",
+        "passed": true,
+        "commandSequence": 5
+      },
+      {
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse&rh=p_123%3A213704",
+        "evidence": "Logitech 브랜드 필터 클릭 후 URL refinements=p_123%3A213704 적용, 검색 결과 DOM의 상품들이 Logitech M185임을 확인",
+        "passed": true,
+        "commandSequence": 8
+      },
+      {
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/ref=sr_1_1",
+        "evidence": "필터 결과의 “M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue” 관찰 링크 클릭 후 해당 상품 상세 페이지 확인",
+        "passed": true,
+        "commandSequence": 10
+      },
+      {
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/ref=sr_1_1",
+        "evidence": "상세 페이지 본문에 상품명, KRW20,001, “FREE delivery October 19 - 24”, “Only 15 left in stock (more on the way)” 확인",
+        "passed": true,
+        "commandSequence": 10
+      }
+    ],
+    "auditNotes": "사전 정의 조건 및 원문 요청 URL·페이지 필드·현재 화면과 대조.",
+    "output": {
+      "productName": "Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue",
+      "displayPrice": "KRW 20,001",
+      "delivery": "FREE delivery October 19–24 to Republic of Korea on eligible orders over KRW 65,380",
+      "stock": "Only 15 left in stock (more on the way)"
+    },
+    "difficulties": [
+      {
+        "type": "초기 렌더링 지연",
+        "recovery": "추가 관찰 명령으로 readyState/title/body 확인 후 정상 UI 진행",
+        "resolved": true,
+        "detail": "첫 관찰에서 body.innerText가 비어 있었고 후속 관찰에서는 홈이 완전히 렌더링됨",
+        "firstCommand": 1
+      }
+    ]
+  },
+  {
+    "id": "r2_amazon_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Amazon 홈 Search Amazon 필드에 'Logitech M185 wireless mouse'를 입력 제출했고 결과 페이지 h1에 1-16 of 258 results for 해당 검색어 표시.",
+        "commandSequence": 5,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Brands 그룹에서 'Apply Logitech filter to narrow results' 링크를 눌러 URL에 rh=p_123%3A213704 및 refinements=p_123%3A213704가 나타남.",
+        "commandSequence": 9,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse&rh=p_123%3A213704"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 Logitech 결과 'M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue'를 열어 /dp/B00PGB7OKM 상품 상세 화면, HTTP 200을 확인.",
+        "commandSequence": 11,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 제목은 Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue. 현재 선택된 옵션 가격 KRW 20,001, 'Only 15 left in stock (more on the way).' 및 'FREE delivery October 19 - 24 to Republic of Korea on eligible orders over KRW 65,380'를 페이지에서 읽음.",
+        "commandSequence": 14,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력·URL 적용 조건·현재 페이지 필드와 대조.",
+    "output": {
+      "searchQuery": "Logitech M185 wireless mouse",
+      "brandFilter": "Logitech",
+      "productName": "Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue",
+      "displayPrice": "KRW 20,001 (17% savings; list KRW 24,004)",
+      "stock": "Only 15 left in stock (more on the way).",
+      "delivery": "FREE delivery October 19 - 24 to Republic of Korea on eligible orders over KRW 65,380; fastest delivery Monday, October 19"
+    },
+    "difficulties": [
+      {
+        "type": "지역 배송 안내 모달",
+        "detail": "초기 홈 화면에 International Shopping Transition Alert가 표시됨.",
+        "firstCommand": 3,
+        "recovery": "관찰된 Dismiss 버튼을 눌러 닫고 홈에서 검색을 계속함.",
+        "resolved": true
+      },
+      {
+        "type": "현지 통화 및 배송 지역",
+        "detail": "브라우저 locale은 en-US지만 Amazon은 배송지를 Republic of Korea로 표시하고 가격을 KRW로 제공함.",
+        "firstCommand": 3,
+        "recovery": "필터/상품 탐색은 계속하고 실제 화면의 KRW 가격과 한국 배송 안내를 기록함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_walmart_hb",
+    "status": "partial",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 입력에 wireless mouse 입력 후 Enter 처리됐고 현재 주소가 /search?q=wireless+mouse로 바뀐 것을 스냅샷에서 확인했다.",
+        "commandSequence": 7,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 화면은 제목이 비어 있고 상품 대신 회색 skeleton 카드만 표시됐다. 정렬 컨트롤/적용 증거를 확인하지 못했다.",
+        "commandSequence": 16,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "결과 목록이 렌더링되지 않아 상품 상세 페이지에 진입하지 못했다.",
+        "commandSequence": 16,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "상품명·가격·배송/재고 텍스트를 확인할 수 없었다. 검색 결과 페이지 본문에는 헤더와 /search?q=wireless+mouse만 표시됐다.",
+        "commandSequence": 12,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력·URL 적용 조건·현재 페이지 필드와 대조.",
+    "output": {
+      "검색어": "wireless mouse",
+      "상품명": null,
+      "표시 가격": null,
+      "배송 또는 재고 안내": null
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "ref @e8 기반 fill이 invalid_target/not_started를 반환했다.",
+        "firstCommand": 3,
+        "recovery": "새 snapshot으로 ref를 재확인한 뒤 관찰된 placeholder를 사용해 입력했고 입력값 일치를 확인했다.",
+        "resolved": true
+      },
+      {
+        "type": "검색 결과 skeleton 미완성",
+        "detail": "검색 URL로 이동했으나 약 40초 뒤에도 페이지 제목과 결과 본문이 비어 있고 회색 skeleton 타일만 남았다.",
+        "firstCommand": 7,
+        "recovery": "홈으로 돌아가 검색 필드 입력 후 Search 버튼을 눌러 한 차례 재시도하고 snapshot/eval으로 현재 페이지를 확인했다. 동일한 skeleton 상태가 지속되어 중단했다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_walmart_bu",
+    "status": "blocked",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 입력창에 wireless mouse를 입력하고 검색 UI를 제출했다. 현재 URL이 https://www.walmart.com/search?q=wireless+mouse로 바뀐 것을 확인했다.",
+        "commandSequence": 15,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과는 로딩 skeleton만 표시되어 가격 낮은 순 정렬 옵션을 확인하지 못했다. 재관찰 뒤 사람 확인 차단 화면으로 이동했다.",
+        "commandSequence": 20,
+        "url": "https://www.walmart.com/blocked"
+      },
+      {
+        "passed": false,
+        "evidence": "상품 상세 페이지에 진입하지 못했다.",
+        "commandSequence": 20,
+        "url": "https://www.walmart.com/blocked"
+      },
+      {
+        "passed": false,
+        "evidence": "상품명·가격·배송/재고 안내를 읽을 수 없었다.",
+        "commandSequence": 20,
+        "url": "https://www.walmart.com/blocked"
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력·URL 적용 조건·현재 페이지 필드와 대조. Robot or human 인간확인 화면이 최종 중단 원인이므로 partial 자체보고를 blocked로 분류. 검색 1/4 부분 점수는 보존.",
+    "output": {
+      "productName": null,
+      "displayPrice": null,
+      "shippingOrStock": null
+    },
+    "difficulties": [
+      {
+        "type": "search-results-loading",
+        "detail": "검색 제출 뒤 검색 페이지가 skeleton 로딩 화면에서 멈췄다.",
+        "firstCommand": 15,
+        "recovery": "화면을 재관찰하고 4초 대기했으나 결과가 나타나지 않아 허용된 reveal 1회를 수행하고 마지막으로 관찰한 검색 URL을 다시 열었다.",
+        "resolved": false
+      },
+      {
+        "type": "human-verification-block",
+        "detail": "reveal 후 검색 URL 재접속 시 Walmart Robot or human? Activate and hold the button 화면에 막혔다.",
+        "firstCommand": 20,
+        "recovery": "사이트의 사람 확인을 관찰하고 우회 없이 중지했다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_ebay_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에서 Logitech M185를 제출해 결과 페이지로 이동. URL의 _nkw=Logitech+M185 및 제목 'Logitech M185 for sale | eBay' 확인.",
+        "commandSequence": 19,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 화면에서 Condition > New 선택 후 New 필터 칩과 선택된 Buy It Now 칩을 확인. 상품 링크와 상세 URL에 LH_ItemCondition=1000 및 LH_BIN=1 포함.",
+        "commandSequence": 33,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_BIN=1&LH_ItemCondition=1000"
+      },
+      {
+        "passed": true,
+        "evidence": "결과의 첫 상품을 열어 /itm/296754422562 상세 페이지 진입. 제목은 'Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop'.",
+        "commandSequence": 37,
+        "url": "https://www.ebay.com/itm/296754422562?LH_BIN=1&LH_ItemCondition=1000"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 본문에서 가격 GBP 7.99, 약 KRW14,082.50, Condition: New, 판매자 shapestechnology 및 판매자 평점 97.9% positive (469) 확인.",
+        "commandSequence": 37,
+        "url": "https://www.ebay.com/itm/296754422562?LH_BIN=1&LH_ItemCondition=1000"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "title": "Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop",
+      "price": "GBP 7.99 (approximately KRW 14,082.50)",
+      "condition": "New",
+      "seller": "shapestechnology"
+    },
+    "difficulties": [
+      {
+        "type": "초기 페이지 오류",
+        "detail": "첫 홈 진입에서 eBay 오류 페이지가 나왔고 검색란을 통한 fill_input/Enter(대소문자 혼합)는 홈 화면을 제출하지 못함.",
+        "firstCommand": 1,
+        "recovery": "허용된 reveal을 1회 사용해 홈 UI를 다시 관찰. 검색란에 포커스 후 Input.insertText로 입력하고 press_key(\"ENTER\")로 제출하여 검색 결과를 확인.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_ebay_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 https://www.ebay.com/ 에서 Search for anything에 Logitech M185를 입력했고 값 검증 후 Enter 실행. 결과 화면 제목 'Logitech M185 for sale | eBay', 본문 '753 results for Logitech M185'.",
+        "commandSequence": 6,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": true,
+        "evidence": "Condition 메뉴의 New (521) Items 링크를 선택해 URL에 LH_ItemCondition=1000 적용을 확인했고, Buying Format의 Buy It Now (517) Items를 선택. 현재 결과 snapshot에 Buy It Now selected, URL에 LH_BIN=1 및 LH_ItemCondition=1000이 보임.",
+        "commandSequence": 12,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_ItemCondition=1000&LH_BIN=1"
+      },
+      {
+        "passed": true,
+        "evidence": "필터 결과 list에서 제목 'Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop'과 item ID 296754422562를 확인. 해당 관찰 결과의 링크를 눌렀으나 탭 이동 효과가 관찰되지 않아 관찰된 item URL 경로를 열어 상세 화면에 진입했고, 페이지 제목과 URL이 일치함.",
+        "commandSequence": 17,
+        "url": "https://www.ebay.com/itm/296754422562"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 본문에서 제목 'Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop', 가격 GBP 7.99 (Approximately KRW14,082.50), Condition: New, 판매자 shapestechnology를 읽음.",
+        "commandSequence": 24,
+        "url": "https://www.ebay.com/itm/296754422562"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "title": "Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop",
+      "price": "GBP 7.99 (Approximately KRW14,082.50)",
+      "condition": "New",
+      "seller": "shapestechnology"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "처음 검색 필드의 snapshot ref @e18로 fill을 보냈을 때 invalid_target/not_started 반환. 재전송 대신 새 query snapshot으로 필드를 재확인하고 관찰된 placeholder locator로 입력해 성공.",
+        "firstCommand": 3,
+        "recovery": "Search for anything placeholder로 fill, valueMatches=true 확인 후 검색 실행.",
+        "resolved": true
+      },
+      {
+        "type": "confirmation_required",
+        "detail": "Buy It Now 필터 링크 클릭이 risk external_write로 분류되어 --confirm 없이 not_started 반환.",
+        "firstCommand": 10,
+        "recovery": "시나리오가 명시적으로 필터 적용을 요구하므로 같은 관찰 링크를 작업 범위 내에서 --confirm으로 선택하고 이후 URL/선택 상태 검증.",
+        "resolved": true
+      },
+      {
+        "type": "navigation_no_effect",
+        "detail": "관찰된 결과 제목 링크 클릭은 clicked=true였으나 동일 탭 URL 변경/화면 변화가 관찰되지 않음.",
+        "firstCommand": 15,
+        "recovery": "세션 목록 확인 후, 결과 list에서 이미 관찰한 item ID 296754422562의 링크 경로를 사용해 상세 페이지로 이동. 제목과 URL로 진입 검증.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_bestbuy_hb",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에 'wireless mouse' 입력 후 Submit search를 눌렀고, 검색 결과 화면 제목과 h1이 'wireless mouse search results'로 바뀜.",
+        "commandSequence": 10,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Brand 영역에서 Logitech 체크박스를 선택. 체크 상태 true 및 URL의 qp=brand_facet=Brand~Logitech 확인.",
+        "commandSequence": 12,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "조건 적용 후 결과 수 3633 표시는 보였으나 상품 카드 영역이 공백이고 Logitech 상품 링크가 DOM에 없어 상세 진입 불가.",
+        "commandSequence": 26,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "상세 페이지에 진입하지 못해 상품명·가격·고객 평점/리뷰 수를 해당 상세 화면에서 확인하지 못함.",
+        "commandSequence": 26,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      }
+    ],
+    "auditNotes": "원문 브라우저 출력·URL 적용 조건·현재 페이지 필드와 대조.",
+    "output": {
+      "검색어": "wireless mouse",
+      "브랜드 조건": "Logitech (적용 확인)",
+      "상품명": null,
+      "표시 가격": null,
+      "고객 평점": null,
+      "리뷰 수": null
+    },
+    "difficulties": [
+      {
+        "type": "shell_argument_quoting",
+        "detail": "PowerShell에서 @e5 참조 인자가 따옴표 없이 wrapper에 전달되어 참조가 잘렸고 invalid_target로 거부됨.",
+        "firstCommand": 3,
+        "recovery": "새 snapshot을 읽고 참조를 '@e5'로 인용해 다시 관찰했음.",
+        "resolved": true
+      },
+      {
+        "type": "not_visible_headed_fallback",
+        "detail": "미국 사이트 선택 링크 클릭이 not_visible로 실패했고 실행 결과는 outcome_unknown이었으며 자동 headed 전환이 observationRequired=true로 완료됨.",
+        "firstCommand": 6,
+        "recovery": "같은 쓰기를 재전송하지 않고 새 snapshot으로 미국 Best Buy 홈이 열린 것을 확인한 뒤 UI 과업을 이어감.",
+        "resolved": true
+      },
+      {
+        "type": "blank_product_grid",
+        "detail": "Logitech 브랜드 조건과 결과 페이지는 보였으나 상품 그리드가 공백이었음. 화면 캡처와 현재 DOM 확인에서 Logitech 상품 링크가 없었음.",
+        "firstCommand": 14,
+        "recovery": "대기, 아래로 스크롤, Escape 및 DOM/스크린샷 재관찰을 했으나 공백이 유지됨.",
+        "resolved": false
+      },
+      {
+        "type": "blocked_by_overlay",
+        "detail": "Skip To Results 앵커 클릭이 lv-app-grid-container에 가려져 blocked_by_overlay로 거부됨.",
+        "firstCommand": 22,
+        "recovery": "Escape 입력 후 재관찰했으나 결과 그리드는 계속 비어 있어 상세 진입은 불가했음.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_bestbuy_bu",
+    "status": "partial",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에 wireless mouse를 입력했고 관찰된 Submit search 버튼을 눌렀다. URL이 https://www.bestbuy.com/site/searchpage.jsp?id=pcat17071&st=wireless%20mouse 로 바뀌었다. 결과 본문은 후속 관찰에서도 Loading... 이었다.",
+        "commandSequence": 28,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "브랜드 필터가 적용된 결과 화면을 관찰하지 못했다. 검색 자동완성에는 Logitech 제품 제안이 있었으나 필터 적용 증거는 아니다.",
+        "commandSequence": 29,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "브랜드 조건이 적용된 결과 상품의 상세 페이지에 진입하지 못했다.",
+        "commandSequence": 29,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "상세 페이지의 상품명·표시 가격·평점/리뷰 수를 추출하지 못했다. 자동완성에는 Logitech Signature M650 L Full-size Wireless Optical Scroll Mouse with Silent Clicks - Wireless - Graphite, 평점 4.8/5, 리뷰 2,563개가 표시됐으나 상세 정보로 확인하지 않았다.",
+        "commandSequence": 25,
+        "url": "https://www.bestbuy.com/"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "searchQuery": "wireless mouse",
+      "productName": null,
+      "displayedPrice": null,
+      "customerRating": null,
+      "reviewCount": null,
+      "observedAutocompleteSuggestion": {
+        "name": "Logitech - Signature M650 L Full-size Wireless Optical Scroll Mouse with Silent Clicks - Wireless - Graphite",
+        "rating": "4.8 out of 5 stars",
+        "reviewCount": 2563
+      }
+    },
+    "difficulties": [
+      {
+        "type": "browser_ipc_timeout",
+        "detail": "첫 Best Buy 홈 이동 중 Page.navigate가 daemon IPC 5초 제한을 넘겼다.",
+        "firstCommand": 1,
+        "recovery": "재전송하지 않고 현재 URL을 관찰했다. 이후 허용된 reveal 뒤 홈페이지를 새로 열어 진행했다.",
+        "resolved": true
+      },
+      {
+        "type": "country_selector_navigation",
+        "detail": "초기 국가 선택 화면에서 United States 링크 좌표 클릭 뒤 URL은 /#에 머물렀다.",
+        "firstCommand": 4,
+        "recovery": "화면에서 확인한 링크 주소 https://www.bestbuy.com/?intl=nosplash 를 사용해 이동했고 Best Buy 홈 UI를 확인했다.",
+        "resolved": true
+      },
+      {
+        "type": "screenshot_timeout",
+        "detail": "headless에서 Page.captureScreenshot이 60초 후 timeout됐다.",
+        "firstCommand": 5,
+        "recovery": "허용된 reveal 한 번 뒤 screenshot이 정상 완료됐다.",
+        "resolved": true
+      },
+      {
+        "type": "search_results_stuck_loading",
+        "detail": "검색 제출 후 URL은 결과 경로로 바뀌었으나 5초 대기 뒤 페이지 본문은 Loading... 상태였다.",
+        "firstCommand": 28,
+        "recovery": "추가 검색 제출을 반복하지 않았다. 시간 한도 도달로 현재 상태에서 종료했다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_booking_bu",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 목적지 입력란에 New York City를 입력하고 제안된 New York (New York City), New York, United States를 선택했다. 결과 화면은 'Search hotels in New York, NY' 및 New York 숙소 목록이며 URL은 /city/us/new-york.html이다.",
+        "commandSequence": 21,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": false,
+        "evidence": "날짜 UI에서 Tue, Nov 17 — Thu, Nov 19를 선택했고 검색 UI에 성인 2명·객실 1개가 보였지만, 제출 후 검색 폼 날짜는 'Check-in date — Check-out date'로 초기화됐다. 첫 숙소 가격도 '1 night, 2 adults'로 표시되어 2박 조건이 결과에 반영됐음을 확인하지 못했다.",
+        "commandSequence": 33,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": false,
+        "evidence": "관찰한 New York 도시 목록의 필터에는 별점과 리뷰 점수만 보였고 'Free cancellation' 텍스트나 무료 취소 필터가 없었다.",
+        "commandSequence": 28,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 목록의 첫 숙소는 The Wallace Hotel, 평점 9.3, 표시 가격 $415이며 가격 설명은 '1 night, 2 adults'이다. 날짜 조건이 적용되지 않았으므로 요청 날짜 기준 가격으로 간주할 수 없다.",
+        "commandSequence": 33,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료. CP4는 일반 도시 카드의 읽기만 인정하며 요청한 2박/무료 취소 가격으로 해석하지 않는다. CP2·3 실패.",
+    "output": {
+      "destination": "New York (New York City), New York, United States",
+      "checkIn": null,
+      "checkOut": null,
+      "adults": 2,
+      "rooms": 1,
+      "freeCancellationFilterApplied": false,
+      "propertyName": "The Wallace Hotel",
+      "rating": "9.3/10",
+      "displayedPrice": "$415 USD",
+      "priceBasis": "1 night, 2 adults; requested dates not reflected"
+    },
+    "difficulties": [
+      {
+        "type": "input helper did not focus destination field",
+        "detail": "첫 fill_input 호출에서는 목적지 값이 입력되지 않았다.",
+        "firstCommand": 4,
+        "recovery": "목적지 입력란을 화면 좌표로 먼저 클릭한 후 fill_input을 다시 호출했고, 입력값 및 제안 목록을 확인했다.",
+        "resolved": true
+      },
+      {
+        "type": "search form did not retain stay dates",
+        "detail": "UI에서는 선택 날짜가 보였으나 제출 뒤 검색폼은 날짜 미선택 상태였고 도시 랜딩 결과의 가격 기준도 1박으로 표시됐다. 무료 취소 필터도 해당 결과 화면에서 찾지 못했다.",
+        "firstCommand": 21,
+        "recovery": "결과 상단 검색 UI에서도 날짜를 다시 선택해 검색을 제출하고 화면을 재확인했으나, 날짜 상태와 결과 가격 기준은 반영되지 않았다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_booking_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 자동완성에서 'New York (New York City) New York, United States' 옵션을 선택해 목적지를 지정했다.",
+        "commandSequence": 15,
+        "url": "https://www.booking.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 URL에 checkin=2026-11-17, checkout=2026-11-19, group_adults=2, no_rooms=1이 반영됐고 화면 제목은 New York: 547 properties found였다.",
+        "commandSequence": 21,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1"
+      },
+      {
+        "passed": true,
+        "evidence": "Free cancellation 필터 체크 후 결과 URL의 nflt=fc%3D2와 필터 checked 상태가 확인됐다.",
+        "commandSequence": 23,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1&nflt=fc%3D2"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 카드에 Pod 51, 평점 8.2 (Very Good, 9,517 reviews), 2 nights·2 adults 가격 US$406 및 세금 +US$67이 표시됐다.",
+        "commandSequence": 33,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1&nflt=fc%3D2"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "destination": "New York City (New York, United States)",
+      "check_in": "2026-11-17",
+      "check_out": "2026-11-19",
+      "adults": 2,
+      "rooms": 1,
+      "free_cancellation_filter": "Applied (nflt=fc=2)",
+      "property": "Pod 51",
+      "rating": "8.2 — Very Good (9,517 reviews)",
+      "displayed_stay_price": "US$406 for 2 nights, 2 adults; +US$67 taxes"
+    },
+    "difficulties": [
+      {
+        "type": "overlay_blocked_click / headedFallback",
+        "detail": "Destination option click was blocked by Booking.com's open sign-in discount dialog; wrapper switched Chrome from headless to headed and required fresh observation.",
+        "firstCommand": 9,
+        "recovery": "Took a new snapshot after fallback; the dialog was no longer open, then completed the search flow from the observed form.",
+        "resolved": true
+      },
+      {
+        "type": "destination_fill_value_mismatch / invalid_target",
+        "detail": "Initial destination fill reported an empty value although autocomplete text hits existed; early captured refs then returned invalid_target.",
+        "firstCommand": 4,
+        "recovery": "Freshly observed the visible search field after fallback, filled it successfully, and selected the exact New York City autocomplete option.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_expedia_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Stays 홈 검색에서 New York City를 입력하고, 관찰된 제안 ‘New York, New York, United States’를 선택함. 제안이 사라지고 날짜 선택 단계로 전환됨.",
+        "commandSequence": 9,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 URL에 destination=New York, New York, United States of America, startDate=2026-11-17, endDate=2026-11-19, adults=2, rooms=1이 명시됨. 결과 화면 상단도 Tue, Nov 17 - Thu, Nov 19 및 2 travelers, 1 room을 표시함.",
+        "commandSequence": 19,
+        "url": "https://www.expedia.com/Hotel-Search?destination=New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      },
+      {
+        "passed": true,
+        "evidence": "‘Very good 8+’ 라디오가 checked=true가 되었고, 결과 URL에 guestRating=40이 추가됨. 다음 snapshot에서 ‘Remove Very good 8+’ 조건 제거 버튼도 나타남.",
+        "commandSequence": 28,
+        "url": "https://www.expedia.com/Hotel-Search?rooms=1&destination=New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&guestRating=40"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 목록의 Hotel 32 32 카드에서 8.0 out of 10, Very Good, 2,600 reviews, $268 nightly, $691 total with taxes and fees를 읽음. 관찰된 호텔 링크도 지정 날짜와 guestRating=40 조건을 포함함.",
+        "commandSequence": 31,
+        "url": "https://www.expedia.com/Hotel-Search?rooms=1&destination=New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&guestRating=40"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "destination": "New York, New York, United States of America (New York City)",
+      "checkIn": "2026-11-17",
+      "checkOut": "2026-11-19",
+      "adults": 2,
+      "rooms": 1,
+      "guestRatingFilter": "Very good 8+ (guestRating=40)",
+      "property": "Hotel 32 32",
+      "rating": "8.0 out of 10 (Very Good; 2,600 reviews)",
+      "displayedPrice": "$268 nightly; $691 total with taxes and fees"
+    },
+    "difficulties": [
+      {
+        "type": "초기 CAPTCHA 감지 및 headed fallback",
+        "detail": "session open이 약 31초 뒤 headedFallback reason=captcha를 반환했으나, 후속 홈 snapshot에서 정상 Expedia 홈/Stays UI와 privacy dialog를 확인함.",
+        "firstCommand": 1,
+        "recovery": "동일 세션에서 snapshot으로 실제 페이지를 확인하고 consent overlay를 닫은 뒤 계속 진행함. CAPTCHA 우회는 하지 않음.",
+        "resolved": true
+      },
+      {
+        "type": "invalid_target",
+        "detail": "첫 도시 제안 클릭이 snapshot ref @e197로는 invalid_target로 거부됨.",
+        "firstCommand": 7,
+        "recovery": "새 snapshot으로 같은 제안을 확인한 뒤 관찰된 role=button 및 정확한 이름 locator로 선택함.",
+        "resolved": true
+      },
+      {
+        "type": "blocked_by_overlay / outcome_unknown",
+        "detail": "‘Very good 8+’ 클릭 시 fee-inclusive pricing dialog가 페이지를 덮어 클릭 결과가 불명확하게 반환됨.",
+        "firstCommand": 23,
+        "recovery": "snapshot으로 pricing dialog를 확인해 닫고, 라디오가 unchecked인 것을 재확인한 뒤 한 번 클릭해 checked 상태와 guestRating=40 URL을 검증함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_expedia_bu",
+    "status": "partial",
+    "checkpointScore": 3,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 Stays 검색 UI에서 New York City를 입력하고 suggestion ‘New York, New York, United States of America’를 선택했다. hidden destination 입력에 해당 전체 지역명과 RegionId 2621, 좌표 40.712843,-74.005966가 확인됨.",
+        "commandSequence": 8,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 화면에 ‘504 Properties in New York, New York, United States of America. November 17, 2026 through November 19, 2026’ 및 ‘2 travelers, 1 room’이 보였고 URL에 d1/startDate=2026-11-17, d2/endDate=2026-11-19, adults=2, rooms=1이 포함됨.",
+        "commandSequence": 25,
+        "url": "https://www.expedia.com/Hotel-Search?destination=New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      },
+      {
+        "passed": false,
+        "evidence": "Guest rating의 ‘Very good 8+ (1382)’ 라디오를 화면에서 확인했으나, 클릭 후에도 input.checked=false, 선택 라벨은 ‘Any’로 관찰되어 필터 적용을 입증하지 못함. 결과 URL에도 guest rating 필터가 표시되지 않음.",
+        "commandSequence": 30,
+        "url": "https://www.expedia.com/Hotel-Search?destination=New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰 스크린샷의 결과 카드 ‘The Hamilton House Inn’에 평점 9.4 Exceptional, $204 nightly 및 $474 total이 표시됨. 숙박 상세 화면 진입은 하지 않음.",
+        "commandSequence": 37,
+        "url": "https://www.expedia.com/Hotel-Search?destination=New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료. CP4 command037의 step35.png를 직접 확인. 필터 미적용이므로 전체 요청 성공이 아님.",
+    "output": {
+      "destination": "New York, New York, United States of America",
+      "dates": "2026-11-17 to 2026-11-19",
+      "adults": 2,
+      "rooms": 1,
+      "guestRatingFilter": null,
+      "hotel": "The Hamilton House Inn",
+      "rating": "9.4 Exceptional",
+      "price": "$204 nightly; $474 total"
+    },
+    "difficulties": [
+      {
+        "type": "headless bot challenge",
+        "detail": "첫 홈 화면에서 ‘We can't tell if you're a human or a bot’ 차단이 표시됨.",
+        "firstCommand": 1,
+        "recovery": "허용된 reveal 복구 1회를 실행한 뒤 홈을 다시 열어 Expedia UI로 진행.",
+        "resolved": true
+      },
+      {
+        "type": "scroll timeout",
+        "detail": "scroll(700,700,1000)이 5초 IPC timeout으로 실패했고 화면 위치가 바뀌지 않음.",
+        "firstCommand": 27,
+        "recovery": "CDP DOM.scrollIntoViewIfNeeded로 관찰된 Guest rating 라디오를 화면에 가져오고 좌표 입력을 시도.",
+        "resolved": true
+      },
+      {
+        "type": "filter interaction not reflected",
+        "detail": "화면에서 ‘Very good 8+’를 클릭했지만 선택 상태는 Any로 남음.",
+        "firstCommand": 29,
+        "recovery": "라벨 클릭과 키 입력을 확인했으나 상태 변화 없음; 시행 한도 도달로 중단.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_wikipedia_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Wikipedia 홈에서 검색 UI를 이용해 Apollo 11 검색 결과를 열었고, 결과 목록에 Apollo 11 문서 링크가 표시됨. 이어 관찰한 결과 링크를 열어 /wiki/Apollo_11, 제목 Apollo 11을 확인함.",
+        "commandSequence": 19,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 본문 리드에는 달 착륙 시각이 July 20 at 20:17 UTC로, 착륙 날짜는 July 20, 1969로 명시됨. 승무원은 Commander Neil Armstrong, Command Module Pilot Michael Collins, Lunar Module Pilot Edwin ‘Buzz’ Aldrin으로 표시됨.",
+        "commandSequence": 20,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 문서 본문에서 관찰한 Neil Armstrong 링크(href https://en.wikipedia.org/wiki/Neil_Armstrong)를 클릭해 인물 문서로 이동함.",
+        "commandSequence": 21,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      },
+      {
+        "passed": true,
+        "evidence": "인물 문서 제목은 Neil Armstrong이며 리드 본문에 Neil Alden Armstrong (August 5, 1930 – August 25, 2012)로 표시되어 생년월일을 읽음.",
+        "commandSequence": 21,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "apollo11_landing_date": "July 20, 1969 (본문에 착륙 시각 July 20 at 20:17 UTC로 명시)",
+      "crew": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Edwin ‘Buzz’ Aldrin"
+      ],
+      "neil_armstrong_birth_date": "August 5, 1930"
+    },
+    "difficulties": [
+      {
+        "type": "검색 UI 입력 및 비동기 탐색",
+        "detail": "초기 홈 검색 입력 뒤 즉시 페이지 정보를 읽었을 때 아직 홈이었고, 헤더 Search 토글 및 빈 검색 폼이 열리면서 Special:Search 빈 결과 화면으로 이동하는 등 query 제출 상태가 불명확했음. 검색 결과 화면의 OOUI 입력에서 fill_input과 제어키 조합을 사용했을 때도 폼 값이 비거나 Apollo 11이 중복되는 경우가 있었음.",
+        "firstCommand": 2,
+        "recovery": "현재 화면에서 보이는 검색 결과 입력 필드와 제출 버튼을 관찰해 사용. 입력 필드를 클릭하고 기존 문자열 길이만큼 Backspace를 눌러 비운 뒤 type_text로 Apollo 11을 입력, 화면의 Search 버튼을 클릭하고 실제 전환을 기다려 정확한 검색어가 있는 결과 URL과 결과 제목을 확인함. 관찰된 Apollo 11 결과 링크를 열어 문서를 확인함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_wikipedia_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Wikipedia 홈 검색 UI에 Apollo 11을 입력·제출했고 현재 URL이 https://en.wikipedia.org/wiki/Apollo_11, 제목과 H1이 Apollo 11 - Wikipedia / Apollo 11로 바뀜.",
+        "commandSequence": 5,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 문서 본문에서 Lunar lander Landing date July 20, 1969, 20:17:40 UTC 확인. Crew Members에 Neil Armstrong, Michael Collins, Buzz Aldrin 표기 확인.",
+        "commandSequence": 8,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰한 Apollo 11 문서 내 Prime crew 섹션의 Neil Armstrong 링크를 클릭했고 URL https://en.wikipedia.org/wiki/Neil_Armstrong, H1 Neil Armstrong 확인.",
+        "commandSequence": 10,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      },
+      {
+        "passed": true,
+        "evidence": "인물 문서 제목 Neil Armstrong, 본문 인포박스 Born 항목의 August 5, 1930 확인.",
+        "commandSequence": 11,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료.",
+    "output": {
+      "apollo11_lunar_landing_date_utc": "July 20, 1969, 20:17:40 UTC",
+      "apollo11_crew": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Buzz Aldrin"
+      ],
+      "neil_armstrong_page_title": "Neil Armstrong",
+      "neil_armstrong_birth_date": "August 5, 1930"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "첫 검색 입력 시 snapshot의 ref @e4를 fill에 전달했지만 execution=not_started, reason=invalid_target로 거부됨.",
+        "firstCommand": 3,
+        "recovery": "새 snapshot으로 Search Wikipedia 요소를 다시 관찰한 뒤 role=searchbox와 name을 사용해 입력·제출함.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous_locator",
+        "detail": "Neil Armstrong 링크 이름만으로 클릭할 때 9개 후보가 있어 모호성으로 실행되지 않음.",
+        "firstCommand": 9,
+        "recovery": "후보에 표시된 Prime crew 문맥으로 범위를 좁혀 동일 href 링크를 클릭하고 대상 URL을 확인함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_weather_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 위치 선택 창에서 'New York, NY'를 검색하고 'New York City New York' 결과를 선택했다. 이후 위치 버튼에 'New York City'가 표시됨.",
+        "commandSequence": 12,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "More 설정 창의 snapshot에서 라디오 '°F'가 checked: true로 표시됨.",
+        "commandSequence": 20,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "문서 제목은 '10-Day Weather Forecast for New York City, New York'이며 URL 경로가 /tenday임.",
+        "commandSequence": 17,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "10 Day 목록 첫 행이 'Today 5% Partly Cloudy Day 5% Partly Cloudy 68° 75°'로 표시됨. 날짜 라벨은 Today이며 다음 행은 Wed 14. 실행일 및 다음 행을 기준으로 날짜는 2026-10-13 (화)로 해석함.",
+        "commandSequence": 13,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료. 날짜 Today는 원문 라벨이며 숫자 날짜는 실행일에 따른 해석. 위치별 예보 차이를 도구 오류로 간주하지 않는다.",
+    "output": {
+      "location": "New York City, New York",
+      "temperatureUnit": "Fahrenheit (°F; selected)",
+      "forecastView": "10 Day",
+      "firstForecastDate": "Today; 2026-10-13 (Tue, inferred from next row Wed 14 and execution date)",
+      "highTemperature": "75°F",
+      "lowTemperature": "68°F",
+      "precipitationProbability": "5%"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "화면 snapshot에서 받은 @ref를 click/fill에 전달했지만 wrapper 경유 실행에서 invalid_target이 반환됨.",
+        "firstCommand": 4,
+        "recovery": "새 snapshot에서 요소를 다시 확인하고 role/name 또는 placeholder 선택자를 사용해 위치 창 열기와 입력을 완료함.",
+        "resolved": true
+      },
+      {
+        "type": "headless_locator_timeout_and_fallback",
+        "detail": "상단 More 버튼 역할 선택이 35초 후 timeout/outcome_unknown이었음. request status 결과는 no_match이며 Chrome이 headed로 한 번 전환됨.",
+        "firstCommand": 15,
+        "recovery": "상태 확인 뒤 새 snapshot을 읽고 'More' 텍스트를 Site Navigation Links 안에서 선택해 설정 메뉴를 열었음.",
+        "resolved": true
+      },
+      {
+        "type": "collapsed_forecast_row_unavailable",
+        "detail": "첫 forecast 행을 펼치는 click 선택자가 no_match로 거부됨.",
+        "firstCommand": 23,
+        "recovery": "행을 재실행하지 않고 사전 관찰된 10 Day 목록에서 날짜 라벨·강수율·최고/최저 기온을 읽음. 상세 확장 내용은 확인하지 못함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_weather_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Search suggestion 'New York — New York City, New York' was selected; current page rendered 'New York Daily Forecast' and 'Manhattan, New York City, New York'. See final screenshot.",
+        "commandSequence": 7,
+        "url": "https://weather.com/weather/tenday/l/656df55756f7e86da5d576cf10f76fb9a6f9d17236101c4f331940338767c3ae"
+      },
+      {
+        "passed": true,
+        "evidence": "Settings panel displayed Imperial - °F / mph / miles / inches, and the °F option had selected styling (bg-gray-900); verified true in command 16.",
+        "commandSequence": 16,
+        "url": "https://weather.com/weather/tenday/l/656df55756f7e86da5d576cf10f76fb9a6f9d17236101c4f331940338767c3ae"
+      },
+      {
+        "passed": true,
+        "evidence": "Page title was '10-Day Weather Forecast for Manhattan, New York City, New York'; 10 Day tab was active and its href used /weather/tenday/.",
+        "commandSequence": 16,
+        "url": "https://weather.com/weather/tenday/l/656df55756f7e86da5d576cf10f76fb9a6f9d17236101c4f331940338767c3ae"
+      },
+      {
+        "passed": true,
+        "evidence": "First forecast row in the 10 Day list showed Today, 65° low, 71° high, 5% precipitation chance. Fahrenheit was selected in the settings panel.",
+        "commandSequence": 16,
+        "url": "https://weather.com/weather/tenday/l/656df55756f7e86da5d576cf10f76fb9a6f9d17236101c4f331940338767c3ae"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료. 날짜 Today는 원문 라벨이며 숫자 날짜는 실행일에 따른 해석. 위치별 예보 차이를 도구 오류로 간주하지 않는다.",
+    "output": {
+      "location": "New York, NY (Manhattan, New York City, New York)",
+      "temperatureUnit": "Fahrenheit (Imperial)",
+      "forecastView": "10 Day",
+      "firstForecast": {
+        "date": "Today (Oct 13 per scenario run date)",
+        "high": "71°F",
+        "low": "65°F",
+        "precipitationChance": "5%"
+      }
+    },
+    "difficulties": [
+      {
+        "type": "asynchronous location update",
+        "detail": "Immediately after clicking the New York, New York City result, the page still showed Jongno District and the suggestion overlay. A later screenshot/observation showed New York Daily Forecast and the selected 10 Day page.",
+        "firstCommand": 6,
+        "recovery": "Waited and observed the same tab again; did not repeat the location selection.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r2_imdb_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 화면에 Search IMDb 입력란과 Submit search 버튼이 관찰됐고, 입력 후 검색 자동완성에서 The Shawshank Redemption (1994), Tim Robbins, Morgan Freeman 항목을 확인함.",
+        "commandSequence": 7,
+        "url": "https://www.imdb.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 자동완성의 작품 링크를 열어 URL /title/tt0111161/ 및 페이지 제목 The Shawshank Redemption (1994) - IMDb 확인.",
+        "commandSequence": 8,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 텍스트에서 The Shawshank Redemption, 1994, IMDb RATING 9.3/10, 3.3M 평가 확인.",
+        "commandSequence": 9,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지의 Top Cast 섹션 텍스트에서 Tim Robbins (Andy Dufresne), Morgan Freeman (Ellis Boyd 'Red' Redding) 확인. 화면 내 섹션 스크롤은 IPC timeout으로 실패했으나 현재 페이지 DOM 텍스트에서 읽음.",
+        "commandSequence": 18,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      }
+    ],
+    "auditNotes": "원시 명령 출력의 URL·화면 필드와 체크포인트 대조 완료. Top Cast는 현재 DOM에서 검증됐으나 화면 스크롤 자체는 실패.",
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "IMDb rating": "9.3/10",
+      "rating count": "3.3M",
+      "Top Cast actors": [
+        "Tim Robbins",
+        "Morgan Freeman"
+      ]
+    },
+    "difficulties": [
+      {
+        "type": "403 Forbidden",
+        "detail": "첫 headless IMDb 홈 요청에서 제목이 403 Forbidden이고 검색 UI가 없었음.",
+        "firstCommand": 1,
+        "recovery": "허용된 reveal 1회로 headed 환경 전환 후 관찰된 홈 URL을 다시 열어 사이트 UI가 로드됨.",
+        "resolved": true
+      },
+      {
+        "type": "IPC timeout",
+        "detail": "Top Cast 링크 좌표가 viewport 밖에 있었으며 마우스 휠 입력이 browser daemon IPC에서 5초 timeout. 두 차례 휠 입력 실패.",
+        "firstCommand": 11,
+        "recovery": "페이지 URL/DOM을 재관찰하고 현재 페이지 텍스트의 Top Cast 절에서 배우 두 명을 추출함. 실제 viewport 스크롤은 해결되지 않음.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r2_imdb_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 Search IMDb 입력란에 정확한 검색어 The Shawshank Redemption을 입력해 제출했고, Find 결과 화면과 검색어가 반영된 URL을 확인했다.",
+        "commandSequence": 3,
+        "url": "https://www.imdb.com/find/?q=The+Shawshank+Redemption"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 검색 결과 링크로 진입했다. URL의 title/tt0111161 및 페이지 제목 The Shawshank Redemption (1994) - IMDb, h1 The Shawshank Redemption을 확인했다.",
+        "commandSequence": 7,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "현재 상세 화면에서 작품명 The Shawshank Redemption, 페이지 제목의 연도 1994, 평점 9.3/10, View User Ratings 링크의 평가 수 3.3M을 추출했다.",
+        "commandSequence": 11,
+        "url": "https://www.imdb.com/title/tt0111161/",
+        "evidenceCommands": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 Top Cast 74 링크로 Full cast & crew 화면에 이동한 뒤 현재 화면에서 배우 Tim Robbins와 Morgan Freeman 이름을 확인했다.",
+        "commandSequence": 16,
+        "url": "https://www.imdb.com/title/tt0111161/fullcredits/",
+        "evidenceCommands": [
+          15,
+          16
+        ]
+      }
+    ],
+    "auditNotes": "원시 명령 로그 대조 완료. 평점 수는 command012, 두 배우는 command015·016에서 확인.",
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "IMDb rating": "9.3/10",
+      "rating count": "3.3M",
+      "top cast": [
+        "Tim Robbins",
+        "Morgan Freeman"
+      ]
+    },
+    "difficulties": [
+      {
+        "type": "초기 headless 접근 403 및 headed 폴백 재탐색 필요",
+        "detail": "첫 session open 응답은 IMDb 홈에서 status 403이었고 headed 전환 뒤 자동 재시도는 ERR_ABORTED였다. 이어진 화면 관찰에서 헤드된 세션의 정상 IMDb 홈과 검색 UI를 확인했다.",
+        "firstCommand": 1,
+        "recovery": "자동 headed 전환이 적용된 같은 세션을 snapshot으로 새로 관찰한 뒤 홈 검색 UI에서 검색을 수행했다. 쓰기 재전송은 없었다.",
+        "resolved": true
+      },
+      {
+        "type": "검색 결과 ref invalid_target",
+        "detail": "결과 스냅샷의 @e1000015 참조 클릭이 invalid_target / not_started로 거부됐다.",
+        "firstCommand": 5,
+        "recovery": "새 스냅샷으로 해당 결과를 재확인한 뒤 관찰된 정확한 역할·이름 locator(링크, The Shawshank Redemption)를 사용해 상세 페이지로 이동했다.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_google_bu",
+    "status": "blocked",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "Google 홈 검색창에 'NASA Artemis program'을 입력해 값은 확인했으나, 검색 버튼 좌표 조작 뒤 결과 대신 /sorry 확인 화면으로 이동했고 화면 URL의 쿼리는 'nasa artemis program changes'로 달라 정확한 검색 실행을 입증하지 못함.",
+        "commandSequence": 6,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "결과 목록이 표시되지 않아 nasa.gov 공식 도메인 결과를 확인하지 못함. 현재 화면은 unusual traffic 인간 확인 안내.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 링크가 관찰되지 않았으므로 NASA 공식 페이지로 진입하지 못함.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "현재 URL은 Google /sorry/index이며 결과 제목이나 Artemis 프로그램 설명은 읽을 수 없었음.",
+        "commandSequence": 8,
+        "url": "https://www.google.com/sorry/index"
+      }
+    ],
+    "auditNotes": "원시 명령 로그 대조 완료. 요청 검색어와 자동완성 선택 이후 실제 쿼리가 다름. CAPTCHA 차단은 확인됐으나 정확한 요청 검색 실행도 미충족. headed reveal은 사용하지 않은 시행자 선택으로 기록.",
+    "output": {
+      "searchQuery": "NASA Artemis program (검색창에 입력 확인, 결과 실행 증거는 불일치)",
+      "officialResultDomain": null,
+      "officialPageTitle": null,
+      "programPurposeOrMissionDescription": null
+    },
+    "difficulties": [
+      {
+        "type": "captcha_or_human_verification",
+        "detail": "검색 제출 후 Google이 'Our systems have detected unusual traffic from your computer network' 확인 페이지로 차단함. URL의 continue에는 nasa+artemis+program+changes가 포함되어, 입력 문자열과 다른 검색어가 실행된 정황도 있음.",
+        "firstCommand": 6,
+        "recovery": "기본 복구로 Ctrl+R 새로고침 1회 수행. 확인 페이지와 동일한 unusual traffic 문구가 유지되어 추가 시도를 중단함.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_google_hb",
+    "status": "blocked",
+    "checkpointScore": 1,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈페이지 검색 UI에서 'NASA Artemis program'을 입력했고 입력값 일치가 확인됐다. Enter 제출 뒤 같은 검색어가 포함된 Google 검색 URL로 이동했으나 429 요청 제한/사람 확인 페이지가 반환됐다.",
+        "commandSequence": 6,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "공식 NASA 검색 결과를 확인하지 못했다. 현재 화면은 Google CAPTCHA이며 결과 목록이 없다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "관찰된 공식 NASA 결과 링크가 없어 해당 페이지에 진입하지 못했다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "공식 페이지 제목과 임무 설명을 확인하지 못했다.",
+        "commandSequence": 7,
+        "url": "https://www.google.com/sorry/index"
+      }
+    ],
+    "auditNotes": "명령 로그에서 CAPTCHA와 지속 차단 확인. 정확한 쿼리 제출은 확인됐으나 검색 결과는 확인되지 않음.",
+    "output": {
+      "query": "NASA Artemis program",
+      "googleSearchUrl": "https://www.google.com/search?q=NASA+Artemis+program",
+      "officialResult": null,
+      "officialPageTitle": null,
+      "programDescription": null
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "첫 fill 시 snapshot ref @e8가 invalid_target을 반환했다.",
+        "firstCommand": 3,
+        "recovery": "forms로 검색 필드 확인 후 관찰된 label '검색'을 사용해 입력했다. 입력값 일치와 autocomplete 변화가 확인됐다.",
+        "resolved": true
+      },
+      {
+        "type": "captcha_or_rate_limit",
+        "detail": "검색 제출 결과 Google /sorry/index 페이지에 429가 나타났고 snapshot은 blocked.kind=captcha, captcha frame on a nearly empty page로 분류했다.",
+        "firstCommand": 6,
+        "recovery": "제품이 headless에서 headed로 자동 전환하고 화면을 새로 관찰했다. 사람 확인 페이지가 그대로여서 재시도하지 않고 중지했다.",
+        "resolved": false
+      },
+      {
+        "type": "slow_observation",
+        "detail": "CAPTCHA 화면 snapshot 완료에 22.5초가 걸렸다.",
+        "firstCommand": 7,
+        "recovery": "해당 snapshot 응답을 기다려 결과를 확인했다.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_amazon_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 Search Amazon UI에서 Logitech M185 wireless mouse를 제출했고 결과 페이지 제목과 URL query에 정확한 검색어가 표시됨.",
+        "commandSequence": 5,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Brands의 Apply Logitech filter to narrow results 링크를 선택. 결과 URL에 rh=p_123%3A213704가 포함되고 검색어 유지됨.",
+        "commandSequence": 9,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse&rh=p_123%3A213704"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과에서 Logitech M185 Compact Ambidextrous 2.4 GHz Wireless Mouse - Swift Grey (첫 비후원 결과)를 열었고 상세 화면 title과 /dp/B004YAVF8I URL을 확인함.",
+        "commandSequence": 14,
+        "url": "https://www.amazon.com/Logitech-Wireless-Mouse-M185-Swift/dp/B004YAVF8I"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 제목: Logitech M185 Compact Ambidextrous 2.4 GHz Wireless Mouse - Swift Grey. 현재 선택된 가격 radio 문구에 KRW 19,881 및 In Stock. 배송 textHits: FREE delivery Saturday, October 17 to Republic of Korea on eligible orders over KRW 65,380; Or fastest delivery Friday, October 16. 주문/장바구니 동작은 하지 않음.",
+        "commandSequence": 17,
+        "url": "https://www.amazon.com/Logitech-Wireless-Mouse-M185-Swift/dp/B004YAVF8I",
+        "evidenceCommands": [
+          16,
+          17
+        ]
+      }
+    ],
+    "auditNotes": "원시 명령 로그 대조 완료. 가격·재고는 command016, 배송은 command017. 대한민국 배송·KRW 환경.",
+    "output": {
+      "productName": "Logitech M185 Compact Ambidextrous 2.4 GHz Wireless Mouse - Swift Grey",
+      "displayedPrice": "KRW 19,881 (선택된 가격 radio의 문구)",
+      "availability": "In Stock",
+      "delivery": "FREE delivery Saturday, October 17 to Republic of Korea on eligible orders over KRW 65,380; fastest delivery Friday, October 16 (order within 4 hrs 14 mins 당시 표기)",
+      "destinationContext": "Amazon이 현재 배송지를 Republic of Korea로 표시함; 미국 배송 조건을 확인한 것이 아님"
+    },
+    "difficulties": [
+      {
+        "type": "locator_no_match_and_headed_fallback",
+        "detail": "상세 상품 링크의 스냅샷에 잘린 긴 이름을 그대로 사용한 클릭이 30.9초 후 no_match로 끝났고, wrapper 응답에 Chrome headed 전환 및 새 관찰 필요가 표시됨. 같은 클릭을 재전송하지 않고 새 snapshot으로 링크를 다시 관찰함.",
+        "firstCommand": 11,
+        "recovery": "새 snapshot에서 짧은 상품명으로 재탐색. 이름만 사용한 첫 클릭은 같은 이름의 두 링크로 ambiguous였음. candidates의 nth=0이 관찰된 첫 비후원 검색 결과임을 확인하고 선택해 상세 페이지 진입.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous_link",
+        "detail": "M185 Compact Ambidextrous 2.4 GHz Wireless Mouse - Swift Grey 이름 링크가 일반 검색 결과와 후원 상품에 각각 1개 있어 모호했음.",
+        "firstCommand": 13,
+        "recovery": "도구가 반환한 candidates에서 nth 0의 일반 검색 결과를 지정해 클릭함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_amazon_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 입력 #twotabsearchtextbox에 'Logitech M185 wireless mouse'를 입력했고, 이후 검색 결과 페이지 본문에 1-16 of 172 results for \"Logitech M185 wireless mouse\"가 표시됨.",
+        "commandSequence": 14,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Brands > Logitech를 UI에서 선택. 결과 URL에 rh=p_123%3A213704가 적용되고 결과가 119개로 줄었으며, 첫 결과는 Logitech M185 제품임.",
+        "commandSequence": 19,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse&rh=p_123%3A213704"
+      },
+      {
+        "passed": true,
+        "evidence": "UI 결과의 'M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue'를 열어 Amazon 상세 페이지와 ASIN B00PGB7OKM에 진입함.",
+        "commandSequence": 21,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 DOM: 제목 'Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue'; 표시 가격 KRW20,001; FREE delivery October 19 - 24 to Republic of Korea on eligible orders over KRW 65,380; 재고 'Only 17 left in stock (more on the way).'.",
+        "commandSequence": 22,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      }
+    ],
+    "auditNotes": "원시 URL·필터·상품 상세 필드 확인.",
+    "output": {
+      "productName": "Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue",
+      "displayedPrice": "KRW20,001",
+      "delivery": "FREE delivery October 19 - 24 to Republic of Korea on eligible orders over KRW 65,380; or fastest delivery Monday, October 19",
+      "availability": "Only 17 left in stock (more on the way).",
+      "asin": "B00PGB7OKM",
+      "brandFilter": "Logitech"
+    },
+    "difficulties": [
+      {
+        "type": "초기 렌더 지연",
+        "detail": "홈 URL을 연 직후 화면과 body text가 비어 있고 검색 입력도 없었음. 1회 허용된 headed 복구 후 새 탭을 관찰했으나 처음에는 여전히 빈 화면이었음.",
+        "firstCommand": 1,
+        "recovery": "같은 관찰 URL을 다시 열고 짧게 기다린 뒤 document.readyState=complete 및 Amazon 본문·검색 입력 노출을 확인하고 작업을 이어감.",
+        "resolved": true
+      },
+      {
+        "type": "입력 보존 실패",
+        "detail": "fill_input('#twotabsearchtextbox', ...) 후 확인한 입력 value가 빈 문자열이었고 Enter도 즉시 검색 결과로 이동시키지 않았음.",
+        "firstCommand": 6,
+        "recovery": "AX searchbox의 box model 중심을 클릭하고 CDP Input.insertText로 검색어를 입력한 뒤 화면에 제안 검색어를 확인하고 제출함.",
+        "resolved": true
+      },
+      {
+        "type": "스크린샷 IPC 시간 초과",
+        "detail": "상세 상태를 캡처하는 Page.captureScreenshot이 60초 내 daemon 응답을 받지 못해 command 13이 실패함.",
+        "firstCommand": 13,
+        "recovery": "스크린샷 호출을 중단하고 page_info 및 현재 DOM 텍스트·필드 추출로 진행 상황을 검증함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_walmart_bu",
+    "status": "blocked",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "홈 URL은 열렸고 검색 입력란은 DOM에 있었지만, 홈페이지에 'Robot or human? Activate and hold the button to confirm that you're human' 대화상자가 나타나 검색을 실행하지 못함.",
+        "commandSequence": 2,
+        "url": "https://www.walmart.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "가격 낮은 순 정렬 화면에 도달하지 못함. 사람 확인 대화상자가 남아 있음.",
+        "commandSequence": 5,
+        "url": "https://www.walmart.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과나 상품 상세 페이지에 진입하지 못함.",
+        "commandSequence": 5,
+        "url": "https://www.walmart.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "상품명·가격·배송 또는 재고 안내를 읽지 못함.",
+        "commandSequence": 5,
+        "url": "https://www.walmart.com/"
+      }
+    ],
+    "auditNotes": "명령 로그에서 CAPTCHA와 지속 차단 확인. headed reveal 대신 대화상자 닫기를 기본 복구로 선택했다. 조기 중단/복구 선택을 포함한 Luna+CLI 결과이다.",
+    "output": {
+      "productName": null,
+      "displayedPrice": null,
+      "shippingOrAvailability": null
+    },
+    "difficulties": [
+      {
+        "type": "human_verification_captcha",
+        "detail": "홈페이지에서 사람 확인 대화상자가 노출되어 UI 검색을 막음. 'Close dialog' 버튼을 한 번 눌러 기본 복구를 시도했으나 같은 사람 확인 대화상자가 재관찰됨.",
+        "firstCommand": 2,
+        "recovery": "한 차례 대화상자 닫기를 시도하고 현재 화면을 다시 관찰함. 확인이 계속되어 우회나 추가 재시도 없이 중단.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_walmart_hb",
+    "status": "blocked",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "홈페이지 스크린샷에 'Robot or human?' 확인 모달이 표시됨. 검색을 실행하지 못함.",
+        "commandSequence": 4,
+        "url": "https://www.walmart.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 화면에 도달하지 못해 가격 낮은 순 정렬을 확인할 수 없음.",
+        "commandSequence": 4,
+        "url": "https://www.walmart.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "상품 상세에 진입하지 못함.",
+        "commandSequence": 4,
+        "url": "https://www.walmart.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "상품명·가격·배송/재고 안내를 읽지 못함.",
+        "commandSequence": 4,
+        "url": "https://www.walmart.com/"
+      }
+    ],
+    "auditNotes": "command002 snapshot TypeError n.children is not iterable 확인. command004 스크린샷 직접 확인: Robot or human? 대화상자. 새 snapshot 실패 때문에 CAPTCHA 자동 인지가 어려웠고, 수동 reveal wrapper는 hb 대상이 아니어서 거부됨. 엔진 오류와 사이트 차단을 분리해서 기록.",
+    "output": {
+      "상품명": null,
+      "표시 가격": null,
+      "배송 또는 재고 안내": null
+    },
+    "difficulties": [
+      {
+        "type": "captcha",
+        "detail": "홈페이지에 인간 확인 'Robot or human? Activate and hold the button...' 모달이 나타남.",
+        "firstCommand": 4,
+        "recovery": "기본 복구 후에도 인간 확인이 필요해 우회하지 않고 중단함.",
+        "resolved": false
+      },
+      {
+        "type": "snapshot_error",
+        "detail": "홈 snapshot 명령에서 page.evaluateHandle 오류: TypeError: n.children is not iterable.",
+        "firstCommand": 2,
+        "recovery": "request status로 실패 상태를 확인하고 스크린샷으로 현재 화면을 관찰함.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_ebay_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI에 Logitech M185 입력 후 Enter. 페이지 제목 ‘Logitech M185 for sale | eBay’, H1 ‘751 results for Logitech M185’와 검색 URL의 _nkw=Logitech+M185 확인.",
+        "commandSequence": 6,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 URL에 LH_BIN=1 및 LH_ItemCondition=1000 적용 확인. 화면에 ‘New Remove filter’가 표시됨.",
+        "commandSequence": 16,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_BIN=1&LH_ItemCondition=1000"
+      },
+      {
+        "passed": true,
+        "evidence": "결과의 관찰된 ‘New Logitech M185 Wireless Mouse + Nano Receiver Sealed’ 항목을 열어 popup 세션에서 해당 상품 상세 페이지 제목과 /itm/227336176529 경로 확인.",
+        "commandSequence": 22,
+        "url": "https://www.ebay.com/itm/227336176529?LH_BIN=1&LH_ItemCondition=1000"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 DOM에서 x-item-title = ‘New Logitech M185 Wireless Mouse + Nano Receiver Sealed’, x-price-primary = ‘US $18.40’, x-item-condition = ‘Condition: New’, x-sellercard-atf = ‘2nd Chance Resells’ 추출.",
+        "commandSequence": 28,
+        "url": "https://www.ebay.com/itm/227336176529?LH_BIN=1&LH_ItemCondition=1000",
+        "evidenceCommands": [
+          23,
+          24,
+          25,
+          26,
+          28
+        ]
+      }
+    ],
+    "auditNotes": "원시 URL·필터·상품 상세 필드 확인. 판매자는 command023/024에서 확인. 새 팝업 viewport가 929×917로 바뀐 점은 환경 한계로 기록.",
+    "output": {
+      "title": "New Logitech M185 Wireless Mouse + Nano Receiver Sealed",
+      "price": "US $18.40",
+      "condition": "New",
+      "seller": "2nd Chance Resells"
+    },
+    "difficulties": [
+      {
+        "type": "headless_failure_auto_headed_fallback",
+        "detail": "첫 session open 응답에 headless_failure로 headed 전환·재시도됨(switched=true, retried=true).",
+        "firstCommand": 1,
+        "recovery": "제품 자동 전환 후 동일 session ID로 snapshot과 UI 작업을 계속함.",
+        "resolved": true
+      },
+      {
+        "type": "invalid_target",
+        "detail": "홈 snapshot에서 얻은 @e18 ref를 fill에 사용했을 때 invalid_target/not_started 반환.",
+        "firstCommand": 3,
+        "recovery": "새 query snapshot에서 검색 필드를 다시 관찰한 후 의미 locator placeholder ‘Search for anything’로 입력 완료.",
+        "resolved": true
+      },
+      {
+        "type": "confirmation_required_for_filter_navigation",
+        "detail": "Buy It Now 및 New 조건의 결과 링크/조건 섹션 클릭이 risk=external_write로 분류되어 첫 호출들은 확인을 요구하며 실행 전 거부됨.",
+        "firstCommand": 8,
+        "recovery": "시나리오에서 명시 승인된 읽기용 필터 조작에만 --confirm을 붙여 재관찰 후 조건 적용을 확인함. 구매/입찰은 수행하지 않음.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous_result_link",
+        "detail": "상품 제목 locator가 썸네일·watch 링크 등 3개 후보와 모호하게 매칭됨.",
+        "firstCommand": 17,
+        "recovery": "관찰된 후보 인덱스 0을 사용해 상품 카드를 열고, session list로 새 popup 상세 세션을 확인함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_ebay_bu",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 검색 입력창에서 Logitech M185를 입력해 실행했고 검색 결과 화면 제목은 'Logitech M185 for sale | eBay', 본문은 '752 results for Logitech M185'를 표시했다.",
+        "commandSequence": 23,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 페이지에서 New 조건 칩이 보이고 Buy It Now 선택 후 URL에 LH_ItemCondition=1000 및 LH_BIN=1이 포함됐다. 페이지는 '376 results for Logitech M185'를 표시했다.",
+        "commandSequence": 42,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_ItemCondition=1000&LH_BIN=1"
+      },
+      {
+        "passed": false,
+        "evidence": "New와 Buy It Now 조건이 적용된 결과 페이지까지 진행했으나 상품 상세 페이지 진입은 예산 종료 전 확인하지 못했다.",
+        "commandSequence": 45,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_ItemCondition=1000&LH_BIN=1"
+      },
+      {
+        "passed": false,
+        "evidence": "상세 페이지에서 제목·가격·상태·판매자를 추출하지 못했다. 결과 DOM에는 후보 제목 'Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop'가 노출됐으나 상세 정보는 확인하지 않았다.",
+        "commandSequence": 45,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_ItemCondition=1000&LH_BIN=1"
+      }
+    ],
+    "auditNotes": "최종 검색 URL과 두 필터 적용 증거 대조. 상세·필드 읽기는 명령 상한으로 미수행, 2/4 partial 유지.",
+    "output": {
+      "candidateTitleFromResults": "Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop",
+      "price": null,
+      "condition": null,
+      "seller": null
+    },
+    "difficulties": [
+      {
+        "type": "headless_block",
+        "detail": "초기 홈 URL에서 eBay Error Page('Something went wrong on our end', 코드 0.513d3117.1791892369.8749390a)가 나왔다.",
+        "firstCommand": 1,
+        "recovery": "프로토콜에 따라 reveal을 1회 수행하고 마지막 관찰 URL인 홈페이지를 새 탭으로 열어 계속했다. 이후 홈페이지가 표시됐다.",
+        "resolved": true
+      },
+      {
+        "type": "search_submission",
+        "detail": "fill_input 및 Enter, Search 클릭만으로는 검색 결과 URL로 이동하지 않았다.",
+        "firstCommand": 5,
+        "recovery": "입력창 좌표를 클릭한 다음 CDP Input.insertText로 텍스트를 넣고, Search 버튼 클릭 후 Enter를 보내 결과 페이지를 확인했다.",
+        "resolved": true
+      },
+      {
+        "type": "scroll_timeout",
+        "detail": "결과 페이지의 마우스 휠 scroll이 5초 browser-use IPC timeout으로 두 번 실패했다.",
+        "firstCommand": 26,
+        "recovery": "관찰한 New 필터 링크의 backend DOM node에 DOM.scrollIntoViewIfNeeded를 호출해 화면에 배치한 뒤 필터를 선택했다.",
+        "resolved": true
+      },
+      {
+        "type": "command_budget",
+        "detail": "브라우저 명령 45회 상한에 도달해 상품 상세 페이지와 상세 필드를 확인할 수 없었다.",
+        "firstCommand": 45,
+        "recovery": "상한에 따라 추가 브라우저 명령 없이 partial 결과를 기록했다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_bestbuy_bu",
+    "status": "failed",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "https://www.bestbuy.com/에서 시작했으나 홈페이지가 국가 선택 화면으로 렌더링됨. 검색 UI는 없음.",
+        "commandSequence": 2,
+        "url": "https://www.bestbuy.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "국가 선택 화면에서 United States 링크를 두 차례 좌표 클릭했으나 URL fragment만 #?intl=nosplash로 바뀌고 화면은 그대로 유지됨. Logitech 조건을 적용할 검색 결과에 도달하지 못함.",
+        "commandSequence": 9,
+        "url": "https://www.bestbuy.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "상품 결과 및 상세 화면에 진입하지 못함.",
+        "commandSequence": 9,
+        "url": "https://www.bestbuy.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "상품명·가격·평점·리뷰 수를 확인할 상세 화면이 없었음.",
+        "commandSequence": 9,
+        "url": "https://www.bestbuy.com/"
+      }
+    ],
+    "auditNotes": "국가 선택 화면은 일반 진입 UI이며 CAPTCHA나 명시적 접근 거부 증거가 없다. 선택 클릭 후 화면 진전 없음과 IPC timeout에 따른 과업 실패로 분류. self blocked를 failed로 수정; strict 0/4 유지.",
+    "output": {
+      "productName": null,
+      "price": null,
+      "rating": null,
+      "reviewCount": null
+    },
+    "difficulties": [
+      {
+        "type": "navigation_timeout",
+        "detail": "초기 new_tab에서 Page.navigate가 daemon IPC 5초 timeout을 반환했으나 다음 관찰에서 Best Buy 국가 선택 페이지 URL과 텍스트가 확인됨.",
+        "firstCommand": 1,
+        "recovery": "별도 쓰기를 반복하지 않고 현재 탭의 URL·제목·본문을 관찰함.",
+        "resolved": true
+      },
+      {
+        "type": "country_interstitial_stuck",
+        "detail": "United States 선택 링크 클릭 뒤 화면은 계속 국가 선택 화면이며 상품 검색 UI가 나타나지 않음.",
+        "firstCommand": 4,
+        "recovery": "현재 DOM의 링크 텍스트·href·영역을 확인하고 관찰한 좌표를 재클릭한 뒤 화면을 재관찰함.",
+        "resolved": false
+      },
+      {
+        "type": "screenshot_timeout",
+        "detail": "capture_screenshot의 CDP Page.captureScreenshot 응답이 60초 후 timeout됨.",
+        "firstCommand": 8,
+        "recovery": "스크린샷 대신 현재 페이지 DOM·URL을 관찰해 계속 진행 가능 여부를 확인함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_bestbuy_hb",
+    "status": "blocked",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Best Buy 검색 UI에 wireless mouse를 입력해 실행했고 제목이 'wireless mouse - Best Buy', H1이 'wireless mouse search results'인 결과 화면으로 이동함.",
+        "commandSequence": 9,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Logitech 체크박스를 적용한 뒤 검색 URL에 qp=brand_facet%3DBrand%7ELogitech가 나타났고 checked 상태가 확인됨.",
+        "commandSequence": 12,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과의 Logitech 제품 링크 클릭 후 상세 화면 대신 chrome-error://chromewebdata/가 나타남. 오류 본문은 상품 URL에 ERR_HTTP2_PROTOCOL_ERROR를 표시함. headed 전환 뒤 복귀해 다시 관찰했을 때 CAPTCHA 프레임이 있는 빈 화면이 확인되어 중지함.",
+        "commandSequence": 29,
+        "url": "chrome-error://chromewebdata/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 목록에서 Logitech - G305 LIGHTSPEED Wireless Optical 6 Programmable Button Gaming Mouse with 12,000 DPI HERO Sensor - Wireless - Black 및 평점 4.7, 리뷰 4,465개는 관찰했으나, 상세 페이지를 열지 못했고 표시 가격은 확인하지 못함.",
+        "commandSequence": 24,
+        "url": "https://www.bestbuy.com/site/searchpage.jsp?st=wireless+mouse+Logitech"
+      }
+    ],
+    "auditNotes": "CP1·2 URL/checked 변화를 확인. 이후 검색어를 wireless mouse Logitech으로 바꾸면서 브랜드 facet이 사라졌으므로 상품 카드의 조건 유지도 미검증. command030 HTTP2 오류, command033 CAPTCHA frame 근거로 최종 blocked(2/4)로 분류. self partial을 수정.",
+    "output": {
+      "productName": "Logitech - G305 LIGHTSPEED Wireless Optical 6 Programmable Button Gaming Mouse with 12,000 DPI HERO Sensor - Wireless - Black",
+      "displayedPrice": null,
+      "customerRating": "4.7 out of 5 stars",
+      "reviewCount": 4465
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "초기 country chooser 및 검색 필드에서 snapshot ref 사용 시 invalid_target 발생.",
+        "firstCommand": 3,
+        "recovery": "화면을 다시 관찰하고 role/name 및 placeholder 기반 선택자로 조작함.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous_locator",
+        "detail": "Logitech 텍스트가 필터와 상품 텍스트 등 7개 요소와 일치해 단일 클릭이 거부됨.",
+        "firstCommand": 11,
+        "recovery": "관찰된 checkbox role/name 후보에서 브랜드 필터를 특정해 클릭했고 URL facet을 확인함.",
+        "resolved": true
+      },
+      {
+        "type": "navigation_error_and_captcha",
+        "detail": "상품 상세 링크 탐색 시 ERR_HTTP2_PROTOCOL_ERROR로 Chrome 오류 화면이 나타남. headed 전환 후 결과 화면 복귀 시 CAPTCHA 프레임이 있는 거의 빈 페이지가 탐지됨.",
+        "firstCommand": 25,
+        "recovery": "복귀 후 현재 화면을 재관찰하고 상품 링크를 다시 열어 보았으나 HTTP/2 오류가 반복됐고, CAPTCHA 확인 후 중단함.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_booking_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 숙소 검색 입력에 New York City를 입력하고 자동완성의 ‘New York (New York City) New York, United States’를 선택했다.",
+        "commandSequence": 13,
+        "url": "https://www.booking.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "결과 페이지 URL에 dest_id=20088325, checkin=2026-11-17, checkout=2026-11-19, group_adults=2, no_rooms=1이 있고 페이지 제목은 ‘Booking.com: Hotels in New York. Book your hotel now!’이다.",
+        "commandSequence": 19,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1"
+      },
+      {
+        "passed": true,
+        "evidence": "‘Popular filters’ 그룹의 Free cancellation 체크박스를 선택했고 URL에 nflt=fc%3D2가 반영되었다.",
+        "commandSequence": 22,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1&nflt=fc%3D2"
+      },
+      {
+        "passed": true,
+        "evidence": "첫 property-card DOM 텍스트: Citadines Connect Fifth Avenue - Times Square New York; Scored 7.7 (2,426 reviews); 2 nights, 2 adults; Current price US$706; +US$112 taxes. 카드에는 Free cancellation도 표시된다.",
+        "commandSequence": 32,
+        "url": "https://www.booking.com/searchresults.html?checkin=2026-11-17&checkout=2026-11-19&group_adults=2&no_rooms=1&nflt=fc%3D2"
+      }
+    ],
+    "auditNotes": "홈 자동완성 선택→요청 날짜·인원 URL→무료 취소 nflt 및 checked 변화→같은 목록 카드 2박·무료 취소·7.7·US$706을 원문 대조.",
+    "output": {
+      "destination": "New York (New York City), New York, United States",
+      "checkin": "2026-11-17",
+      "checkout": "2026-11-19",
+      "adults": 2,
+      "rooms": 1,
+      "free_cancellation_filter": true,
+      "property_name": "Citadines Connect Fifth Avenue - Times Square New York",
+      "rating": "7.7 / 10 (2,426 reviews)",
+      "displayed_stay_price": "US$706 for 2 nights, 2 adults, before taxes",
+      "taxes": "US$112"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "Sequence 3 fill using a reference from the initial large snapshot returned invalid_target.",
+        "firstCommand": 3,
+        "recovery": "Took a fresh focused snapshot and switched to the observed placeholder locator.",
+        "resolved": true
+      },
+      {
+        "type": "value_mismatch",
+        "detail": "Sequence 5 reported the destination field empty after typing New York City; the site autocomplete had consumed the text and showed a suggestion.",
+        "firstCommand": 5,
+        "recovery": "Observed the autocomplete options, then used the placeholder locator and selected the explicit New York (New York City) suggestion.",
+        "resolved": true
+      },
+      {
+        "type": "ambiguous",
+        "detail": "Sequence 21 matched two Free cancellation checkboxes, one under Popular filters and one under Reservation policy.",
+        "firstCommand": 21,
+        "recovery": "Scoped the observed checkbox to the Popular filters section with --within.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_booking_bu",
+    "status": "partial",
+    "checkpointScore": 2,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 페이지의 Enter destination 입력에 New York City를 입력했고, 추천 목록에서 ‘New York (New York City), New York, United States’를 선택했다.",
+        "commandSequence": 7,
+        "url": "https://www.booking.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "날짜 UI에서 Tue, Nov 17 — Thu, Nov 19 표시 및 2 adults · 0 children · 1 room을 확인했으나, 제출 후 페이지가 계속 ‘Enter your dates to see the latest prices’라고 표시했다. 카드 가격에도 ‘1 night, 2 adults’가 남아 11/17–11/19 조건이 반영된 결과로 확인할 수 없었다.",
+        "commandSequence": 22,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": false,
+        "evidence": "New York 호텔 목록의 화면 텍스트·접근성 트리에서 무료 취소 필터를 찾지 못했다. 날짜 미적용 상태로 필터 적용을 주장하지 않았다.",
+        "commandSequence": 23,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      },
+      {
+        "passed": true,
+        "evidence": "일반 New York 도시 목록에서 The Wallace Hotel, 9.3, $415/1 night를 읽었다. CP4는 필드 읽기 단계의 진단값으로만 인정. 요청 2박·무료취소 가격은 검증되지 않았고 CP2·3은 실패.",
+        "commandSequence": 22,
+        "url": "https://www.booking.com/city/us/new-york.html"
+      }
+    ],
+    "auditNotes": "r1/r2와 동일한 단계 판정 기준으로 generic 카드 필드 읽기 CP4를 인정해 자기 보고 1/4를 2/4로 수정. 요청 조건의 결과라는 뜻이 아니며 전체 실패 판정은 유지. 조건 적용 실패를 가격 추출 성공으로 숨기지 않음.",
+    "output": {
+      "숙소 이름": "The Wallace Hotel",
+      "평점": "9.3 / 10 (1,085 reviews)",
+      "표시 숙박 가격": "$415 (1 night, 2 adults; 요구한 날짜 조건 적용은 확인 불가)"
+    },
+    "difficulties": [
+      {
+        "type": "입력 helper가 입력값을 보존하지 않음",
+        "detail": "fill_input 호출 후 destination 입력값이 빈 값으로 남음.",
+        "firstCommand": 4,
+        "recovery": "접근성 트리에서 입력을 찾아 좌표 클릭 후 type_text로 입력하고 추천 목록 표시와 선택된 destination을 확인함.",
+        "resolved": true
+      },
+      {
+        "type": "날짜 검색 조건이 결과에 반영됐는지 확인 불가",
+        "detail": "달력 UI에서 11/17–11/19와 인원 요약이 잠시 표시됐지만 결과 페이지는 날짜 입력 안내를 유지하고 가격 카드에 1박이 표시됨. 검색 UI를 다시 진행해도 날짜 기반 결과 화면으로 바뀌지 않음.",
+        "firstCommand": 17,
+        "recovery": "도시 페이지의 달력에서 같은 날짜를 UI로 다시 고르고 Search를 실행해 결과를 재확인함. 조건 반영은 해결되지 않음.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_expedia_bu",
+    "status": "partial",
+    "checkpointScore": 3,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 Stays 검색 UI에서 New York City를 입력한 뒤 자동완성의 Central New York City, New York, New York, United States of America를 선택했다.",
+        "commandSequence": 13,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 헤더에 480 Properties in Central New York City와 November 17, 2026 through November 19, 2026가 표시됐고, 검색 필드에 2 travelers, 1 room가 보였다. 관찰 URL에 d1=2026-11-17, d2=2026-11-19, adults=2, rooms=1이 포함됐다.",
+        "commandSequence": 18,
+        "url": "https://www.expedia.com/Hotel-Search?destination=Central+New+York+City%2C+New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      },
+      {
+        "passed": false,
+        "evidence": "결과 필터에 Guest rating > Very good 8+ (1287)가 표시됐지만 선택되지 않았다. 해당 항목이 뷰포트 아래에 있어 UI 스크롤을 시도했으나 CDP mouseWheel 입력이 5초 후 시간 초과됐다.",
+        "commandSequence": 23,
+        "url": "https://www.expedia.com/Hotel-Search?destination=Central+New+York+City%2C+New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과 첫 카드에 voco Times Square - Broadway by IHG, 8.6 out of 10 (Excellent), 575 reviews, $263 nightly, $683 total이 표시됐다.",
+        "commandSequence": 18,
+        "url": "https://www.expedia.com/Hotel-Search?destination=Central+New+York+City%2C+New+York%2C+New+York%2C+United+States+of+America&startDate=2026-11-17&endDate=2026-11-19&adults=2&rooms=1"
+      }
+    ],
+    "auditNotes": "검색 URL·요청 날짜/인원·첫 숙소 카드 가격 원문 대조. Central New York City 하위 지역을 선택한 범위 차이 기록. Very good 필터는 미적용, 3/4 partial.",
+    "output": {
+      "destination": "Central New York City, New York, New York, United States of America",
+      "checkin": "2026-11-17",
+      "checkout": "2026-11-19",
+      "adults": 2,
+      "rooms": 1,
+      "guestRatingFilter": null,
+      "property": "voco Times Square - Broadway by IHG",
+      "rating": "8.6/10 (Excellent; 575 reviews)",
+      "displayedPrice": "$263 nightly; $683 total including taxes and fees"
+    },
+    "difficulties": [
+      {
+        "type": "headless_bot_block",
+        "detail": "첫 Expedia 홈페이지 로드가 'Show us your human side... We can't tell if you are a human or a bot' 페이지로 막혔다.",
+        "firstCommand": 1,
+        "recovery": "허용된 reveal 1회를 수행한 뒤 관찰했던 홈페이지 URL을 새 탭으로 열고 1440x900 viewport에서 정상 홈페이지를 확인했다.",
+        "resolved": true
+      },
+      {
+        "type": "scroll_input_timeout",
+        "detail": "Very good 8+ 라디오가 문서 y=1211에 있어 화면 밖이었다. scroll helper의 mouseWheel dispatch가 두 차례 모두 daemon 응답 대기 5초 후 시간 초과됐다.",
+        "firstCommand": 20,
+        "recovery": "page_info와 DOM으로 scrollY=0을 확인하고 PageDown 및 화면 여백 클릭 후 키 입력도 시도했지만 이동하지 않았다. 필터는 선택하지 않았고 재전송하지 않았다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_expedia_hb",
+    "status": "blocked",
+    "checkpointScore": 0,
+    "checkpoints": [
+      {
+        "passed": false,
+        "evidence": "첫 session open 결과는 Expedia 홈페이지 제목과 HTTP 200을 반환했으나, 거의 빈 페이지의 CAPTCHA 프레임을 탐지했다. Stays 검색 UI에 접근하지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과 화면에 도달하지 못해 날짜·인원 조건 적용 여부를 확인할 수 없음.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "숙소 결과 및 Guest rating 필터를 확인하지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "숙소 이름·평점·가격을 읽지 못함.",
+        "commandSequence": 1,
+        "url": "https://www.expedia.com/"
+      }
+    ],
+    "auditNotes": "원문 URL·필드/차단 증거 대조.",
+    "output": {
+      "destination": null,
+      "dates": null,
+      "guests": null,
+      "ratingFilter": null,
+      "propertyName": null,
+      "rating": null,
+      "price": null
+    },
+    "difficulties": [
+      {
+        "type": "captcha",
+        "detail": "첫 브라우저 명령에서 거의 빈 페이지의 CAPTCHA 프레임을 탐지함. 제품이 headless에서 headed로 한 번 전환해 재시도했지만 확인 화면이 남아 과업 UI에 진입하지 못함.",
+        "firstCommand": 1,
+        "recovery": "session open의 headedFallback 자동 전환 및 재시도 1회. 추가 우회나 재시도는 하지 않음.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "r3_wikipedia_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 Search Wikipedia 입력란에 Apollo 11을 넣어 제출. https://en.wikipedia.org/wiki/Apollo_11 로 이동했고 제목/H1이 Apollo 11 - Wikipedia / Apollo 11임을 확인.",
+        "commandSequence": 5,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 페이지 본문 표에서 Lunar lander Landing date July 20, 1969, 20:17:40 UTC를 확인. Crew Members 항목은 Neil Armstrong, Michael Collins, Buzz Aldrin.",
+        "commandSequence": 7,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "Apollo 11 페이지에서 관찰한 Neil Armstrong 링크(위키 문서 href)를 눌러 https://en.wikipedia.org/wiki/Neil_Armstrong 로 이동. 효과에 제목/H1 Neil Armstrong 확인.",
+        "commandSequence": 8,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      },
+      {
+        "passed": true,
+        "evidence": "인물 문서 제목 Neil Armstrong, infobox Born 날짜 August 5, 1930 확인.",
+        "commandSequence": 9,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      }
+    ],
+    "auditNotes": "원시 검색/문서 URL·본문 필드를 대조.",
+    "output": {
+      "apollo11_lunar_landing_date": "July 20, 1969, 20:17:40 UTC",
+      "apollo11_crew": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Buzz Aldrin"
+      ],
+      "person_article_title": "Neil Armstrong",
+      "birth_date": "August 5, 1930"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "첫 검색 입력 시 관찰 ref @e4 사용이 not_started / invalid_target으로 거부됨.",
+        "firstCommand": 3,
+        "recovery": "query snapshot으로 Search Wikipedia 입력란을 다시 관찰하고 placeholder 의미 선택자를 사용해 입력·제출. 검색 페이지로 정상 이동함.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_wikipedia_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 Search Wikipedia 입력란에 Apollo 11을 입력하고 Enter로 제출한 뒤 문서 URL https://en.wikipedia.org/wiki/Apollo_11 및 제목 Apollo 11 - Wikipedia 확인",
+        "commandSequence": 4,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "문서 본문 임무 표: Landing date July 20, 1969, 20:17:40 UTC; Crew size 3, members Neil Armstrong, Michael Collins, Buzz Aldrin",
+        "commandSequence": 4,
+        "url": "https://en.wikipedia.org/wiki/Apollo_11"
+      },
+      {
+        "passed": true,
+        "evidence": "화면에서 확인한 Neil Armstrong 링크(보이는 위치 x=724,y=359)를 클릭해 Neil Armstrong 문서 진입",
+        "commandSequence": 5,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      },
+      {
+        "passed": true,
+        "evidence": "인물 문서 제목 Neil Armstrong 및 본문 Born 항목의 August 5, 1930 확인",
+        "commandSequence": 5,
+        "url": "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      }
+    ],
+    "auditNotes": "원문 착륙 표·승무원·관찰 Neil 링크·인물 생년월일 대조. 비동기 화면 갱신을 재제출 없이 확인.",
+    "output": {
+      "apollo_11_lunar_landing_date": "July 20, 1969, 20:17:40 UTC",
+      "crew": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Buzz Aldrin"
+      ],
+      "neil_armstrong_birth_date": "August 5, 1930"
+    },
+    "difficulties": [
+      {
+        "type": "Enter 뒤 화면 갱신 지연",
+        "detail": "검색 입력과 Enter 실행 직후 page_info와 본문 관찰에는 Main Page가 남아 있었으나 후속 관찰에서 Apollo 11 문서로 이동한 것이 확인됨",
+        "firstCommand": 2,
+        "recovery": "동일 검색을 재전송하지 않고 다음 관찰 명령에서 현재 화면 및 URL을 확인함",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_weather_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "위치 선택 후 헤더에 New York City가 표시되고 페이지 제목이 New York City Daily Forecast로 바뀌었으며 현재 URL은 /us/new-york/city/new-york-city/tenday이다.",
+        "commandSequence": 25,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "More > Settings > Units에서 °F 버튼이 aria-checked=true이고 °C는 false였다. 세부 예보도 High 74F, Low 68F로 표시됐다.",
+        "commandSequence": 20,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "10 Day 탭의 aria-current=page 및 10-day 페이지 제목을 확인했다.",
+        "commandSequence": 21,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "첫 예보 행은 Today, 강수확률 5%, 최저 68°, 최고 74°였고 펼친 상세에 High 74F, Low 68F가 확인됐다. 화면에서 날짜는 Today로 표기되어 있으며 달력 날짜는 환경 날짜(2026-10-13)와 다음 행 Wed 14를 근거로 해석했다.",
+        "commandSequence": 24,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      }
+    ],
+    "auditNotes": "원문 URL·필드/차단 증거 대조. °F 선택 aria-checked 및 High74F/Low68F 본문 확인. Today 숫자 날짜는 추론값으로 명시.",
+    "output": {
+      "selectedLocation": "New York City, New York",
+      "temperatureUnit": "Fahrenheit (°F)",
+      "forecastView": "10 Day",
+      "firstForecastDate": "Today (2026-10-13 inferred; following row is Wed 14)",
+      "firstForecastHigh": "74°F",
+      "firstForecastLow": "68°F",
+      "firstForecastPrecipitationChance": "5%"
+    },
+    "difficulties": [
+      {
+        "type": "CDP 관찰 인자 오류",
+        "detail": "위치 버튼의 box model을 읽을 때 backendDOMNodeId를 인자로 잘못 지정해 첫 클릭 단계가 실패했다.",
+        "firstCommand": 5,
+        "recovery": "DOM.getBoxModel에 올바른 backendNodeId를 전달하고 화면 좌표를 다시 계산해 진행했다.",
+        "resolved": true
+      },
+      {
+        "type": "비동기 위치 선택 반영",
+        "detail": "검색 결과를 누른 직후 출력에는 이전 위치가 남아 있었다.",
+        "firstCommand": 13,
+        "recovery": "동일 동작을 재전송하지 않고 이후 화면을 관찰해 New York City 선택과 10 Day 페이지 전환을 확인했다.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_weather_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Location picker search field received New York, NY; UI suggestion 'New York City New York' was selected. Page then showed location label 'New York City' and the URL /us/new-york/city/new-york-city/tenday.",
+        "commandSequence": 9,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday",
+        "evidenceCommands": [
+          9,
+          10
+        ]
+      },
+      {
+        "passed": true,
+        "evidence": "Opened More menu. Units radiogroup showed °F radio checked=true; adjacent item identified it as Imperial - °F / mph / miles / inches.",
+        "commandSequence": 15,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "Observed 10 Day navigation and current page title '10-Day Weather Forecast for New York City, New York'; URL ended in /tenday.",
+        "commandSequence": 10,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      },
+      {
+        "passed": true,
+        "evidence": "Expanded first forecast row, labeled Today. It showed 5% precipitation and 68°/75°; expanded text specified 'High near 75F' and low tile 68°. Environment date was 2026-10-13, so Today is recorded as 2026-10-13.",
+        "commandSequence": 25,
+        "url": "https://weather.com/us/new-york/city/new-york-city/tenday"
+      }
+    ],
+    "auditNotes": "command010 위치·tenday, command015 °F checked, command025 Today 68/75·5% 확인. 동적 예보 갱신으로 오래된 버튼명이 no_match였으며 command019 request status에서 not_started를 확인하고 새 관찰 후 진행. 최초 불명확 쓰기를 그대로 재전송하지 않음. 숫자 날짜는 Today 실행일 해석.",
+    "output": {
+      "location": "New York City, New York",
+      "units": "Fahrenheit (°F)",
+      "forecastPage": "10 Day",
+      "firstForecastDate": "Today (2026-10-13)",
+      "high": "75°F",
+      "low": "68°F",
+      "precipitationChance": "5%"
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "First click using observed ref @e8 to open the location picker returned invalid_target.",
+        "firstCommand": 3,
+        "recovery": "Reobserved the control, then used the current semantic locator role=button/name='Jongno District'; picker opened.",
+        "resolved": true
+      },
+      {
+        "type": "outcome_unknown_then_not_started_no_match",
+        "detail": "Attempt to expand a forecast row using a snapshot name with old temperature values timed out as transport_uncertain. Status query later returned completed with execution=not_started, reason=no_match; the row had dynamically refreshed meanwhile.",
+        "firstCommand": 17,
+        "recovery": "Observed the page after the unclear outcome, confirmed the row remained collapsed, then queried a fresh 'Today' target and expanded it successfully. Automatic headless-to-headed fallback occurred; no same command was replayed.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_imdb_hb",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "IMDb 홈(https://www.imdb.com/)의 Search IMDb 입력란에서 'The Shawshank Redemption'을 입력했고, 현재 페이지 자동완성 결과로 'The Shawshank Redemption 1994 Tim Robbins, Morgan Freeman' 항목을 확인했다.",
+        "commandSequence": 7,
+        "url": "https://www.imdb.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰한 자동완성 결과를 열어 /title/tt0111161/에 진입. 응답 effect status 200, 제목 'The Shawshank Redemption (1994) - IMDb', h1 'The Shawshank Redemption'.",
+        "commandSequence": 12,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "현재 상세 페이지의 화면 DOM에서 제목 The Shawshank Redemption, 연도 1994, IMDb RATING 9.3/10, 평가 수 3.3M을 추출했다.",
+        "commandSequence": 15,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지의 관찰된 Top Cast 74 링크를 열어 전체 출연진 페이지에 진입하고, 현재 페이지에서 Tim Robbins 및 Morgan Freeman을 확인했다.",
+        "commandSequence": 19,
+        "url": "https://www.imdb.com/title/tt0111161/fullcredits/",
+        "evidenceCommands": [
+          18,
+          19
+        ]
+      }
+    ],
+    "auditNotes": "원문 URL·필드/차단 증거 대조. 초기 session open 실행 중 session list 조회를 보내 동일 sequence=1이 중복됐고 출력 파일이 덮어써졌다. commands.jsonl에는 두 호출 시간/인자/코드가 모두 남아 실제 19호출을 집계한다. 주요 체크포인트 명령7~19는 온전해 과업 판정에 영향 없음. 호출별 파일 기반 nativeActions는 1개 부족하며 비교 지표로 사용하지 않는다.",
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "imdbRating": "9.3/10",
+      "ratingCount": "3.3M",
+      "topCastActors": [
+        "Tim Robbins",
+        "Morgan Freeman"
+      ]
+    },
+    "difficulties": [
+      {
+        "type": "invalid_target",
+        "detail": "snapshot이 반환한 @e5 및 자동완성 결과 @e337 참조를 사용한 fill/click이 invalid_target로 거부됐다. 참조 locator 경로가 작동하지 않았다.",
+        "firstCommand": 4,
+        "recovery": "새 snapshot으로 자동완성 표시를 확인하고, 관찰한 결과 href에 기반한 CSS locator로 영화 상세 링크를 열었다. 이후 입력은 화면에서 관찰된 placeholder Search IMDb로 실행했다.",
+        "resolved": true
+      },
+      {
+        "type": "no_match",
+        "detail": "자동완성의 관찰된 결과 링크 이름을 role/name 및 text locator로 지정했으나 두 경우 모두 no_match였다.",
+        "firstCommand": 9,
+        "recovery": "현재 화면에서 확인한 해당 결과 href의 접두부와 일치하는 CSS locator로 링크를 열고, 변경된 URL/title/h1을 확인했다.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "r3_imdb_bu",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 Search IMDb 입력창에서 The Shawshank Redemption을 넣고 Enter를 눌러 자동완성 결과가 표시됨. 결과에 The Shawshank Redemption / 1994, Tim Robbins, Morgan Freeman이 표시됨.",
+        "commandSequence": 11,
+        "url": "https://www.imdb.com/"
+      },
+      {
+        "passed": true,
+        "evidence": "검색 결과의 관찰된 작품 링크를 열어 URL /title/tt0111161/에 진입했고 페이지 제목은 The Shawshank Redemption (1994) - IMDb, 본문에 1994가 표시됨.",
+        "commandSequence": 18,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "영화 상세 페이지 본문에서 IMDb RATING 9.3 /10 및 평가 수 3.3M을 확인함.",
+        "commandSequence": 18,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 Top Cast heading 노드를 화면으로 이동한 뒤 페이지 section 텍스트에 Top Cast 74, Tim Robbins / Andy Dufresne, Morgan Freeman / Ellis Boyd 'Red' Redding이 표시됨.",
+        "commandSequence": 33,
+        "url": "https://www.imdb.com/title/tt0111161/"
+      }
+    ],
+    "auditNotes": "홈 자동완성·관찰 상세 링크·1994/9.3/3.3M·Top Cast section 두 배우 원문 확인. 첫 403→공통 headed 복구를 사용. 스크롤 helper 실패와 DOM/관찰 노드 기반 복구를 별도로 기록.",
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "IMDb rating": "9.3/10",
+      "ratings count": "3.3M",
+      "top cast": [
+        "Tim Robbins",
+        "Morgan Freeman"
+      ]
+    },
+    "difficulties": [
+      {
+        "type": "headless_block",
+        "detail": "첫 홈페이지 로드에서 title 403 Forbidden 및 검색 입력 UI 부재를 확인함.",
+        "firstCommand": 1,
+        "recovery": "프로토콜의 reveal 환경 복구를 1회 수행하고 마지막 관찰 URL https://www.imdb.com/ 을 new_tab으로 다시 열어 headed 상태에서 페이지 로드를 확인함.",
+        "resolved": true
+      },
+      {
+        "type": "input_helper_no_effect",
+        "detail": "fill_input으로 검색어 입력 후 query 입력값이 비어 있고 인기 검색 목록이 남아 있어 검색이 반영되지 않음.",
+        "firstCommand": 6,
+        "recovery": "AX textbox 확인 후 box model 좌표를 계산해 입력창을 클릭하고 Input.insertText 및 Enter로 검색을 수행, 결과 제목·연도와 URL을 확인함.",
+        "resolved": true
+      },
+      {
+        "type": "scroll_timeout",
+        "detail": "Top Cast로 이동하는 두 scroll 호출이 각각 daemon IPC 5초 timeout으로 실패함.",
+        "firstCommand": 20,
+        "recovery": "관찰된 AX tree에서 Top Cast heading 노드를 찾고 DOM.scrollIntoViewIfNeeded로 해당 영역을 화면에 이동시킨 뒤 page_info의 scrollY=1754 및 heading y=437, Top Cast 출연진 텍스트로 확인함.",
+        "resolved": true
+      }
+    ]
+  }
+]

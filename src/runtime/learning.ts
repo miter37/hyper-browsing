@@ -93,6 +93,7 @@ export async function ensureLearningSite(config: AppConfig, page: Page, sessionI
  * (encodeObservedExtraction, `site init`).
  */
 export async function learningContext(config: AppConfig, page: Page, sessionId: string) {
+  if (config.learningDisabled) return null;
   const url = new URL(page.url());
   if (!["https:", "http:"].includes(url.protocol)) return null;
   const identified = await identifySite(config, page).catch(() => null);
@@ -280,6 +281,7 @@ export async function learningStatus(config: AppConfig, sessionId: string): Prom
 }
 
 export async function finishObservedLearning(config: AppConfig, sessionId: string) {
+  if (config.learningDisabled) return { active: false, learningPending: false, learningDisabled: true };
   const existing = await readDecision(config, sessionId);
   if (!existing) await finishLearning(config, sessionId, { taskStatus: "unknown", decision: "observed_only", reason: "Session closed without additional assetization" });
   await pruneObservations(config);

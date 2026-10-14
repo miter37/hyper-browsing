@@ -15,7 +15,7 @@
     "clean": "node scripts/clean.mjs",
     "test:scenarios": "node tests/chrome-manager-scenarios.mjs",
     "test:learning": "node --import tsx --test tests/learning-policy.mjs tests/asset-recovery.mjs tests/learning-assets.mjs tests/learning-cli.mjs tests/learning-status.mjs",
-    "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs",
+    "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs tests/headed-fallback.mjs tests/improvements.mjs tests/input-pacing.mjs",
     "test:discovery": "node --import tsx tests/discovery-lessons.mjs",
     "test": "npm run typecheck && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery"
   },

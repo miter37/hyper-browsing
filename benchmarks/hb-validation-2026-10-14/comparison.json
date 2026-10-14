@@ -1,0 +1,90 @@
+[
+  {
+    "site": "google",
+    "previousBrowserUse": {
+      "n": 3,
+      "successes": 1,
+      "allTrialMedianMs": 72893,
+      "allTrialMedianCalls": 9
+    },
+    "previousHyperBrowsing": {
+      "n": 3,
+      "successes": 0,
+      "allTrialMedianMs": 52081,
+      "allTrialMedianCalls": 7
+    },
+    "newHyperBrowsing": {
+      "n": 1,
+      "successes": 0,
+      "status": "blocked",
+      "taskWallMs": 60966,
+      "browserCommandCount": 5
+    }
+  },
+  {
+    "site": "amazon",
+    "previousBrowserUse": {
+      "n": 3,
+      "successes": 2,
+      "allTrialMedianMs": 65958,
+      "allTrialMedianCalls": 10
+    },
+    "previousHyperBrowsing": {
+      "n": 3,
+      "successes": 3,
+      "allTrialMedianMs": 115340,
+      "allTrialMedianCalls": 17
+    },
+    "newHyperBrowsing": {
+      "n": 1,
+      "successes": 1,
+      "status": "succeeded",
+      "taskWallMs": 103049,
+      "browserCommandCount": 20
+    }
+  },
+  {
+    "site": "walmart",
+    "previousBrowserUse": {
+      "n": 3,
+      "successes": 0,
+      "allTrialMedianMs": 181623,
+      "allTrialMedianCalls": 19
+    },
+    "previousHyperBrowsing": {
+      "n": 3,
+      "successes": 0,
+      "allTrialMedianMs": 41420,
+      "allTrialMedianCalls": 11
+    },
+    "newHyperBrowsing": {
+      "n": 1,
+      "successes": 0,
+      "status": "blocked",
+      "taskWallMs": 67885,
+      "browserCommandCount": 6
+    }
+  },
+  {
+    "site": "ebay",
+    "previousBrowserUse": {
+      "n": 3,
+      "successes": 1,
+      "allTrialMedianMs": 281561,
+      "allTrialMedianCalls": 36
+    },
+    "previousHyperBrowsing": {
+      "n": 3,
+      "successes": 3,
+      "allTrialMedianMs": 124607,
+      "allTrialMedianCalls": 24
+    },
+    "newHyperBrowsing": {
+      "n": 1,
+      "successes": 1,
+      "status": "succeeded",
+      "taskWallMs": 119178,
+      "browserCommandCount": 23
+    }
+  }
+]

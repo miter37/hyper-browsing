@@ -11,6 +11,8 @@ import { detectBlock, settle } from "../engine/page-state";
 import { identifySite } from "../engine/identify";
 import { runKnownAction } from "../engine/action-runner";
 import { effectiveRisk, heuristicRiskFromText, requiresConfirmation } from "../engine/risk";
+import { inspectPageState } from '../engine/page-state';
+import { verifyPage } from '../engine/verify';
 import { evidenceFor } from "../runtime/metrics";
 import { detectState } from "../engine/state";
 import path from "node:path";
@@ -27,6 +29,7 @@ import { compactResult } from "../runtime/output";
 import { RequestStore } from "./request-store";
 import { serial } from "../runtime/learning-policy";
 import crypto from "node:crypto";
+import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from "./headed-fallback";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
@@ -89,8 +92,51 @@ export class BrowserDaemon {
   }
 
   private async dispatch(method: string, params: any): Promise<any> {
-    if (params.sessionId) return serial(`session:${this.config.runtimeDir}:${params.sessionId}`, () => this.dispatchUnlocked(method, params));
-    return this.dispatchUnlocked(method, params);
+    // A display change relaunches the shared Chrome instance. Never interrupt an
+    // in-flight operation in another session, and leave status queries unblocked.
+    if (["request.status", "learning.status", "learning.finish"].includes(method)) return this.dispatchUnlocked(method, params);
+    return serial(`browser:${this.config.runtimeDir}`, () => this.dispatchWithFallback(method, params));
+  }
+  private async dispatchWithFallback(method: string, params: any): Promise<any> {
+    let original: any;
+    try { original = await this.dispatchUnlocked(method, params); }
+    catch (error: any) {
+      if (error.execution === "not_started" || !recoverableBrowserError(error)) throw error;
+      original = { ok: false, execution: "outcome_unknown", reason: "browser_error", error: error.message };
+    }
+    const probeSession = method === 'session.open' ? original.id : params.sessionId;
+    if (probeSession && !original.confirmationRequired && !original.pageState && !original.snapshot?.pageState && !original.effect?.pageState
+      && (original.ok === false || ['session.open','page.goto'].includes(method))) {
+      try { original.pageState = await inspectPageState(this.store().get(probeSession),undefined,3000); } catch { /* Preserve the original execution outcome. */ }
+    }
+    if (!needsHeadedFallback(method, original) || this.chrome.getState()?.headless !== true) return original;
+    const fallback: any = { attempted: true, from: "headless", to: "headed", retried: false, observationRequired: true,
+      reason: original.reason || original.blocked || original.navigationError || "headless_failure" };
+    try {
+      // Capture up-to-date URLs before destroying Playwright handles.
+      await this.store().list();
+      await this.chrome.writeDisplayPreference({ headless: false });
+      const repaired = await this.chrome.repair();
+      this.context = repaired.context;
+      await this.store().rebindContext(repaired.context);
+      fallback.switched = true;
+    } catch (error: any) {
+      fallback.error = error.message;
+      return { ...original, headedFallback: fallback };
+    }
+    const sessionId = method === "session.open" ? original.id : params.sessionId;
+    const retryMethod = method === "session.open" ? "page.goto" : method;
+    const retryParams = method === "session.open" ? { ...params, sessionId } : params;
+    if (sessionId && safeHeadedRetry(retryMethod, retryParams) && (method !== "session.open" || params.url)) {
+      fallback.retried = true;
+      try {
+        const result = await this.dispatchUnlocked(retryMethod, retryParams);
+        fallback.observationRequired = needsHeadedFallback(retryMethod, result);
+        return { ...result, ...(method === "session.open" ? { id: sessionId } : {}), headedFallback: fallback };
+      } catch (error: any) { fallback.retryError = error.message; }
+    }
+    return { ...original, headedFallback: fallback,
+      hint: "Chrome switched to headed mode. Observe the current page and continue; do not replay writes, batches or old element references." };
   }
   private async dispatchUnlocked(method: string, params: any): Promise<any> {
     if (method === "request.status") return { queriedRequestId: params.requestId, ...this.requests.status(params.requestId) };
@@ -206,6 +252,10 @@ export class BrowserDaemon {
       if (kind === "click") result.clicked = result.ok;
       if (kind === "hover") result.hovered = result.ok;
       return { ...result, learning_pending: false };
+    }
+    if(method==='page.verify'){
+      if(!page)throw new Error('sessionId required');
+      return verifyPage(page,params.input);
     }
     let learningPolicy: any;
     if (page) learningPolicy = await learningContext(this.config, page, params.sessionId).catch((e: any) => ({ warning: e.message }));

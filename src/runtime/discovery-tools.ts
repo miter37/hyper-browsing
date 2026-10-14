@@ -1,3 +1,4 @@
+import { waitBeforeInput } from '../engine/input-pacing';
 import type { Page } from "playwright";
 import { captureSnapshot, type PageSnapshot, type SnapshotElement } from "./snapshot";
 import { DEEP_WALK_JS, settle } from "../engine/page-state";
@@ -112,6 +113,8 @@ export async function dismissAnnoyances(page: Page, options: { forceHide?: boole
   for (const c of found.clicks) {
     const el = page.locator(`[${DISMISS_MARK}="${c.id}"]`).first();
     if (!(await el.isVisible().catch(() => false))) continue; // an earlier click already closed it
+    await waitBeforeInput();
+    if (!(await el.isVisible().catch(() => false))) continue;
     const ok = await el.click({ force: true, timeout: 500 }).then(() => true).catch(() => false);
     if (ok) {
       actions.push(`Clicked: ${c.what}`);

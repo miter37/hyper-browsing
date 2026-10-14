@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-10-14T01:03:45.221Z",
+  "command": "npm test",
+  "exitCode": 0,
+  "counts": {
+    "learning": 35,
+    "executionTransportRecoveryAndNewRegressions": 51,
+    "chromeScenarios": 15,
+    "discovery": 46,
+    "total": 147
+  },
+  "newRegressionCases": 26,
+  "review": "Independent final reviewer findings reproduced RED and fixed GREEN including native image input alt; all reported Important findings addressed",
+  "liveTrials": 4,
+  "liveTestedFinalPostTrialPatches": false,
+  "siteAssetsChanged": [],
+  "learningDisabledForEveryLiveTrial": true,
+  "ownedBackendsCleaned": [
+    {
+      "id": "v1_google_hb",
+      "at": "2026-10-14T00:53:00.583Z"
+    },
+    {
+      "id": "v1_amazon_hb",
+      "at": "2026-10-14T00:54:17.251Z"
+    },
+    {
+      "id": "v1_walmart_hb",
+      "at": "2026-10-14T00:54:38.117Z"
+    },
+    {
+      "id": "v1_ebay_hb",
+      "at": "2026-10-14T00:57:52.572Z"
+    },
+    {
+      "id": "v1_bestbuy_hb",
+      "at": "2026-10-14T00:57:50.484Z"
+    },
+    {
+      "id": "v1_booking_hb",
+      "at": "2026-10-14T00:57:48.538Z"
+    }
+  ]
+}

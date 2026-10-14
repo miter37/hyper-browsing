@@ -1,1 +1,1 @@
-export function postRpc(options: {endpoint:string;token:string;method:string;params?:Record<string,unknown>;timeoutMs?:number;requestId?:string}): Promise<{fallbackAllowed:boolean;rpcOk:boolean;result:any}>;
+export function postRpc(options: {endpoint:string;token:string;method:string;params?:Record<string,unknown>;timeoutMs?:number;completionWaitMs?:number;requestId?:string}): Promise<{fallbackAllowed:boolean;rpcOk:boolean;result:any}>;

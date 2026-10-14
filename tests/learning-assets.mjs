@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { recordLearningEvent, learningStatus, encodeObservedExtraction } from '../src/runtime/learning.ts';
+import { recordLearningEvent, learningStatus, encodeObservedExtraction, learningContext, finishObservedLearning } from '../src/runtime/learning.ts';
 import { saveObservedAction } from '../src/runtime/learning-assets.ts';
 import { saveOverview, runOverview } from '../src/runtime/overview.ts';
 import { recordVisit } from '../src/runtime/learning-policy.ts';
@@ -31,6 +31,14 @@ async function fixture(t) {
   t.after(async()=>{await browser.close();await fs.rm(root,{recursive:true,force:true});});
   return {c,page,requests};
 }
+test('disabled observation recording creates no learning state during experiments',async t=>{
+  const {c,page}=await fixture(t);c.learningDisabled=true;
+  assert.equal(await learningContext(c,page,'trial'),null);
+  assert.equal((await recordLearningEvent(c,page,'trial','snapshot')).eventCount,0);
+  await finishObservedLearning(c,'trial');
+  assert.equal(await fs.stat(path.join(c.runtimeDir,'learning')).then(()=>true,()=>false),false);
+  assert.equal(await fs.stat(path.join(c.runtimeDir,'observations')).then(()=>true,()=>false),false);
+});
 test('first observations never create site assets or block completion',async t=>{
   const {c,page}=await fixture(t);
   await recordLearningEvent(c,page,'s1','click',{locator:{role:'button',name:'Search'},value:'private-input'});

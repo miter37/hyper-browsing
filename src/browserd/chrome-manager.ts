@@ -58,6 +58,7 @@ export interface ChromeRuntimeState {
   source: ResolvedChromeProfile["source"];
   reason: string;
   hint?: string;
+  headedFallback?: { reason: string };
 }
 
 export interface DisplayPreference {
@@ -195,10 +196,10 @@ function which(names: string[]): string | undefined {
   for (const name of names) {
     try {
       if (process.platform === "win32") {
-        const found = execFileSync("where", [name], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split(/\r?\n/)[0]?.trim();
+        const found = execFileSync("where", [name], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split(/\r?\n/)[0]?.trim();
         if (found) return found;
       } else {
-        const found = execFileSync("sh", ["-c", "command -v " + JSON.stringify(name)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+        const found = execFileSync("sh", ["-c", "command -v " + JSON.stringify(name)], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
         if (found) return found;
       }
     } catch {}
@@ -269,11 +270,11 @@ export function chromeVersion(executable: string): string | undefined {
         const raw = execFileSync(shell, [
           "-NoProfile", "-NonInteractive", "-Command",
           "(Get-Item -LiteralPath " + literal + ").VersionInfo.ProductVersion",
-        ], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10000 }).trim();
+        ], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10000 }).trim();
         if (/^\d+\./.test(raw)) version = raw;
       }
     } else {
-      const raw = execFileSync(executable, ["--version"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 8000 }).trim();
+      const raw = execFileSync(executable, ["--version"], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 8000 }).trim();
       const m = /(\d+\.\d+\.\d+\.\d+)/.exec(raw);
       version = m ? m[1] : undefined;
     }
@@ -307,7 +308,7 @@ function listProcesses(): ProcessRow[] {
       const ps = "Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'chrom*' }"
         + " | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress";
       const shell = which(["powershell.exe", "pwsh.exe"]) || "powershell.exe";
-      const raw = execFileSync(shell, ["-NoProfile", "-NonInteractive", "-Command", ps], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 20000 }).trim();
+      const raw = execFileSync(shell, ["-NoProfile", "-NonInteractive", "-Command", ps], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 20000 }).trim();
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       const rows = Array.isArray(parsed) ? parsed : [parsed];
@@ -315,7 +316,7 @@ function listProcesses(): ProcessRow[] {
         .map((r: any) => ({ pid: Number(r.ProcessId), command: String(r.CommandLine || "") }))
         .filter((r: ProcessRow) => Number.isFinite(r.pid));
     }
-    const raw = execFileSync("ps", ["-axo", "pid=,command="], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 20000 });
+    const raw = execFileSync("ps", ["-axo", "pid=,command="], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 20000 });
     return raw.split(/\r?\n/).map((line) => {
       const m = line.trim().match(/^(\d+)\s+(.*)$/);
       return m ? { pid: Number(m[1]), command: m[2] } : undefined;
@@ -360,7 +361,7 @@ function chromeProcessesUsing(userDataDir: string): ProcessRow[] {
 async function terminateProcess(pid: number, hard = false): Promise<void> {
   try {
     if (process.platform === "win32") {
-      execFileSync("taskkill", ["/PID", String(pid), "/T", ...(hard ? ["/F"] : [])], { stdio: "ignore" });
+      execFileSync("taskkill", ["/PID", String(pid), "/T", ...(hard ? ["/F"] : [])], { stdio: "ignore", windowsHide: true });
     } else {
       process.kill(pid, hard ? "SIGKILL" : "SIGTERM");
     }
@@ -682,7 +683,20 @@ export class ChromeManager {
 
   async start(): Promise<{ context: BrowserContext; state: ChromeRuntimeState; takeover: any }> {
     const release = await acquireChromeLock(this.config);
-    try { return await this.startLocked(); }
+    try {
+      try { return await this.startLocked(); }
+      catch (error: any) {
+        if (!this.profile || !(await resolveHeadless(this.config))) throw error;
+        // Only reclaim our owned profile; forceRelease never kills user Chrome.
+        await forceReleaseChromeProfile(this.config, this.profile);
+        await this.writeDisplayPreference({ headless: false });
+        await fs.rm(this.statePath(), { force: true }).catch(() => {});
+        const started = await this.startLocked();
+        started.state.headedFallback = { reason: error.message || String(error) };
+        await this.writeState(started.state);
+        return started;
+      }
+    }
     finally { await release(); }
   }
 
@@ -698,8 +712,8 @@ export class ChromeManager {
       && previous.profileDirectory === profile.profileDirectory) {
       const version = await fetchJson("http://127.0.0.1:" + previous.cdpPort + "/json/version", 700);
       if (version && version.webSocketDebuggerUrl) {
-        const attached = await this.attach(previous.cdpPort);
         this.profile = profile;
+        const attached = await this.attach(previous.cdpPort);
         this.state = previous;
         return { context: attached, state: previous, takeover: { reusedExistingChrome: true, killed: [], locksRemoved: [] } };
       }
@@ -735,6 +749,7 @@ export class ChromeManager {
   }
 
   private async launch(executable: string, profile: ResolvedChromeProfile, takeover: any): Promise<{ context: BrowserContext; state: ChromeRuntimeState; takeover: any }> {
+    this.profile = profile;
     const port = await choosePort(this.config.cdpPort || 9223);
     const headless = await resolveHeadless(this.config);
     const args = [
@@ -766,7 +781,7 @@ export class ChromeManager {
         const out = execFileSync(
           shell,
           ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", helper, "-CommandLine", fullCmd, "-WorkingDirectory", launchCwd],
-          { encoding: "utf8", timeout: 10000 }
+          { encoding: "utf8", timeout: 10000, windowsHide: true }
         ).trim();
         const launchedPid = Number(out);
         if (Number.isFinite(launchedPid) && launchedPid > 0) {
@@ -780,7 +795,7 @@ export class ChromeManager {
         this.child.unref();
       }
     } else {
-      this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: false });
+      this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: headless });
       this.child.unref();
     }
     await waitForCdp(port, this.child, this.config.chromeStartupTimeoutMs);

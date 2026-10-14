@@ -1,0 +1,14 @@
+{
+  "verifiedAt": "2026-10-13T12:18:02.365Z",
+  "validTrials": 60,
+  "uniqueAgents": 60,
+  "uniqueProfiles": 60,
+  "allAudited": true,
+  "learningObservationFiles": 0,
+  "duplicateSequenceTrials": [
+    "r2_google_hb",
+    "r2_google_bu",
+    "r3_imdb_hb"
+  ],
+  "errors": []
+}

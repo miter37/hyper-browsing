@@ -6,8 +6,8 @@
 
 ```text
 webctl snapshot --session ID --query Name
-webctl fill --session ID --ref @e27 --value Alice
-webctl press --session ID --ref @e27 --key Enter
+webctl fill --session ID --ref e27 --value Alice
+webctl press --session ID --ref e27 --key Enter
 ```
 
 snapshot이 반환한 `ref`는 현재 탭의 실제 DOM 요소에 연결된다. 메인 문서와 열린 Shadow DOM에 적용한다. 목록의 위치가 바뀌어도 같은 요소를 가리킨다. 다른 탭·문서에서 사용할 수 없으며 요소 교체·식별 정보 변경·페이지 이동이면 `stale_ref`를 반환한다. 존재하지 않는 요소를 비슷한 역할·이름·순번의 요소로 대신 누르지 않는다.
@@ -21,9 +21,9 @@ snapshot이 반환한 `ref`는 현재 탭의 실제 DOM 요소에 연결된다. 
 ```json
 {
   "commands": [
-    {"op":"fill","ref":"@e27","value":"Alice"},
+    {"op":"fill","ref":"e27","value":"Alice"},
     {"op":"fill","locator":{"label":"City","exact":true},"value":"Seoul"},
-    {"op":"select","ref":"@e29","option":"Two"}
+    {"op":"select","ref":"e29","option":"Two"}
   ]
 }
 ```
@@ -72,4 +72,20 @@ webctl request status --id REQUEST_ID --verbose
 
 ## 유지하는 안전 규칙
 
+headless에서 실행 실패가 확인되면 공유 Chrome의 다른 명령이 끝난 뒤 headed 전환을 한 번 시도한다. 조회·명시적 페이지 이동은 한 번 재시도하며, 쓰기·저장 액션·배치·ref는 새 관찰로 이어간다. 상태 조회는 전환 대기와 분리된다. 자세한 전환·세션 복원 조건은 [브라우저 안내](BROWSER.md)를 따른다.
+
 모호한 대상은 첫 요소로 대체하지 않는다. 실제 조작은 별도 문서의 사용자 승인 범위를 따른다. 쓰기 실패는 APPLIED / NOT_APPLIED / UNKNOWN을 먼저 확인하며, 테스트 목적으로 쓰기 작업을 반복하지 않는다. 기능의 효과는 실행 성공률·잘못된 대상 선택·호출 수·반환 데이터 크기·생성/검증/수정 비용으로 평가한다. 엔진 교체는 측정된 병목이 있을 때 별도로 비교한다.
+
+## 페이지 상태와 새 탭
+
+pageState는 ready/loading/blocked/navigation_error/partial/unknown이다. ready는 과업 성공이 아니다. observation.complete=false는 읽지 못한 부분이 있음을 뜻한다. no_match만으로 headed 전환하지 않으며 환경 실패 증거가 있을 때만 한 번 전환한다.
+
+effect.newSessions는 새 탭의 sessionId·URL·제목·setupStatus를 제공한다. 원래 세션은 그대로이며 사용자가 원하는 대상을 관찰해 다음 세션을 선택한다. 배치·선언형 저장 액션은 새 탭이나 관찰 필요 상태에서 멈춘다.
+
+위험도는 선택한 실제 요소를 고정한 뒤 판정한다. 검색 필터와 실제 구매를 구분하고 CSS·Enter·fill --submit도 결제 확인을 피할 수 없다. 입력값이 기대값과 다르면 제출하지 않는다. [읽기 전용 검증](VERIFICATION.md)을 사용해 결과 조건을 확인한다.
+
+### 공통 입력 간격
+
+클릭·호버·입력·선택·키 누름은 첫 액션을 포함해 매번500~1000ms의 랜덤 지연을 적용한다. 입력 후 Enter 제출, 커스텀 드롭다운 열기 후 옵션 클릭, 안내창 닫기에도 별도의 지연을 적용한다. 화면 준비·변화 확인을 위한 기존 대기는 별도로 유지하므로 실제 전체 간격은 더 길 수 있다. 스냅샷·추출·verify 같은 읽기에는 이 지연을 적용하지 않는다.
+
+지연 뒤 현재 대상을 확인하며, 입력 후 제출은 대기 뒤 입력값과 제출 위험도를 다시 확인한다. 직접 명령·선언형 저장 액션·일회성 배치·ctx.act는 같은 실행 경로를 따른다. 코드 액션에서 ctx.page로 Playwright 조작을 직접 호출하면 공통 계층을 우회하므로 ctx.act를 사용한다. 이 설정을 사이트별 학습 자산으로 저장하지 않는다.

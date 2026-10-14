@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Page } from "playwright";
 import type { AppConfig } from "../config";
 import { redactText } from "../utils/strings";
-import { DEEP_WALK_JS, detectBlock, type BlockInfo } from "../engine/page-state";
+import { DEEP_WALK_JS, detectBlock, inspectPageState, type BlockInfo, type PageStateInfo } from "../engine/page-state";
 import { REFERENCE_GUARD, type ElementReferences } from "./references";
 
 export interface SnapshotElement {
@@ -12,6 +12,7 @@ export interface SnapshotElement {
   // Explicit role, or the implicit one from the tag/type (input type=search -> searchbox), usable with --role.
   role?: string;
   name?: string;
+  nameTruncated?: boolean;
   text?: string;
   testId?: string;
   placeholder?: string;
@@ -57,6 +58,8 @@ export interface TextHit {
 }
 
 export interface PageSnapshot {
+  observation?: { complete: boolean; errors: string[]; skippedNodes: number };
+  pageState?: PageStateInfo;
   capturedAt: string;
   url: string;
   title: string;
@@ -263,7 +266,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     }
     if (container) return undefined;
     const own = textOf(el);
-    if (own) return own.slice(0, 120);
+    if (own) return own;
     const img = el.querySelector("img[alt]");
     if (img && cleanStr(img.alt)) return cleanStr(img.alt);
     const svgTitle = el.querySelector("svg title");
@@ -359,7 +362,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     }
     const container = !CONTROL_TAGS[tagU] && Boolean(el.querySelector(INTERACTIVE_DESC));
     const role = explicitRole || implicitRole(el, tag);
-    const name = nameOf(el, tag, container);
+    const fullName = nameOf(el, tag, container);
+    const name = fullName ? fullName.slice(0, 120) : undefined;
     const inner = container ? undefined : textOf(el);
     const text = inner && name !== inner && !(tag === "select") ? inner.slice(0, 160) : undefined;
     const labelEl = el.labels && el.labels[0];
@@ -368,6 +372,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       tag,
       role: role || undefined,
       name: name || undefined,
+      nameTruncated: fullName && fullName.length > 120 ? true : undefined,
+      _fullName: fullName,
       text,
       testId: cleanStr(el.getAttribute("data-testid")),
       placeholder: cleanStr(el.getAttribute("placeholder")),
@@ -382,7 +388,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
         if (opts.refs.next > opts.refs.max) throw new Error('Reference quota reached; open a new task session');
         saved = {id:opts.refs.next++,guard}; opts.refs.ids.set(el,saved);
       }
-      entry.ref = '@e' + saved.id;
+      entry.ref = 'e' + saved.id;
       entry._node = el;
       entry._guard = guard;
     }
@@ -475,6 +481,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   const top = Object.entries(omittedBy).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const omittedCount = Math.max(0, matched.length - picked.length);
   return {
+    observation: walkDiagnostics,
     url: location.href,
     title,
     viewport: { width: innerWidth, height: innerHeight },
@@ -498,7 +505,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences } = {}
+  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
@@ -517,8 +524,8 @@ export async function captureSnapshot(
         const node = await item.getProperty("_node");
         const element = node.asElement();
         if (element && raw?.ref) {
-          const { _node, _guard, ...metadata } = raw;
-          options.references.retain(raw.ref, element as any, _guard, metadata, state.generation);
+          const { _node, _guard, _fullName, ...metadata } = raw;
+          options.references.retain(raw.ref, element as any, _guard, { ...metadata, name: _fullName || metadata.name }, state.generation);
         } else await node.dispose();
         await item.dispose();
       }
@@ -526,14 +533,23 @@ export async function captureSnapshot(
       return data;
     } finally { await result.dispose(); }
   };
-  let data: any = await capture();
+  let data: any;
+  try { data = await capture(); }
+  catch (error: any) {
+    if (/context.*destroyed|cannot find context|document changed/i.test(error.message || '')) {
+      await page.waitForLoadState('domcontentloaded', { timeout: 3000 }).catch(() => {});
+      try { data = await capture(); } catch { /* Return an explicitly incomplete observation below. */ }
+    }
+    if (!data) data = { url: page.url(), title: await page.title().catch(() => ''), elements: [], headings: [],
+      observation: { complete: false, errors: ['capture_failed'], skippedNodes: 0 } };
+  }
   // Nothing yet right after a navigation: give the page a moment to render once.
-  if (!data.elements?.length && !options.query && data.diagnostics?.readyState !== "complete") {
+  if (data.observation?.complete !== false && !data.elements?.length && !options.query && data.diagnostics?.readyState !== "complete") {
     await page.waitForLoadState("load", { timeout: 3000 }).catch(() => {});
-    data = await capture();
+    try { data = await capture(); } catch { data.observation = { complete: false, errors: ['capture_failed'], skippedNodes: 0 }; }
   }
 
-  const elements = (data.elements || []).map(({ _node, _guard, ...e }: any) => ({
+  const elements = (data.elements || []).map(({ _node, _guard, _fullName, ...e }: any) => ({
     ...e,
     name: e.name ? redactText(e.name) : undefined,
     text: e.text ? redactText(e.text) : undefined,
@@ -545,6 +561,8 @@ export async function captureSnapshot(
 
   return {
     capturedAt: new Date().toISOString(),
+    observation: data.observation,
+    pageState: await inspectPageState(page, data.observation, options.waitMs ?? (options.query ? 0 : 3000)),
     url: data.url,
     title: redactText(data.title),
     viewport: data.viewport,

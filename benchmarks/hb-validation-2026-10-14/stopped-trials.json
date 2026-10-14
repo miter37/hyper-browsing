@@ -1,0 +1,43 @@
+{
+  "reason": "User requested stop after eBay and report completed four only",
+  "at": "2026-10-14T00:59:51.262Z",
+  "additionalStarted": [
+    {
+      "id": "v1_bestbuy_hb",
+      "status": "interrupted",
+      "included": false
+    }
+  ],
+  "preparedOnly": [
+    {
+      "id": "v1_booking_hb",
+      "included": false
+    }
+  ],
+  "notStarted": [
+    "v1_expedia_hb",
+    "v1_wikipedia_hb",
+    "v1_weather_hb",
+    "v1_imdb_hb",
+    "v2_google_hb",
+    "v2_amazon_hb",
+    "v2_walmart_hb",
+    "v2_ebay_hb",
+    "v2_bestbuy_hb",
+    "v2_booking_hb",
+    "v2_expedia_hb",
+    "v2_wikipedia_hb",
+    "v2_weather_hb",
+    "v2_imdb_hb",
+    "v3_google_hb",
+    "v3_amazon_hb",
+    "v3_walmart_hb",
+    "v3_ebay_hb",
+    "v3_bestbuy_hb",
+    "v3_booking_hb",
+    "v3_expedia_hb",
+    "v3_wikipedia_hb",
+    "v3_weather_hb",
+    "v3_imdb_hb"
+  ]
+}

@@ -1,10 +1,12 @@
 import type { Locator, Page, Response } from "playwright";
 import type { LocatorStrategy } from "../schema/site";
 import { resolveUnique, type UniqueResolution } from "./locators";
-import { detectBlock, diffProbe, probePage, settle } from "./page-state";
-import { referencesFor, type ActionTarget } from "../runtime/references";
+import { detectBlock, diffProbe, probePage, settle, inspectPageState } from "./page-state";
+import { referencesFor, targetFor, type ActionTarget } from "../runtime/references";
 import { resolveElement, LocatorResolutionError } from "./locators";
 import type { ElementDefinition } from "../schema/site";
+import { watchPopups } from './popups';
+import { waitBeforeInput } from './input-pacing';
 
 /** Agent-driven actions fail fast instead of Playwright's 30 s default; `--timeout-ms` overrides. */
 export const DEFAULT_ACTION_TIMEOUT_MS = 5000;
@@ -220,10 +222,13 @@ export async function actOn<T>(
   kind: ActionKind,
   params: ActParams,
   act: (locator: ActionTarget, timeoutMs: number) => Promise<T>,
+  authorize?: (target: ActionTarget) => Promise<Record<string, any> | undefined>,
+  pinnedTarget?: ActionTarget,
 ): Promise<Record<string, any>> {
+  if (kind !== 'extract') await waitBeforeInput();
   const timeoutMs = Number(params.timeoutMs) > 0 ? Number(params.timeoutMs) : DEFAULT_ACTION_TIMEOUT_MS;
   let target: { locator: ActionTarget; resolvedBy?: string; equivalentMatches?: number };
-  if (params.element) {
+  if (pinnedTarget) { target = { locator: pinnedTarget }; } else if (params.element) {
     if (params.ref || params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
     try { target = { locator: await resolveElement(page, params.element) }; }
     catch (error) {
@@ -244,6 +249,16 @@ export async function actOn<T>(
     target = resolved;
   }
   const resolved = target.resolvedBy ? { resolvedBy: target.resolvedBy, equivalentMatches: target.equivalentMatches } : {};
+  const handle = typeof (target.locator as any).elementHandle === 'function'
+    ? await (target.locator as Locator).elementHandle({ timeout: timeoutMs }) : undefined;
+  if (handle) target = { ...target, locator: targetFor(handle as any) };
+  try {
+  const refused = authorize ? await authorize(target.locator) : undefined;
+  if (refused) return { ...refused, ...resolved };
+  const popups=watchPopups(page);
+  try {
+  const expectsPopup=(kind==='click'||kind==='press') && await target.locator.evaluate(el=>
+    el.getAttribute('target')==='_blank'||/\bwindow\.open\b/.test(el.getAttribute('onclick')||'')||(el as HTMLInputElement).form?.target==='_blank').catch(()=>false);
 
   let before = await readTarget(page, target.locator);
   if (before.clipped && before.scrollClipped) {
@@ -337,6 +352,10 @@ export async function actOn<T>(
     effect.blocked = await detectBlock(page);
   }
   effect.observed = urlChanged || targetGone || Object.keys(changes).length > 0 || Boolean(pageChange);
+  effect.pageState = await inspectPageState(page,undefined,3000);
+  const newSessions=await popups.finish(Boolean(expectsPopup));
+  if(newSessions.length){effect.newSessions=newSessions;effect.observed=true;}
+  if (effect.pageState.blocked) effect.blocked = effect.pageState.blocked;
   if (!effect.observed && kind === "click" && after.attached) {
     // Clicking a heading or text that is not itself a control usually does nothing; its card link is nearby.
     const near = await target.locator.evaluate((el) => {
@@ -354,7 +373,10 @@ export async function actOn<T>(
   const warning = !effect.observed && params.force
     ? "Forced action reported no observed effect (URL, target and page unchanged). Verify with snapshot before assuming it worked."
     : undefined;
-  return { ok: true, value, effect, warning, ...resolved, execution: "completed" };
+  return { ok: !['blocked','navigation_error'].includes(effect.pageState.state), value, effect, warning,
+    observationRequired: newSessions.length>0 || effect.pageState.state!=='ready' || undefined, ...resolved, execution: "completed" };
+  } finally { popups.stop(); }
+  } finally { if (handle) await handle.dispose().catch(() => {}); }
 }
 
 /** Selects an option of a native <select> by visible text (then by value), or of a custom combobox by clicking it open. */
@@ -377,6 +399,7 @@ export async function chooseOption(page: Page, locator: ActionTarget, option: st
   // Custom dropdown: open it, then click the visible option with that name.
   await locator.click({ timeout: timeoutMs });
   await settle(page, { quietMs: 200, maxMs: 1000 });
+  await waitBeforeInput();
   const pools = [
     page.getByRole("option", { name: option, exact: true }),
     page.getByRole("menuitem", { name: option, exact: true }),
@@ -399,7 +422,7 @@ export async function chooseOption(page: Page, locator: ActionTarget, option: st
  * A text field is read back after filling: `valueMatches` false (with the actual value) when the page reformatted it,
  * kept chips, or did not clear it. Secret fields are never echoed, only their length and whether they match.
  */
-export async function fillOrSelect(page: Page, kind: "fill" | "select", params: ActParams & { option?: string; submit?: boolean }) {
+export async function fillOrSelect(page: Page, kind: "fill" | "select", params: ActParams & { option?: string; submit?: boolean }, authorize?: (target:ActionTarget)=>Promise<Record<string,any>|undefined>) {
   const wanted = String(kind === "select" ? params.option : params.value ?? "");
   const outcome = await actOn(page, kind, params, async (locator, timeout) => {
     const element = await locator.evaluate((el) => {
@@ -411,6 +434,7 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
       return { kind: "choice", actual: await chooseOption(page, locator, wanted, timeout) };
     }
     await locator.fill(wanted, { timeout });
+    if (params.submit) await waitBeforeInput();
     const read = await locator.evaluate((el) => {
       const input = el as HTMLInputElement;
       const auto = String(el.getAttribute("autocomplete") || "").toLowerCase();
@@ -418,11 +442,16 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
       const value = (el as HTMLElement).isContentEditable ? (el as HTMLElement).innerText : String(input.value ?? "");
       return { value, secret };
     }).catch(() => null);
-    if (params.submit) await locator.press("Enter", { timeout });
-    return { kind: element, actual: read?.value, secret: read?.secret };
-  });
+    const matches=read && String(read.value).replace(/\s+/g,' ').trim()===wanted.replace(/\s+/g,' ').trim();
+    if (params.submit && matches) {
+      const refused=authorize ? await authorize(locator) : undefined;
+      if (refused) return {kind:element,actual:read?.value,secret:read?.secret,submissionRefusal:refused};
+      await locator.press("Enter", { timeout });
+    }
+    return { kind: element, actual: read?.value, secret: read?.secret,submissionSkipped:params.submit&&!matches };
+  },authorize);
   if (!outcome.ok) return outcome;
-  const v = (outcome.value || {}) as { kind?: string; actual?: string; secret?: boolean };
+  const v = (outcome.value || {}) as { kind?: string; actual?: string; secret?: boolean; submissionSkipped?: boolean; submissionRefusal?: Record<string,any> };
   const normalize = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
   const res: Record<string, any> = { ok: true };
   if (v.kind === "choice") res.selected = v.actual;
@@ -450,8 +479,11 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
     if (!matches) res.warning = "The field holds a different value than requested (reformatted by the page, a token/chip input, or not cleared). Check `value`.";
   }
   res.effect = outcome.effect;
+  res.observationRequired = outcome.observationRequired;
+  if(v.submissionSkipped){res.ok=false;res.reason=v.actual===undefined?'readback_unknown':'value_mismatch';res.submitted=false;res.submissionExecution='not_started';}
   res.resolvedBy = outcome.resolvedBy;
   res.execution = outcome.execution;
+  if(v.submissionRefusal)return {...res,...v.submissionRefusal,execution:outcome.execution,submitted:false,submissionExecution:'not_started'};
   return res;
 }
 

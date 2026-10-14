@@ -60,6 +60,7 @@ function parseLocator(flags, boolFlags) {
 
 function mapCommandToRpcBase(positionals, flags, boolFlags) {
   const [a, b, c] = positionals;
+  if(a==='verify'&&flags.session){const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):{checks:[]};return {method:'page.verify',params:{sessionId:flags.session,input}};}
   if (a === 'request' && b === 'status' && flags.id) return { method: 'request.status', params: { requestId: flags.id } };
 
   if (a === "health") return { method: "health", params: {} };
@@ -150,6 +151,7 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
         timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
         value: flags.value,
         submit: boolFlags.has("submit"),
+        confirmed: boolFlags.has("confirm"),
         observe: boolFlags.has("observe"),
       },
     };
@@ -165,6 +167,7 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
         within: flags.within,
         timeoutMs: flags["timeout-ms"] !== undefined ? Number(flags["timeout-ms"]) : undefined,
         key: flags.key,
+        confirmed: boolFlags.has("confirm"),
         observe: boolFlags.has("observe"),
       },
     };
@@ -254,11 +257,12 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
   return null;
 }
 export function mapCommandToRpc(positionals, flags, boolFlags) {
+  if (boolFlags.has('ref')) throw new Error('Missing --ref value. Use --ref e27, or quote the legacy value: --ref \'@e27\' (PowerShell treats bare @e27 as splatting).');
   const rpc = mapCommandToRpcBase(positionals, flags, boolFlags);
   if (rpc && flags.ref) {
     if (!['page.click','page.hover','page.fill','page.select','page.press','page.extract'].includes(rpc.method)) throw new Error('This command does not accept --ref');
     if (['role','testid','text','label','placeholder','css','nth','within'].some(k=>flags[k]!==undefined) || boolFlags.has('all')) throw new Error('Use --ref alone; references cannot be indexed, scoped, or extracted with --all');
-    rpc.params.ref = flags.ref; rpc.params.locator = undefined;
+    rpc.params.ref = flags.ref.replace(/^@(?=e\d+$)/, ''); rpc.params.locator = undefined;
   }
   return rpc;
 }

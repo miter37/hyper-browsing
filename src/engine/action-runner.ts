@@ -54,7 +54,7 @@ async function runDeclarative(page: Page, site: SiteDefinition, steps: any[], in
         value: step.op === "fill" ? interpolate(step.value, input) : undefined,
         option: step.op === "select" ? interpolate(step.value, input) : undefined, key: step.key });
       results.push({ op: step.op, ...result });
-      if (!result.ok) throw new StepExecutionError(results, result);
+      if (!result.ok || result.observationRequired) throw new StepExecutionError(results, { ...result,reason:result.reason || 'observation_required' });
     } else if (step.op === "wait_for") {
       const timeoutMs = step.timeoutMs ?? 10_000;
       const deadline = Date.now() + timeoutMs;

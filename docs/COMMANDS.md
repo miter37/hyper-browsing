@@ -72,7 +72,7 @@ webctl metrics summary
 
 `<locator>` is **exactly one** of these flags, optionally with `--exact`:
 
-현재 스냅샷 참조가 있으면 아래 locator 대신 `--ref @e27`을 사용할 수 있습니다. ref는 locator·`--nth`·`--within`·`--all`과 함께 쓰지 않습니다.
+현재 스냅샷 참조가 있으면 아래 locator 대신 `--ref e27`을 사용할 수 있습니다. ref는 locator·`--nth`·`--within`·`--all`과 함께 쓰지 않습니다.
 
 ```bash
 --role button --name "Save"      # preferred: accessible role + name
@@ -142,12 +142,12 @@ lists its actions.
 
 ```text
 webctl snapshot --session ID [--query TEXT] [--limit N]
-webctl click --session ID --ref @e27 [--confirm] [--observe] [--verbose]
-webctl hover --session ID --ref @e27
-webctl fill --session ID --ref @e28 --value TEXT
-webctl select --session ID --ref @e29 --option TEXT
-webctl press --session ID --ref @e28 --key Enter [--confirm]
-webctl extract --session ID --ref @e28 [--read text|value|attribute] [--attribute NAME]
+webctl click --session ID --ref e27 [--confirm] [--observe] [--verbose]
+webctl hover --session ID --ref e27
+webctl fill --session ID --ref e28 --value TEXT
+webctl select --session ID --ref e29 --option TEXT
+webctl press --session ID --ref e28 --key Enter [--confirm]
+webctl extract --session ID --ref e28 [--read text|value|attribute] [--attribute NAME]
 webctl batch --session ID --input-file commands.json [--verbose]
 webctl request status --id REQUEST_ID [--verbose]
 ```
@@ -166,3 +166,11 @@ webctl asset status ACTION --session ID [--site SITE_ID]
 webctl asset report ACTION --session ID --reason wrong_result|structure|locator [--site SITE_ID]
 webctl learning finish --session ID --input-file finish.json
 ```
+
+## 읽기 전용 결과 검증
+
+```text
+webctl verify --session ID --input-file checks.json
+```
+
+최대 20개 명시 조건, 전체 기본 5초. 조건별 기대값·관찰값과 APPLIED/NOT_APPLIED/UNKNOWN을 반환한다. 실행이나 자산 저장은 하지 않는다. 입력 형식과 예시는 [VERIFICATION.md](VERIFICATION.md). 기존 @e27 참조를 PowerShell에 직접 전달할 때는 `--ref '@e27'`처럼 감싼다.

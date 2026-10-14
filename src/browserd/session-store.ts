@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { BrowserContext, Page } from "playwright";
 import { navigate } from "../engine/navigate";
+import { registerPopupHandler, type PopupEffect } from '../engine/popups';
 
 export interface SessionInfo {
   id: string;
@@ -10,6 +11,8 @@ export interface SessionInfo {
   navigationError?: string;
   status?: number;
   interstitial?: "passed" | "still";
+  setupStatus?: 'ready'|'partial';
+  setupError?: string;
 }
 
 export interface OpenOptions {
@@ -20,76 +23,94 @@ export interface OpenOptions {
 interface SessionRecord {
   page: Page;
   lastUrl: string;
+  prepare?: OpenOptions["prepare"];
+  setupStatus?: 'ready'|'partial';
+  setupError?: string;
 }
-
-/**
- * How long an unclaimed new tab (ad popup, window.open() from a script, target=_blank link)
- * is given before it is closed automatically. Long enough that a page legitimately opened
- * through open() is always registered into `sessions` well before this fires - that
- * registration happens synchronously right after newPage() resolves, before any navigation -
- * short enough that stray tabs don't sit around cluttering the window.
- */
-const POPUP_GRACE_MS = 4000;
 
 export class SessionStore {
   private ignored = new WeakSet<Page>();
   ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
+  private pendingPopups = new WeakMap<Page, Promise<PopupEffect>>();
+  private watchParent(page:Page,id:string):void {
+    registerPopupHandler(page,popup=>this.adoptPopup(popup,id));
+  }
+  private adoptPopup(page:Page,parentId?:string):Promise<PopupEffect> {
+    const pending=this.pendingPopups.get(page);if(pending)return pending;
+    const promise=(async()=>{
+      const existing=[...this.sessions].find(([,r])=>r.page===page);
+      if(existing)return {sessionId:existing[0],url:page.url(),title:await page.title().catch(()=>''),setupStatus:existing[1].setupStatus||'ready'};
+      const prepare=parentId?this.sessions.get(parentId)?.prepare:undefined;
+      const id=`popup_${crypto.randomUUID().slice(0,8)}`;
+      const record:SessionRecord={page,lastUrl:page.url(),prepare,setupStatus:'ready'};
+      this.sessions.set(id,record);this.watchParent(page,id);
+      try{if(prepare)await prepare(page);}catch{record.setupStatus='partial';record.setupError='Inherited page settings could not be applied';}
+      return {sessionId:id,url:page.url(),title:await page.title().catch(()=>''),setupStatus:record.setupStatus!,setupError:record.setupError};
+    })();this.pendingPopups.set(page,promise);return promise;
+  }
 
   constructor(private context: BrowserContext) {
     this.watchForPopups(context);
   }
 
-  /**
-   * Auto-closes tabs that appear without going through open()/adoptExisting() - typically ad
-   * popups or window.open() calls from page scripts. A page is "claimed" the moment it is
-   * added to `sessions`, which open() does immediately after creating it (before navigating),
-   * so anything still unclaimed after the grace period was never ours to begin with.
-   */
+  /** Register unclaimed tabs and inherit preparation from their opener. */
   private watchForPopups(context: BrowserContext): void {
     context.on("page", (page) => {
-      setTimeout(() => {
+      setTimeout(async () => {
         if (page.isClosed() || this.ignored.has(page)) return;
         const claimed = [...this.sessions.values()].some((r) => r.page === page);
         if (!claimed) {
           // Adopt user-opened tabs/OAuth popups instead of closing them
-          this.sessions.set(`popup_${crypto.randomUUID().slice(0, 8)}`, { page, lastUrl: page.url() });
+          const opener=await page.opener().catch(()=>null);
+          const parent=opener?[...this.sessions].find(([,r])=>r.page===opener)?.[0]:undefined;
+          await this.adoptPopup(page,parent).catch(()=>{});
         }
-      }, POPUP_GRACE_MS);
+      }, 0);
     });
   }
 
   async adoptExisting(): Promise<void> {
     for (const page of this.context.pages()) {
       if ([...this.sessions.values()].some((r) => r.page === page)) continue;
-      this.sessions.set(`restored_${crypto.randomUUID().slice(0, 8)}`, { page, lastUrl: page.url() });
+      const id=`restored_${crypto.randomUUID().slice(0, 8)}`;
+      this.sessions.set(id, { page, lastUrl: page.url() });this.watchParent(page,id);
     }
   }
 
   async rebindContext(context: BrowserContext): Promise<void> {
-    const desired = [...this.sessions.entries()].map(([id, rec]) => ({ id, url: rec.lastUrl || "about:blank" }));
+    const desired = [...this.sessions.entries()].map(([id, rec]) => ({ id, url: rec.lastUrl || "about:blank", prepare: rec.prepare }));
     this.context = context;
     this.sessions.clear();
     this.watchForPopups(context);
     const existing = context.pages();
     let i = 0;
+    let preparationError: unknown;
     for (const row of desired) {
       const page = existing[i++] || await context.newPage();
+      this.sessions.set(row.id, { page, lastUrl: row.url, prepare: row.prepare });
+      this.watchParent(page,row.id);
+      if (row.prepare) {
+        try { await row.prepare(page); }
+        catch (error) { preparationError ||= error; }
+      }
       if (row.url && row.url !== "about:blank" && page.url() !== row.url) {
         await navigate(page, row.url).catch(() => {});
       }
-      this.sessions.set(row.id, { page, lastUrl: page.url() || row.url });
+      this.sessions.set(row.id, { page, lastUrl: page.url() || row.url, prepare: row.prepare });
     }
     await this.adoptExisting();
+    if (preparationError) throw preparationError;
   }
 
   async open(url?: string, options: OpenOptions = {}): Promise<SessionInfo> {
     const page = await this.context.newPage();
-    if (options.prepare) await options.prepare(page).catch(() => {});
     const id = `task_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     // Claim the page immediately - before navigating, which can take up to tens of seconds -
-    // so watchForPopups' grace-period check never races a slow but legitimate navigation.
-    this.sessions.set(id, { page, lastUrl: page.url() });
+    // so popup adoption never races a slow but legitimate navigation.
+    const record:SessionRecord={ page, lastUrl: page.url(), prepare: options.prepare,setupStatus:'ready' };
+    this.sessions.set(id,record);this.watchParent(page,id);
+    if(options.prepare)try{await options.prepare(page);}catch{record.setupStatus='partial';record.setupError='Page settings could not be applied';}
     // A navigation failure must not discard the session: the caller can retry or inspect it.
     let navigationError: string | undefined;
     let status: number | undefined;
@@ -98,8 +119,8 @@ export class SessionStore {
       try { ({ status, interstitial } = await navigate(page, url)); }
       catch (error: any) { navigationError = error?.message || String(error); }
     }
-    if (navigationError) return { id, url: page.url(), title: "", navigationError };
-    return { id, url: page.url(), title: await page.title().catch(() => ""), status, interstitial };
+    if (navigationError) return { id, url: page.url(), title: "", navigationError, setupStatus:record.setupStatus, setupError:record.setupError };
+    return { id, url: page.url(), title: await page.title().catch(() => ""), status, interstitial,setupStatus:record.setupStatus,setupError:record.setupError };
   }
 
   get(id: string): Page {

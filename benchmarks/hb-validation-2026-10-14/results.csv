@@ -1,0 +1,5 @@
+﻿id,site,status,checkpointScore,taskWallMs,browserCommandCount,browserCommandMs,agentWallMs,agentToolCalls,toolOccupiedMs,nonToolMs,reasoningTimeMs,headedSwitches,duplicateCommandSequences,lateCommands
+"v1_google_hb","google","blocked","1","60966","5","39395.7781","103113","19","58500","44613","","1","0","0"
+"v1_amazon_hb","amazon","succeeded","4","103049","20","15372.9923","133220","24","46520","86700","","0","0","0"
+"v1_walmart_hb","walmart","blocked","1","67885","6","37027.9681","98238","19","55218","43020","","1","0","0"
+"v1_ebay_hb","ebay","succeeded","4","119178","23","46399.31409999999","151052","33","77151","73901","","1","0","0"

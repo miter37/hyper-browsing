@@ -1,0 +1,607 @@
+{
+  "createdAt": "2026-10-13T12:14:46.208Z",
+  "validTrials": 60,
+  "methods": {
+    "bu": {
+      "n": 30,
+      "strictSuccess": 13,
+      "statuses": {
+        "succeeded": 13,
+        "partial": 10,
+        "blocked": 4,
+        "failed": 3
+      },
+      "checkpointTotal": 74,
+      "checkpointPossible": 120,
+      "taskWallMs": {
+        "median": 185904,
+        "min": 25807,
+        "max": 467483
+      },
+      "successfulTaskWallMs": {
+        "median": 171918,
+        "min": 25807,
+        "max": 281561
+      },
+      "browserCommands": {
+        "median": 21,
+        "min": 4,
+        "max": 44
+      },
+      "agentWallMs": {
+        "median": 224498.5,
+        "min": 57239,
+        "max": 549281
+      },
+      "agentToolCalls": {
+        "median": 32,
+        "min": 8,
+        "max": 88
+      },
+      "nonToolMs": {
+        "median": 158681,
+        "min": 43754,
+        "max": 462468
+      },
+      "reasoningOutputTokens": {
+        "median": 3473.5,
+        "min": 844,
+        "max": 13516
+      },
+      "headedSwitches": 17,
+      "headedAttempts": 17
+    },
+    "hb": {
+      "n": 30,
+      "strictSuccess": 19,
+      "statuses": {
+        "succeeded": 19,
+        "partial": 4,
+        "blocked": 7,
+        "failed": 0
+      },
+      "checkpointTotal": 87,
+      "checkpointPossible": 120,
+      "taskWallMs": {
+        "median": 122975.5,
+        "min": 12609,
+        "max": 251371
+      },
+      "successfulTaskWallMs": {
+        "median": 129890,
+        "min": 40237,
+        "max": 241008
+      },
+      "browserCommands": {
+        "median": 18,
+        "min": 1,
+        "max": 37
+      },
+      "agentWallMs": {
+        "median": 157610,
+        "min": 45295,
+        "max": 302102
+      },
+      "agentToolCalls": {
+        "median": 28.5,
+        "min": 10,
+        "max": 50
+      },
+      "nonToolMs": {
+        "median": 105111.5,
+        "min": 28559,
+        "max": 223778
+      },
+      "reasoningOutputTokens": {
+        "median": 1869,
+        "min": 587,
+        "max": 7643
+      },
+      "headedSwitches": 23,
+      "headedAttempts": 18
+    }
+  },
+  "sites": [
+    {
+      "site": "google",
+      "bu": {
+        "strictSuccess": 1,
+        "scores": [
+          0,
+          4,
+          0
+        ],
+        "taskWallMs": {
+          "median": 72893,
+          "min": 52936,
+          "max": 124298
+        },
+        "browserCommands": {
+          "median": 9,
+          "min": 8,
+          "max": 16
+        }
+      },
+      "hb": {
+        "strictSuccess": 0,
+        "scores": [
+          1,
+          1,
+          1
+        ],
+        "taskWallMs": {
+          "median": 52081,
+          "min": 48321,
+          "max": 72213
+        },
+        "browserCommands": {
+          "median": 7,
+          "min": 7,
+          "max": 9
+        }
+      }
+    },
+    {
+      "site": "amazon",
+      "bu": {
+        "strictSuccess": 2,
+        "scores": [
+          0,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 65958,
+          "min": 59969,
+          "max": 229233
+        },
+        "browserCommands": {
+          "median": 10,
+          "min": 4,
+          "max": 21
+        }
+      },
+      "hb": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 115340,
+          "min": 69301,
+          "max": 129881
+        },
+        "browserCommands": {
+          "median": 17,
+          "min": 14,
+          "max": 24
+        }
+      }
+    },
+    {
+      "site": "walmart",
+      "bu": {
+        "strictSuccess": 0,
+        "scores": [
+          2,
+          1,
+          0
+        ],
+        "taskWallMs": {
+          "median": 181623,
+          "min": 45849,
+          "max": 467483
+        },
+        "browserCommands": {
+          "median": 19,
+          "min": 5,
+          "max": 37
+        }
+      },
+      "hb": {
+        "strictSuccess": 0,
+        "scores": [
+          1,
+          1,
+          0
+        ],
+        "taskWallMs": {
+          "median": 41420,
+          "min": 12609,
+          "max": 65572
+        },
+        "browserCommands": {
+          "median": 11,
+          "min": 4,
+          "max": 16
+        }
+      }
+    },
+    {
+      "site": "ebay",
+      "bu": {
+        "strictSuccess": 1,
+        "scores": [
+          1,
+          4,
+          2
+        ],
+        "taskWallMs": {
+          "median": 281561,
+          "min": 196698,
+          "max": 358441
+        },
+        "browserCommands": {
+          "median": 36,
+          "min": 24,
+          "max": 44
+        }
+      },
+      "hb": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 124607,
+          "min": 121344,
+          "max": 142522
+        },
+        "browserCommands": {
+          "median": 24,
+          "min": 22,
+          "max": 28
+        }
+      }
+    },
+    {
+      "site": "bestbuy",
+      "bu": {
+        "strictSuccess": 1,
+        "scores": [
+          4,
+          1,
+          0
+        ],
+        "taskWallMs": {
+          "median": 236663,
+          "min": 138277,
+          "max": 373135
+        },
+        "browserCommands": {
+          "median": 28,
+          "min": 9,
+          "max": 28
+        }
+      },
+      "hb": {
+        "strictSuccess": 0,
+        "scores": [
+          2,
+          2,
+          2
+        ],
+        "taskWallMs": {
+          "median": 213237,
+          "min": 173935,
+          "max": 251371
+        },
+        "browserCommands": {
+          "median": 33,
+          "min": 27,
+          "max": 37
+        }
+      }
+    },
+    {
+      "site": "booking",
+      "bu": {
+        "strictSuccess": 0,
+        "scores": [
+          2,
+          2,
+          2
+        ],
+        "taskWallMs": {
+          "median": 192238,
+          "min": 190185,
+          "max": 221687
+        },
+        "browserCommands": {
+          "median": 33,
+          "min": 26,
+          "max": 33
+        }
+      },
+      "hb": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 208558,
+          "min": 170115,
+          "max": 241008
+        },
+        "browserCommands": {
+          "median": 32,
+          "min": 29,
+          "max": 34
+        }
+      }
+    },
+    {
+      "site": "expedia",
+      "bu": {
+        "strictSuccess": 0,
+        "scores": [
+          0,
+          3,
+          3
+        ],
+        "taskWallMs": {
+          "median": 386024,
+          "min": 141789,
+          "max": 446784
+        },
+        "browserCommands": {
+          "median": 33,
+          "min": 13,
+          "max": 36
+        }
+      },
+      "hb": {
+        "strictSuccess": 1,
+        "scores": [
+          0,
+          4,
+          0
+        ],
+        "taskWallMs": {
+          "median": 32339,
+          "min": 30716,
+          "max": 181749
+        },
+        "browserCommands": {
+          "median": 1,
+          "min": 1,
+          "max": 32
+        }
+      }
+    },
+    {
+      "site": "wikipedia",
+      "bu": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 65404,
+          "min": 25807,
+          "max": 159786
+        },
+        "browserCommands": {
+          "median": 8,
+          "min": 5,
+          "max": 21
+        }
+      },
+      "hb": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 47822,
+          "min": 40237,
+          "max": 69678
+        },
+        "browserCommands": {
+          "median": 11,
+          "min": 9,
+          "max": 12
+        }
+      }
+    },
+    {
+      "site": "weather",
+      "bu": {
+        "strictSuccess": 2,
+        "scores": [
+          3,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 133771,
+          "min": 114056,
+          "max": 248659
+        },
+        "browserCommands": {
+          "median": 16,
+          "min": 14,
+          "max": 25
+        }
+      },
+      "hb": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 156847,
+          "min": 145665,
+          "max": 162319
+        },
+        "browserCommands": {
+          "median": 25,
+          "min": 23,
+          "max": 26
+        }
+      }
+    },
+    {
+      "site": "imdb",
+      "bu": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 210417,
+          "min": 171918,
+          "max": 246712
+        },
+        "browserCommands": {
+          "median": 27,
+          "min": 17,
+          "max": 32
+        }
+      },
+      "hb": {
+        "strictSuccess": 3,
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "taskWallMs": {
+          "median": 129890,
+          "min": 91161,
+          "max": 131696
+        },
+        "browserCommands": {
+          "median": 17,
+          "min": 16,
+          "max": 19
+        }
+      }
+    }
+  ],
+  "successfulPairs": [
+    {
+      "site": "amazon",
+      "repeat": 2,
+      "buMs": 59969,
+      "hbMs": 69301,
+      "hbOverBu": 1.155613733762444,
+      "buCommands": 10,
+      "hbCommands": 14
+    },
+    {
+      "site": "amazon",
+      "repeat": 3,
+      "buMs": 229233,
+      "hbMs": 115340,
+      "hbOverBu": 0.5031561773392138,
+      "buCommands": 21,
+      "hbCommands": 17
+    },
+    {
+      "site": "ebay",
+      "repeat": 2,
+      "buMs": 281561,
+      "hbMs": 124607,
+      "hbOverBu": 0.4425577405961763,
+      "buCommands": 36,
+      "hbCommands": 24
+    },
+    {
+      "site": "wikipedia",
+      "repeat": 1,
+      "buMs": 65404,
+      "hbMs": 47822,
+      "hbOverBu": 0.7311785211913644,
+      "buCommands": 8,
+      "hbCommands": 12
+    },
+    {
+      "site": "wikipedia",
+      "repeat": 2,
+      "buMs": 159786,
+      "hbMs": 69678,
+      "hbOverBu": 0.4360707446209305,
+      "buCommands": 21,
+      "hbCommands": 11
+    },
+    {
+      "site": "wikipedia",
+      "repeat": 3,
+      "buMs": 25807,
+      "hbMs": 40237,
+      "hbOverBu": 1.5591506180493664,
+      "buCommands": 5,
+      "hbCommands": 9
+    },
+    {
+      "site": "weather",
+      "repeat": 2,
+      "buMs": 133771,
+      "hbMs": 156847,
+      "hbOverBu": 1.1725037564195528,
+      "buCommands": 16,
+      "hbCommands": 25
+    },
+    {
+      "site": "weather",
+      "repeat": 3,
+      "buMs": 248659,
+      "hbMs": 162319,
+      "hbOverBu": 0.6527774985019645,
+      "buCommands": 25,
+      "hbCommands": 26
+    },
+    {
+      "site": "imdb",
+      "repeat": 1,
+      "buMs": 171918,
+      "hbMs": 131696,
+      "hbOverBu": 0.7660396235414558,
+      "buCommands": 27,
+      "hbCommands": 17
+    },
+    {
+      "site": "imdb",
+      "repeat": 2,
+      "buMs": 210417,
+      "hbMs": 91161,
+      "hbOverBu": 0.4332397097192717,
+      "buCommands": 17,
+      "hbCommands": 16
+    },
+    {
+      "site": "imdb",
+      "repeat": 3,
+      "buMs": 246712,
+      "hbMs": 129890,
+      "hbOverBu": 0.5264843218003178,
+      "buCommands": 32,
+      "hbCommands": 19
+    }
+  ],
+  "successfulPairSummary": {
+    "n": 11,
+    "buMedianMs": 171918,
+    "hbMedianMs": 115340,
+    "medianHbOverBu": 0.6527774985019645
+  },
+  "successfulPairsWithoutNumberCollisions": {
+    "n": 10,
+    "medianHbOverBu": 0.6919780098466645
+  }
+}

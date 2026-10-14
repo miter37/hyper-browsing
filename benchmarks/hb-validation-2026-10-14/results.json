@@ -1,0 +1,170 @@
+[
+  {
+    "id": "v1_google_hb",
+    "site": "google",
+    "repeat": 1,
+    "method": "hb",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "medium",
+    "status": "blocked",
+    "checkpointScore": 1,
+    "taskWallMs": 60966,
+    "browserCommandCount": 5,
+    "browserCommandMs": 39395.7781,
+    "failedCommands": 1,
+    "agentWallMs": 103113,
+    "agentToolCalls": 19,
+    "toolOccupiedMs": 58500,
+    "nonToolMs": 44613,
+    "reasoningEventCount": 16,
+    "reasoningTimeMs": null,
+    "headedSwitches": 1,
+    "lateCommands": 0,
+    "duplicateCommandSequences": 0,
+    "audited": true,
+    "difficulties": [
+      {
+        "type": "captcha",
+        "detail": "검색 제출 후 Google이 429 sorry 페이지를 반환했고, snapshot 결과에 captcha frame on a nearly empty page 및 pageState=blocked가 기록됐다.",
+        "firstCommand": 3,
+        "recovery": "제품이 headless에서 headed로 1회 자동 전환한 뒤 재관찰했다. CAPTCHA가 지속되어 추가 시도 없이 종료했다.",
+        "resolved": false
+      }
+    ],
+    "output": {
+      "searchQuery": "NASA Artemis program",
+      "officialResult": null,
+      "pageTitle": null,
+      "programDescription": null
+    },
+    "sourceVersion": "initial live snapshot (versions.json)"
+  },
+  {
+    "id": "v1_amazon_hb",
+    "site": "amazon",
+    "repeat": 1,
+    "method": "hb",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "medium",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "taskWallMs": 103049,
+    "browserCommandCount": 20,
+    "browserCommandMs": 15372.9923,
+    "failedCommands": 0,
+    "agentWallMs": 133220,
+    "agentToolCalls": 24,
+    "toolOccupiedMs": 46520,
+    "nonToolMs": 86700,
+    "reasoningEventCount": 28,
+    "reasoningTimeMs": null,
+    "headedSwitches": 0,
+    "lateCommands": 0,
+    "duplicateCommandSequences": 0,
+    "audited": true,
+    "difficulties": [
+      {
+        "type": "international-shopping-modal",
+        "detail": "첫 홈 스냅샷에서 International Shopping Transition Alert가 검색 UI를 덮고 있었음.",
+        "firstCommand": 2,
+        "recovery": "현재 화면에 보인 Dismiss 버튼을 눌렀고 alertdialog 닫힘이 관찰됨.",
+        "resolved": true
+      }
+    ],
+    "output": {
+      "searchQuery": "Logitech M185 wireless mouse",
+      "brandFilter": "Logitech",
+      "productName": "Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue",
+      "price": "KRW 20,106",
+      "delivery": "FREE delivery October 19 - 25 to Republic of Korea on eligible orders over KRW 65,724; fastest delivery October 19 - 20",
+      "availability": "Only 9 left in stock (more on the way)"
+    },
+    "sourceVersion": "initial live snapshot (versions.json)"
+  },
+  {
+    "id": "v1_walmart_hb",
+    "site": "walmart",
+    "repeat": 1,
+    "method": "hb",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "medium",
+    "status": "blocked",
+    "checkpointScore": 1,
+    "taskWallMs": 67885,
+    "browserCommandCount": 6,
+    "browserCommandMs": 37027.9681,
+    "failedCommands": 3,
+    "agentWallMs": 98238,
+    "agentToolCalls": 19,
+    "toolOccupiedMs": 55218,
+    "nonToolMs": 43020,
+    "reasoningEventCount": 20,
+    "reasoningTimeMs": null,
+    "headedSwitches": 1,
+    "lateCommands": 0,
+    "duplicateCommandSequences": 0,
+    "audited": true,
+    "difficulties": [
+      {
+        "type": "captcha",
+        "detail": "Walmart opened at the homepage after the initial open reported a human-verification dialog and the product performed its single headed retry. Submitting the required search navigated to the matching search URL but the page was again blocked by a visible human-verification dialog.",
+        "firstCommand": 1,
+        "recovery": "Allowed headed fallback completed; after CAPTCHA reappeared following search submission, stopped without bypass or repeat.",
+        "resolved": false
+      }
+    ],
+    "output": {
+      "productName": null,
+      "price": null,
+      "shippingOrAvailability": null
+    },
+    "sourceVersion": "initial live snapshot (versions.json)"
+  },
+  {
+    "id": "v1_ebay_hb",
+    "site": "ebay",
+    "repeat": 1,
+    "method": "hb",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "medium",
+    "status": "succeeded",
+    "checkpointScore": 4,
+    "taskWallMs": 119178,
+    "browserCommandCount": 23,
+    "browserCommandMs": 46399.31409999999,
+    "failedCommands": 2,
+    "agentWallMs": 151052,
+    "agentToolCalls": 33,
+    "toolOccupiedMs": 77151,
+    "nonToolMs": 73901,
+    "reasoningEventCount": 32,
+    "reasoningTimeMs": null,
+    "headedSwitches": 1,
+    "lateCommands": 0,
+    "duplicateCommandSequences": 0,
+    "audited": true,
+    "difficulties": [
+      {
+        "type": "transport_uncertain",
+        "detail": "Initial session open returned outcome_unknown after transport abort.",
+        "firstCommand": 1,
+        "recovery": "Queried the returned request ID; it completed successfully after one automatic headless-to-headed fallback. Continued on the resulting session without resending open.",
+        "resolved": true
+      },
+      {
+        "type": "confirmation_required",
+        "detail": "Buy It Now filter link was classified external_write and first click did not start.",
+        "firstCommand": 11,
+        "recovery": "Confirmed the observed link name and URL encoded LH_BIN=1, then applied the search filter with --confirm.",
+        "resolved": true
+      }
+    ],
+    "output": {
+      "title": "New Logitech M185 Wireless Mouse + Nano Receiver Sealed",
+      "price": "US $18.40",
+      "condition": "New",
+      "seller": "2nd Chance Resells (themuggletoyshop)"
+    },
+    "sourceVersion": "initial live snapshot (versions.json)"
+  }
+]

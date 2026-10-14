@@ -51,6 +51,7 @@ function nthFlag(): number | undefined {
 }
 // Common to click/hover/fill/select/press/extract: which match, within which section, how long to wait.
 function targetFlags() {
+  if (boolFlag('ref') && (!flag('ref') || flag('ref')!.startsWith('--'))) throw new Error("Missing --ref value. Use --ref e27 or quote the legacy '@e27' in PowerShell.");
   return { locator: locatorFromFlags(), ref: flag("ref"), nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag() };
 }
 function timeoutFlag(): number | undefined {
@@ -87,6 +88,7 @@ Daemon/session:
 
 Discovery primitives (same browser session):
   webctl snapshot --session ID [--save] [--query TEXT] [--limit N]
+  webctl verify --session ID --input-file checks.json
   webctl screenshot --session ID [--full-page]
   webctl network start --session ID
   webctl network stop --session ID
@@ -175,6 +177,7 @@ async function main() {
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
 
   if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit") }));
+  if (a === 'verify') return print(await client.call('page.verify',{sessionId:required('session'),input:flag('input')||flag('input-file')?await actionInput():{checks:[]}}));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));
   if (a === "network" && b === "start") return print(await client.call("network.start", { sessionId: required("session") }));
   if (a === "network" && b === "stop") return print(await client.call("network.stop", { sessionId: required("session") }));
@@ -191,8 +194,8 @@ async function main() {
   if (a === "select") return print(await client.call("page.select", { sessionId: required("session"), ...targetFlags(), option: required("option"), observe: boolFlag("observe") }));
   if (a === "list") return print(await client.call("page.list", { sessionId: required("session"), query: flag("query"), limit: flag("limit") }));
   if (a === "press") {
-    const hasLocator = ["role", "testid", "text", "label", "placeholder", "css"].some((x) => flag(x));
-    return print(await client.call("page.press", { sessionId: required("session"), locator: hasLocator || flag("ref") ? locatorFromFlags() : undefined, ref: flag("ref"), nth: nthFlag(), within: flag("within"), timeoutMs: timeoutFlag(), key: required("key"), confirmed: boolFlag("confirm"), observe: boolFlag("observe") }));
+    const hasTarget = ["role", "testid", "text", "label", "placeholder", "css", "ref"].some(x=>argv.includes('--'+x));
+    return print(await client.call("page.press", { sessionId: required("session"), ...(hasTarget?targetFlags():{timeoutMs:timeoutFlag()}), key: required("key"), confirmed: boolFlag("confirm"), observe: boolFlag("observe") }));
   }
   if (a === "extract") return print(await client.call("page.extract", {
     sessionId: required("session"), ...targetFlags(), read: flag("read") || "text", attribute: flag("attribute"),

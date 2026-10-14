@@ -1,0 +1,42 @@
+[
+  {
+    "id": "v1_google_hb",
+    "site": "google",
+    "repeat": 1,
+    "method": "hb",
+    "index": 110,
+    "agent": "/root/validate_v1_google",
+    "sessionFile": "rollout-2026-10-14T09-50-40-01a137e3-d4bb-7300-a028-5e5e3f021235.jsonl",
+    "status": "reported"
+  },
+  {
+    "id": "v1_amazon_hb",
+    "site": "amazon",
+    "repeat": 1,
+    "method": "hb",
+    "index": 111,
+    "agent": "/root/validate_v1_amazon",
+    "sessionFile": "rollout-2026-10-14T09-51-01-01a137e4-2782-7680-81f7-855eba28f783.jsonl",
+    "status": "reported"
+  },
+  {
+    "id": "v1_walmart_hb",
+    "site": "walmart",
+    "repeat": 1,
+    "method": "hb",
+    "index": 112,
+    "agent": "/root/validate_v1_walmart",
+    "sessionFile": "rollout-2026-10-14T09-51-42-01a137e4-c355-7e51-b36a-20fa944c82ac.jsonl",
+    "status": "reported"
+  },
+  {
+    "id": "v1_ebay_hb",
+    "site": "ebay",
+    "repeat": 1,
+    "method": "hb",
+    "index": 113,
+    "agent": "/root/validate_v1_ebay",
+    "sessionFile": "rollout-2026-10-14T09-53-00-01a137e5-f54c-7492-a9bc-8679944ef340.jsonl",
+    "status": "reported"
+  }
+]

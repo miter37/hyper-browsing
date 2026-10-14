@@ -1,0 +1,190 @@
+[
+  {
+    "id": "v1_google_hb",
+    "audit": "Root independently checked commands1/3/5. Search value readback matched and Google CAPTCHA persisted after headed fallback. NASA results and article evidence absent. Request status completed after client timeout; no write retransmission.",
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈 검색 UI의 검색 입력에 `NASA Artemis program`을 넣었고 fill --submit에서 valueMatches=true, urlChanged=true로 제출됐다. 이어진 목적지는 Google sorry 경로의 429 응답이었다.",
+        "commandSequence": 3,
+        "url": "https://www.google.com/"
+      },
+      {
+        "passed": false,
+        "evidence": "검색 결과가 표시되지 않았고 Google이 CAPTCHA 차단 상태임이 확인됐다. NASA 공식 도메인 결과를 관찰하지 못했다.",
+        "commandSequence": 5,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "관찰된 검색 결과 링크가 없어 공식 NASA 페이지로 진입하지 못했다.",
+        "commandSequence": 5,
+        "url": "https://www.google.com/sorry/index"
+      },
+      {
+        "passed": false,
+        "evidence": "차단 화면에서 공식 페이지 제목이나 프로그램 설명을 확인하지 못했다.",
+        "commandSequence": 5,
+        "url": "https://www.google.com/sorry/index"
+      }
+    ],
+    "output": {
+      "searchQuery": "NASA Artemis program",
+      "officialResult": null,
+      "pageTitle": null,
+      "programDescription": null
+    },
+    "difficulties": [
+      {
+        "type": "captcha",
+        "detail": "검색 제출 후 Google이 429 sorry 페이지를 반환했고, snapshot 결과에 captcha frame on a nearly empty page 및 pageState=blocked가 기록됐다.",
+        "firstCommand": 3,
+        "recovery": "제품이 headless에서 headed로 1회 자동 전환한 뒤 재관찰했다. CAPTCHA가 지속되어 추가 시도 없이 종료했다.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "v1_amazon_hb",
+    "audit": "Root checked5/16/18/20. Exact query readback matched, Remove Logitech filter confirms applied brand, observed product link opened, body text independently contains product name/KRW20,106/delivery/stock. No cart/purchase.",
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "Amazon 홈의 Search Amazon 검색창에 Logitech M185 wireless mouse를 입력해 제출. 결과 화면 제목은 Amazon.com : Logitech M185 wireless mouse, URL은 /s?k=Logitech+M185+wireless+mouse이며 1-16 of 170 results 표시.",
+        "commandSequence": 5,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse"
+      },
+      {
+        "passed": true,
+        "evidence": "Brands 영역에서 Apply Logitech filter to narrow results를 선택. URL에 rh=p_123%3A213704 및 refinements=p_123%3A213704가 포함되었고, 다음 화면에서 Remove Logitech filter to expand results가 확인됨.",
+        "commandSequence": 16,
+        "url": "https://www.amazon.com/s?k=Logitech+M185+wireless+mouse&rh=p_123%3A213704"
+      },
+      {
+        "passed": true,
+        "evidence": "관찰된 Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue 링크를 열어 /dp/B00PGB7OKM 상세 페이지 진입. 페이지 제목에 제품명과 Electronics가 포함됨.",
+        "commandSequence": 18,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      },
+      {
+        "passed": true,
+        "evidence": "상세 페이지 본문에 상품명 Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue, 가격 KRW 20,106, 'FREE delivery October 19 - 25 to Republic of Korea on eligible orders over KRW 65,724', 'Only 9 left in stock (more on the way)'가 표시됨.",
+        "commandSequence": 20,
+        "url": "https://www.amazon.com/Logitech-910-003636-Wireless-Mouse-M185/dp/B00PGB7OKM/"
+      }
+    ],
+    "output": {
+      "searchQuery": "Logitech M185 wireless mouse",
+      "brandFilter": "Logitech",
+      "productName": "Logitech M185 Compact Ambidextrous Wireless Mouse with Rubber Grips - Blue",
+      "price": "KRW 20,106",
+      "delivery": "FREE delivery October 19 - 25 to Republic of Korea on eligible orders over KRW 65,724; fastest delivery October 19 - 20",
+      "availability": "Only 9 left in stock (more on the way)"
+    },
+    "difficulties": [
+      {
+        "type": "international-shopping-modal",
+        "detail": "첫 홈 스냅샷에서 International Shopping Transition Alert가 검색 UI를 덮고 있었음.",
+        "firstCommand": 2,
+        "recovery": "현재 화면에 보인 Dismiss 버튼을 눌렀고 alertdialog 닫힘이 관찰됨.",
+        "resolved": true
+      }
+    ]
+  },
+  {
+    "id": "v1_walmart_hb",
+    "audit": "Root checked request status2 and commands3-6: initial request completed after headed fallback, stale ref refused without action, fresh snapshot used, search URL q=wireless mouse reached but visible challenge blocks all later criteria. Stop; no bypass.",
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "홈의 Search 입력란에 wireless mouse를 입력해 제출; URL이 https://www.walmart.com/search?q=wireless+mouse 로 변경됨. 응답에 페이지가 CAPTCHA blocked로 표시됨.",
+        "commandSequence": 6,
+        "url": "https://www.walmart.com/search?q=wireless+mouse"
+      },
+      {
+        "passed": false,
+        "evidence": null,
+        "commandSequence": null,
+        "url": null
+      },
+      {
+        "passed": false,
+        "evidence": null,
+        "commandSequence": null,
+        "url": null
+      },
+      {
+        "passed": false,
+        "evidence": null,
+        "commandSequence": null,
+        "url": null
+      }
+    ],
+    "output": {
+      "productName": null,
+      "price": null,
+      "shippingOrAvailability": null
+    },
+    "difficulties": [
+      {
+        "type": "captcha",
+        "detail": "Walmart opened at the homepage after the initial open reported a human-verification dialog and the product performed its single headed retry. Submitting the required search navigated to the matching search URL but the page was again blocked by a visible human-verification dialog.",
+        "firstCommand": 1,
+        "recovery": "Allowed headed fallback completed; after CAPTCHA reappeared following search submission, stopped without bypass or repeat.",
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "v1_ebay_hb",
+    "audit": "Root checked6/9/10/13/15/17/18/19/22/23. New and Buy It Now encoded in applied search URL/UI. Popup returns explicit session, correct title/US$18.40/New/seller store read in that session. First filter refused before user-authorized search-filter confirm; no purchase/bid. Checkpoint4 is supported by multiple commands, not solely22.",
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "eBay homepage search field used for Logitech M185; result page heading displayed 768 results for Logitech M185.",
+        "commandSequence": 6,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185"
+      },
+      {
+        "passed": true,
+        "evidence": "Current results URL included LH_ItemCondition=1000 and LH_BIN=1; snapshot displayed New- Filter Applied and Buy It Now selected.",
+        "commandSequence": 13,
+        "url": "https://www.ebay.com/sch/i.html?_nkw=Logitech+M185&LH_ItemCondition=1000&LH_BIN=1"
+      },
+      {
+        "passed": true,
+        "evidence": "Opened the observed result New Logitech M185 Wireless Mouse + Nano Receiver Sealed in a new detail tab.",
+        "commandSequence": 15,
+        "url": "https://www.ebay.com/itm/227336176529?LH_BIN=1&LH_ItemCondition=1000"
+      },
+      {
+        "passed": true,
+        "evidence": "Detail page title: New Logitech M185 Wireless Mouse + Nano Receiver Sealed; price US $18.40; condition text New; seller store displayed as 2nd Chance Resells (seller handle themuggletoyshop in observed store links).",
+        "commandSequence": 22,
+        "url": "https://www.ebay.com/itm/227336176529?LH_BIN=1&LH_ItemCondition=1000"
+      }
+    ],
+    "output": {
+      "title": "New Logitech M185 Wireless Mouse + Nano Receiver Sealed",
+      "price": "US $18.40",
+      "condition": "New",
+      "seller": "2nd Chance Resells (themuggletoyshop)"
+    },
+    "difficulties": [
+      {
+        "type": "transport_uncertain",
+        "detail": "Initial session open returned outcome_unknown after transport abort.",
+        "firstCommand": 1,
+        "recovery": "Queried the returned request ID; it completed successfully after one automatic headless-to-headed fallback. Continued on the resulting session without resending open.",
+        "resolved": true
+      },
+      {
+        "type": "confirmation_required",
+        "detail": "Buy It Now filter link was classified external_write and first click did not start.",
+        "firstCommand": 11,
+        "recovery": "Confirmed the observed link name and URL encoded LH_BIN=1, then applied the search filter with --confirm.",
+        "resolved": true
+      }
+    ]
+  }
+]

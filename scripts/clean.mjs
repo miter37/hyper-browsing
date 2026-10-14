@@ -20,7 +20,7 @@ try {
       "-NoProfile",
       "-Command",
       "Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'chrome*' -and ($_.CommandLine -like '*hyper-browsing*' -or $_.CommandLine -like '*37web*' -or $_.CommandLine -like '*remote-debugging-port=9223*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
-    ], { stdio: "ignore" });
+    ], { stdio: "ignore", windowsHide: true });
   }
 } catch {}
 

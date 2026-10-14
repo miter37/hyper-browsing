@@ -92,6 +92,7 @@ function npmInstall() {
   const result = spawnSync(command, ["install", "--no-audit", "--no-fund"], {
     cwd: ROOT,
     stdio: "inherit",
+    windowsHide: true,
     shell: IS_WINDOWS,
   });
   if (result.error || result.status !== 0) {
@@ -118,8 +119,8 @@ function bootstrap() {
       log("Installing Playwright Chromium...");
       const cli = path.join(ROOT, "node_modules", "playwright", "cli.js");
       const install = fs.existsSync(cli)
-        ? spawnSync(process.execPath, [cli, "install", "chromium"], { cwd: ROOT, stdio: "inherit" })
-        : spawnSync(IS_WINDOWS ? "npx.cmd" : "npx", ["playwright", "install", "chromium"], { cwd: ROOT, stdio: "inherit", shell: IS_WINDOWS });
+        ? spawnSync(process.execPath, [cli, "install", "chromium"], { windowsHide: true, cwd: ROOT, stdio: "inherit" })
+        : spawnSync(IS_WINDOWS ? "npx.cmd" : "npx", ["playwright", "install", "chromium"], { windowsHide: true, cwd: ROOT, stdio: "inherit", shell: IS_WINDOWS });
       if (!install.error && install.status === 0) fs.writeFileSync(marker, new Date().toISOString());
     }
   }
@@ -204,7 +205,7 @@ function processAlive(pid) {
 function killPid(pid, hard) {
   try {
     if (IS_WINDOWS) {
-      spawnSync("taskkill", ["/PID", String(pid), "/T", ...(hard ? ["/F"] : [])], { stdio: "ignore" });
+      spawnSync("taskkill", ["/PID", String(pid), "/T", ...(hard ? ["/F"] : [])], { stdio: "ignore", windowsHide: true });
     } else {
       process.kill(pid, hard ? "SIGKILL" : "SIGTERM");
     }
@@ -241,7 +242,7 @@ async function ensureBrowserd() {
     // If the port is not free and not healthy, attempt to clean up stale process holding it on Windows
     if (IS_WINDOWS) {
       try {
-        const netstat = spawnSync("powershell.exe", ["-NoProfile", "-Command", `(Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue).OwningProcess`], { encoding: "utf8" });
+        const netstat = spawnSync("powershell.exe", ["-NoProfile", "-Command", `(Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue).OwningProcess`], { encoding: "utf8", windowsHide: true });
         const portPid = Number(netstat.stdout.trim().split(/\r?\n/)[0]);
         if (Number.isFinite(portPid) && portPid > 0) {
           killPid(portPid, true);
@@ -269,7 +270,7 @@ async function ensureBrowserd() {
     cwd: ROOT,
     detached: true,
     stdio: ["ignore", out, out],
-    windowsHide: false,
+    windowsHide: true,
     env: { ...process.env, WEBAGENT_HOME: ROOT, WEBAGENT_PORT: String(chosenPort) },
   });
   child.unref();
@@ -335,6 +336,7 @@ async function main() {
   const result = spawnSync(process.execPath, [tsx, path.join(ROOT, TARGETS[target]), ...args], {
     cwd: ROOT,
     stdio: "inherit",
+    windowsHide: true,
     env: { ...process.env, WEBAGENT_HOME: ROOT },
   });
   if (result.error) fail(String(result.error.message || result.error), 1);

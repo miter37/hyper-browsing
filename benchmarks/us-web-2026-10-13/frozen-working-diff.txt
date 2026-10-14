@@ -1,0 +1,51 @@
+diff --git a/src/browserd/session-store.ts b/src/browserd/session-store.ts
+index 3fb3305..d528c3d 100644
+--- a/src/browserd/session-store.ts
++++ b/src/browserd/session-store.ts
+@@ -20,6 +20,7 @@ export interface OpenOptions {
+ interface SessionRecord {
+   page: Page;
+   lastUrl: string;
++  prepare?: OpenOptions["prepare"];
+ }
+ 
+ /**
+@@ -67,20 +68,27 @@ export class SessionStore {
+   }
+ 
+   async rebindContext(context: BrowserContext): Promise<void> {
+-    const desired = [...this.sessions.entries()].map(([id, rec]) => ({ id, url: rec.lastUrl || "about:blank" }));
++    const desired = [...this.sessions.entries()].map(([id, rec]) => ({ id, url: rec.lastUrl || "about:blank", prepare: rec.prepare }));
+     this.context = context;
+     this.sessions.clear();
+     this.watchForPopups(context);
+     const existing = context.pages();
+     let i = 0;
++    let preparationError: unknown;
+     for (const row of desired) {
+       const page = existing[i++] || await context.newPage();
++      this.sessions.set(row.id, { page, lastUrl: row.url, prepare: row.prepare });
++      if (row.prepare) {
++        try { await row.prepare(page); }
++        catch (error) { preparationError ||= error; }
++      }
+       if (row.url && row.url !== "about:blank" && page.url() !== row.url) {
+         await navigate(page, row.url).catch(() => {});
+       }
+-      this.sessions.set(row.id, { page, lastUrl: page.url() || row.url });
++      this.sessions.set(row.id, { page, lastUrl: page.url() || row.url, prepare: row.prepare });
+     }
+     await this.adoptExisting();
++    if (preparationError) throw preparationError;
+   }
+ 
+   async open(url?: string, options: OpenOptions = {}): Promise<SessionInfo> {
+@@ -89,7 +97,7 @@ export class SessionStore {
+     const id = `task_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+     // Claim the page immediately - before navigating, which can take up to tens of seconds -
+     // so watchForPopups' grace-period check never races a slow but legitimate navigation.
+-    this.sessions.set(id, { page, lastUrl: page.url() });
++    this.sessions.set(id, { page, lastUrl: page.url(), prepare: options.prepare });
+     // A navigation failure must not discard the session: the caller can retry or inspect it.
+     let navigationError: string | undefined;
+     let status: number | undefined;

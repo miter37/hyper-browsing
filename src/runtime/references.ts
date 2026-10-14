@@ -15,8 +15,9 @@ export const REFERENCE_GUARD = `(el) => {
 }`;
 let nextBlock = 1;
 const stores = new WeakMap<Page, ElementReferences>();
+export function normalizeReference(ref: string): string { return /^@?e\d+$/.test(ref) ? ref.replace(/^@/, '') : ref; }
 
-function targetFor(handle: ElementHandle<HTMLElement | SVGElement>): ActionTarget {
+export function targetFor(handle: ElementHandle<HTMLElement | SVGElement>): ActionTarget {
   return {
     evaluate: handle.evaluate.bind(handle), click: handle.click.bind(handle), hover: handle.hover.bind(handle),
     fill: handle.fill.bind(handle), press: handle.press.bind(handle), selectOption: handle.selectOption.bind(handle),
@@ -52,6 +53,7 @@ export class ElementReferences {
     return { state: this.state, generation };
   }
   retain(ref: string, handle: ElementHandle<HTMLElement | SVGElement>, guard: string, metadata: SnapshotElement, generation: number) {
+    ref = normalizeReference(ref);
     if (generation !== this.generation) { void handle.dispose(); return; }
     const old = this.entries.get(ref);
     if (old) void old.handle.dispose().catch(() => {});
@@ -63,7 +65,7 @@ export class ElementReferences {
       void this.entries.get(oldest)!.handle.dispose().catch(() => {}); this.entries.delete(oldest);
     }
   }
-  metadata(ref: string): SnapshotElement | undefined { return this.entries.get(ref)?.metadata; }
+  metadata(ref: string): SnapshotElement | undefined { return this.entries.get(normalizeReference(ref))?.metadata; }
   semanticLocator(ref: string): LocatorStrategy | undefined {
     const e = this.metadata(ref); if (!e) return undefined;
     const scope = e.context ? { within: e.context } : {};
@@ -75,6 +77,7 @@ export class ElementReferences {
     return undefined;
   }
   async resolve(ref: string): Promise<{ locator: ActionTarget; resolvedBy: "reference" } | { ok: false; reason: "stale_ref"; execution: "not_started"; hint: string }> {
+    ref = normalizeReference(ref);
     const entry = this.entries.get(ref);
     const stale = { ok: false as const, reason: "stale_ref" as const, execution: "not_started" as const, hint: "The observed element is no longer valid. Take a fresh snapshot; do not substitute a similar element." };
     if (!entry) return stale;

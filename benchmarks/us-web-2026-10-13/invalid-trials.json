@@ -1,0 +1,9 @@
+[
+  {
+    "id": "r1_booking_hb_attempt1",
+    "reason": "Harness omitted normal webctl fallback for forms (exit 42)",
+    "originalClaim": "succeeded 4/4",
+    "archiveRelative": ".runtime/benchmark-us-20261013/invalid_r1_booking_hb_attempt1",
+    "excludedBeforeReplacementResult": true
+  }
+]

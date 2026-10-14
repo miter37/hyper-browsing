@@ -1,0 +1,549 @@
+[
+  {
+    "id": "r1_google_bu",
+    "sequence": 1,
+    "repeat": 1,
+    "site": "google",
+    "method": "bu",
+    "status": "reported",
+    "agent": "/root/trial_r1_google_bu",
+    "assignedAt": "2026-10-13T10:41:56.123Z",
+    "sessionFile": "rollout-2026-10-13T19-40-43-01a134d9-ad72-7f02-bccc-701495176079.jsonl"
+  },
+  {
+    "id": "r1_google_hb",
+    "sequence": 2,
+    "repeat": 1,
+    "site": "google",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-44-00-01a134dc-ad9d-7632-87bc-5c22505d4d4f.jsonl"
+  },
+  {
+    "id": "r1_amazon_hb",
+    "sequence": 3,
+    "repeat": 1,
+    "site": "amazon",
+    "method": "hb",
+    "status": "reported",
+    "agent": "/root/trial_r1_amazon_hb",
+    "assignedAt": "2026-10-13T10:41:56.123Z",
+    "sessionFile": "rollout-2026-10-13T19-41-04-01a134da-00e2-7a91-b5be-1918f122fc93.jsonl"
+  },
+  {
+    "id": "r1_amazon_bu",
+    "sequence": 4,
+    "repeat": 1,
+    "site": "amazon",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-44-28-01a134dd-1df7-76d0-89d9-53ed2a002ea7.jsonl"
+  },
+  {
+    "id": "r1_walmart_bu",
+    "sequence": 5,
+    "repeat": 1,
+    "site": "walmart",
+    "method": "bu",
+    "status": "reported",
+    "agent": "/root/trial_r1_walmart_bu",
+    "assignedAt": "2026-10-13T10:41:56.123Z",
+    "sessionFile": "rollout-2026-10-13T19-41-23-01a134da-4a97-7190-9cf4-f3744fee67f2.jsonl"
+  },
+  {
+    "id": "r1_walmart_hb",
+    "sequence": 6,
+    "repeat": 1,
+    "site": "walmart",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-53-14-01a134e5-21bd-7881-bc54-7dd9db15f6a9.jsonl"
+  },
+  {
+    "id": "r1_ebay_hb",
+    "sequence": 7,
+    "repeat": 1,
+    "site": "ebay",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-46-23-01a134de-de70-7b42-8765-a26b9e5eab34.jsonl"
+  },
+  {
+    "id": "r1_ebay_bu",
+    "sequence": 8,
+    "repeat": 1,
+    "site": "ebay",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-53-28-01a134e5-5a2d-7e33-82fe-a8884d9f70eb.jsonl"
+  },
+  {
+    "id": "r1_bestbuy_bu",
+    "sequence": 9,
+    "repeat": 1,
+    "site": "bestbuy",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-47-09-01a134df-9183-7a92-91f1-648e72d1084e.jsonl"
+  },
+  {
+    "id": "r1_bestbuy_hb",
+    "sequence": 10,
+    "repeat": 1,
+    "site": "bestbuy",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-53-37-01a134e5-7cd4-7e51-a8ee-8983636e18c3.jsonl"
+  },
+  {
+    "id": "r1_booking_hb",
+    "sequence": 11,
+    "repeat": 1,
+    "site": "booking",
+    "method": "hb",
+    "status": "reported",
+    "agent": "/root/trial_r1_booking_hb_attempt2",
+    "sessionFile": "rollout-2026-10-13T20-05-20-01a134f0-3722-7193-b50d-09d186d6c0da.jsonl"
+  },
+  {
+    "id": "r1_booking_bu",
+    "sequence": 12,
+    "repeat": 1,
+    "site": "booking",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-59-54-01a134eb-3c84-7ec3-98a2-2f0aa73ce8f3.jsonl"
+  },
+  {
+    "id": "r1_expedia_bu",
+    "sequence": 13,
+    "repeat": 1,
+    "site": "expedia",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-59-17-01a134ea-ae49-76d2-b712-7121dbde7c30.jsonl"
+  },
+  {
+    "id": "r1_expedia_hb",
+    "sequence": 14,
+    "repeat": 1,
+    "site": "expedia",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-03-09-01a134ee-35e1-7363-8160-7b7d0d43dbf1.jsonl"
+  },
+  {
+    "id": "r1_wikipedia_hb",
+    "sequence": 15,
+    "repeat": 1,
+    "site": "wikipedia",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T19-59-25-01a134ea-cb02-7582-b14c-3fc4fff84cf3.jsonl"
+  },
+  {
+    "id": "r1_wikipedia_bu",
+    "sequence": 16,
+    "repeat": 1,
+    "site": "wikipedia",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-01-57-01a134ed-1e5a-7ed0-acdc-69d13c94eb4c.jsonl"
+  },
+  {
+    "id": "r1_weather_bu",
+    "sequence": 17,
+    "repeat": 1,
+    "site": "weather",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-04-26-01a134ef-64f0-79a2-97c8-ccc14e06f383.jsonl"
+  },
+  {
+    "id": "r1_weather_hb",
+    "sequence": 18,
+    "repeat": 1,
+    "site": "weather",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-07-36-01a134f2-49ec-7ab3-92c8-5724a960ad05.jsonl"
+  },
+  {
+    "id": "r1_imdb_hb",
+    "sequence": 19,
+    "repeat": 1,
+    "site": "imdb",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-05-28-01a134f0-5565-7c01-91d9-4f75d99b591b.jsonl"
+  },
+  {
+    "id": "r1_imdb_bu",
+    "sequence": 20,
+    "repeat": 1,
+    "site": "imdb",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-09-05-01a134f3-a6f4-7a91-92f9-e6b8b188ae13.jsonl"
+  },
+  {
+    "id": "r2_google_hb",
+    "sequence": 21,
+    "repeat": 2,
+    "site": "google",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-09-32-01a134f4-1093-7393-8255-825aa164b5b5.jsonl"
+  },
+  {
+    "id": "r2_google_bu",
+    "sequence": 22,
+    "repeat": 2,
+    "site": "google",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-12-30-01a134f6-c757-7233-96e0-88e7798da8e7.jsonl"
+  },
+  {
+    "id": "r2_amazon_bu",
+    "sequence": 23,
+    "repeat": 2,
+    "site": "amazon",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-11-33-01a134f5-e8dd-7760-af37-e2990c96daeb.jsonl"
+  },
+  {
+    "id": "r2_amazon_hb",
+    "sequence": 24,
+    "repeat": 2,
+    "site": "amazon",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-14-07-01a134f8-417b-7fd1-8943-94c82950bfe9.jsonl"
+  },
+  {
+    "id": "r2_walmart_hb",
+    "sequence": 25,
+    "repeat": 2,
+    "site": "walmart",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-13-38-01a134f7-d1e5-7900-8687-0de61cc04526.jsonl"
+  },
+  {
+    "id": "r2_walmart_bu",
+    "sequence": 26,
+    "repeat": 2,
+    "site": "walmart",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-17-23-01a134fb-40b8-7971-923e-451162441204.jsonl"
+  },
+  {
+    "id": "r2_ebay_bu",
+    "sequence": 27,
+    "repeat": 2,
+    "site": "ebay",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-17-31-01a134fb-5d93-7162-8d10-29fe60c12c11.jsonl"
+  },
+  {
+    "id": "r2_ebay_hb",
+    "sequence": 28,
+    "repeat": 2,
+    "site": "ebay",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-23-54-01a13501-3563-77e2-9bd7-641667594116.jsonl"
+  },
+  {
+    "id": "r2_bestbuy_hb",
+    "sequence": 29,
+    "repeat": 2,
+    "site": "bestbuy",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-17-39-01a134fb-7efd-77c0-aa06-0f290dd279a7.jsonl"
+  },
+  {
+    "id": "r2_bestbuy_bu",
+    "sequence": 30,
+    "repeat": 2,
+    "site": "bestbuy",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-21-57-01a134ff-6bf0-77d2-984d-ce4e1f3e97d3.jsonl"
+  },
+  {
+    "id": "r2_booking_bu",
+    "sequence": 31,
+    "repeat": 2,
+    "site": "booking",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-22-04-01a134ff-87bb-7e02-bc47-16c22f88f678.jsonl"
+  },
+  {
+    "id": "r2_booking_hb",
+    "sequence": 32,
+    "repeat": 2,
+    "site": "booking",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-27-06-01a13504-2503-7321-96ba-290bfe4c6405.jsonl"
+  },
+  {
+    "id": "r2_expedia_hb",
+    "sequence": 33,
+    "repeat": 2,
+    "site": "expedia",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-27-15-01a13504-47f1-7482-adda-559df81fcc66.jsonl"
+  },
+  {
+    "id": "r2_expedia_bu",
+    "sequence": 34,
+    "repeat": 2,
+    "site": "expedia",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-32-23-01a13508-f9b1-7d62-a105-3eb6d3abb383.jsonl"
+  },
+  {
+    "id": "r2_wikipedia_bu",
+    "sequence": 35,
+    "repeat": 2,
+    "site": "wikipedia",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-29-40-01a13506-7d3b-77a0-ac23-cd4bd0fa7ca2.jsonl"
+  },
+  {
+    "id": "r2_wikipedia_hb",
+    "sequence": 36,
+    "repeat": 2,
+    "site": "wikipedia",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-33-59-01a1350a-70f1-7651-8ea8-a829e45f190c.jsonl"
+  },
+  {
+    "id": "r2_weather_hb",
+    "sequence": 37,
+    "repeat": 2,
+    "site": "weather",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-33-28-01a13509-f98e-7a90-b1bf-2d3441032d48.jsonl"
+  },
+  {
+    "id": "r2_weather_bu",
+    "sequence": 38,
+    "repeat": 2,
+    "site": "weather",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-37-34-01a1350d-b921-75e3-b04b-8c72afea8096.jsonl"
+  },
+  {
+    "id": "r2_imdb_bu",
+    "sequence": 39,
+    "repeat": 2,
+    "site": "imdb",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-37-08-01a1350d-534b-7f21-b862-74c570a9d816.jsonl"
+  },
+  {
+    "id": "r2_imdb_hb",
+    "sequence": 40,
+    "repeat": 2,
+    "site": "imdb",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-43-36-01a13513-4046-7183-b2de-343f135e2540.jsonl"
+  },
+  {
+    "id": "r3_google_bu",
+    "sequence": 41,
+    "repeat": 3,
+    "site": "google",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-43-45-01a13513-6200-7031-a3c9-e53b526fbefc.jsonl"
+  },
+  {
+    "id": "r3_google_hb",
+    "sequence": 42,
+    "repeat": 3,
+    "site": "google",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-46-25-01a13515-d350-79c2-b13a-466587633be9.jsonl"
+  },
+  {
+    "id": "r3_amazon_hb",
+    "sequence": 43,
+    "repeat": 3,
+    "site": "amazon",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-43-53-01a13513-8055-7742-a9ab-19cc67e2f1b3.jsonl"
+  },
+  {
+    "id": "r3_amazon_bu",
+    "sequence": 44,
+    "repeat": 3,
+    "site": "amazon",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-47-25-01a13516-bce7-7a81-9ca3-e887b95d5c35.jsonl"
+  },
+  {
+    "id": "r3_walmart_bu",
+    "sequence": 45,
+    "repeat": 3,
+    "site": "walmart",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-46-34-01a13515-f8c4-7232-b7d1-d62f73c49221.jsonl"
+  },
+  {
+    "id": "r3_walmart_hb",
+    "sequence": 46,
+    "repeat": 3,
+    "site": "walmart",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-48-37-01a13517-d774-7893-a54c-59ac63d1c58f.jsonl"
+  },
+  {
+    "id": "r3_ebay_hb",
+    "sequence": 47,
+    "repeat": 3,
+    "site": "ebay",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-48-46-01a13517-fb42-73e2-9e33-7e7bc7f4ab16.jsonl"
+  },
+  {
+    "id": "r3_ebay_bu",
+    "sequence": 48,
+    "repeat": 3,
+    "site": "ebay",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-52-34-01a1351b-75d9-7e41-8dbd-3b885ace4645.jsonl"
+  },
+  {
+    "id": "r3_bestbuy_bu",
+    "sequence": 49,
+    "repeat": 3,
+    "site": "bestbuy",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-50-02-01a13519-2403-78e3-b8e9-be693aac086f.jsonl"
+  },
+  {
+    "id": "r3_bestbuy_hb",
+    "sequence": 50,
+    "repeat": 3,
+    "site": "bestbuy",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-53-47-01a1351c-9196-7c20-ad9b-5b6eaf567a43.jsonl"
+  },
+  {
+    "id": "r3_booking_hb",
+    "sequence": 51,
+    "repeat": 3,
+    "site": "booking",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-52-45-01a1351b-a068-72a3-91b9-de8dc4e6f942.jsonl"
+  },
+  {
+    "id": "r3_booking_bu",
+    "sequence": 52,
+    "repeat": 3,
+    "site": "booking",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-57-45-01a13520-3309-77b1-a0f3-95951f840e86.jsonl"
+  },
+  {
+    "id": "r3_expedia_bu",
+    "sequence": 53,
+    "repeat": 3,
+    "site": "expedia",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-58-41-01a13521-0d3c-7bb0-94f4-882b6277b783.jsonl"
+  },
+  {
+    "id": "r3_expedia_hb",
+    "sequence": 54,
+    "repeat": 3,
+    "site": "expedia",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T21-06-26-01a13528-257a-7bc3-be08-9b98175a2301.jsonl"
+  },
+  {
+    "id": "r3_wikipedia_hb",
+    "sequence": 55,
+    "repeat": 3,
+    "site": "wikipedia",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T20-59-53-01a13522-25f3-7930-b55c-1799685389e3.jsonl"
+  },
+  {
+    "id": "r3_wikipedia_bu",
+    "sequence": 56,
+    "repeat": 3,
+    "site": "wikipedia",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T21-02-52-01a13524-e3e1-7dc1-b367-ea8c24fcc8d6.jsonl"
+  },
+  {
+    "id": "r3_weather_bu",
+    "sequence": 57,
+    "repeat": 3,
+    "site": "weather",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T21-03-02-01a13525-086f-75d3-8dc4-f5411c960e71.jsonl"
+  },
+  {
+    "id": "r3_weather_hb",
+    "sequence": 58,
+    "repeat": 3,
+    "site": "weather",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T21-08-34-01a1352a-1b31-7ca1-9a48-8dd408a2de86.jsonl"
+  },
+  {
+    "id": "r3_imdb_hb",
+    "sequence": 59,
+    "repeat": 3,
+    "site": "imdb",
+    "method": "hb",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T21-04-25-01a13526-4d0f-7e71-a219-539b087becc7.jsonl"
+  },
+  {
+    "id": "r3_imdb_bu",
+    "sequence": 60,
+    "repeat": 3,
+    "site": "imdb",
+    "method": "bu",
+    "status": "reported",
+    "sessionFile": "rollout-2026-10-13T21-08-08-01a13529-b3e0-7553-bc1c-b66c6957040c.jsonl"
+  }
+]

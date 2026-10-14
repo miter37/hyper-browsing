@@ -11,18 +11,34 @@ import type { Page } from "playwright";
  * `cb(el)` returning false skips that element's subtree.
  */
 export const DEEP_WALK_JS = `
+  const walkDiagnostics = { complete: true, errors: [], skippedNodes: 0 };
+  function walkIssue(code) {
+    walkDiagnostics.complete = false;
+    walkDiagnostics.skippedNodes++;
+    if (walkDiagnostics.errors.length < 6 && !walkDiagnostics.errors.includes(code)) walkDiagnostics.errors.push(code);
+  }
   function deepWalk(cb, max) {
-    const stack = [document.documentElement];
+    const stack = document.documentElement ? [document.documentElement] : [];
+    if (!stack.length) walkIssue('missing_document');
     let seen = 0;
     while (stack.length && seen < (max || 60000)) {
       const n = stack.pop();
       seen++;
-      if (cb(n) === false) continue;
+      if (!n || n.nodeType !== 1) { walkIssue('invalid_node'); continue; }
+      try { if (cb(n) === false) continue; }
+      catch { walkIssue('node_observation_failed'); }
       const kids = [];
-      if (n.shadowRoot) for (const c of n.shadowRoot.children) kids.push(c);
-      for (const c of n.children) kids.push(c);
+      for (const parent of [(() => { try { return n.shadowRoot; } catch { walkIssue('shadow_access_failed'); return null; } })(), n]) {
+        if (!parent) continue;
+        try {
+          const children = parent.children;
+          if (!children || (typeof children[Symbol.iterator] !== 'function' && !Number.isFinite(children.length))) throw new Error();
+          for (const c of Array.from(children)) if (c && c.nodeType === 1) kids.push(c);
+        } catch { walkIssue('children_access_failed'); }
+      }
       for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
     }
+    if (stack.length) walkIssue('node_limit');
     return seen;
   }
 `;
@@ -189,11 +205,41 @@ export function diffProbe(before: PageProbe | null, after: PageProbe | null): Pa
 }
 
 export interface BlockInfo { kind: string; evidence: string; hint: string }
+export interface ObservationInfo { complete: boolean; errors: string[]; skippedNodes: number }
+export interface PageStateInfo { state: 'ready'|'loading'|'blocked'|'navigation_error'|'partial'|'unknown'; evidence?: string; blocked?: BlockInfo }
+
+/** Page operability, never a claim that a user's task succeeded. */
+export async function inspectPageState(page: Page, observation?: ObservationInfo, waitMs = 0): Promise<PageStateInfo> {
+  const deadline = Date.now() + Math.max(0, Math.min(waitMs, 3000));
+  for (;;) {
+    if (/^(chrome-error|edge-error):/.test(page.url())) return { state:'navigation_error',evidence:'browser error document' };
+    const blocked = await detectBlock(page);
+    if (blocked) return { state:'blocked',blocked,evidence:blocked.evidence };
+    if (observation?.complete === false) return { state:'partial',evidence:observation.errors.join(', ') };
+    const state = await page.evaluate(`(() => {
+      if (!document.documentElement || !document.body) return {state:'unknown',evidence:'missing document'};
+      const text=(document.body.innerText || '').replace(/\\s+/g,' ').trim();
+      const busy=[...document.querySelectorAll('[aria-busy=true],[role=progressbar],[class*=skeleton],[data-testid*=skeleton]')].some(el=>{
+        const r=el.getBoundingClientRect(), s=getComputedStyle(el);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';
+      });
+      if (document.readyState==='loading' || (busy && (text.length<200 || /^(loading|please wait|잠시만 기다려)[. …!]*$/i.test(text)))) return {state:'loading',evidence:'visible loading markers without meaningful content'};
+      if (text || document.querySelector('input,button,a[href],img,canvas,video')) return {state:'ready'};
+      return {state:'unknown',evidence:'no meaningful page content'};
+    })()`).catch(() => ({ state:'unknown',evidence:'page inspection failed' })) as PageStateInfo;
+    if (state.state!=='loading' || Date.now()>=deadline) return state;
+    await page.waitForTimeout(Math.min(150,deadline-Date.now()));
+  }
+}
 
 const BLOCK_SCRIPT = `(() => {
   const title = (document.title || "").toLowerCase();
   const text = ((document.body && document.body.innerText) || "").slice(0, 3000).toLowerCase();
   const has = (sel) => Boolean(document.querySelector(sel));
+  const dialogs = [...document.querySelectorAll('[role=dialog], [role=alertdialog], dialog[open]')].filter(el => {
+    const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+  });
+  if (dialogs.some(el => /robot or human|confirm that you(?:'re| are) human|verify you are (a )?human/i.test(el.innerText || '')))
+    return { kind: 'captcha', evidence: 'visible human-verification dialog' };
   if (/__cf_chl|\\/cdn-cgi\\/challenge-platform/.test(location.href) || has("#challenge-form, #cf-challenge-running, iframe[src*='challenges.cloudflare.com']"))
     return { kind: "bot-challenge", evidence: "cloudflare challenge markers" };
   if (/just a moment|attention required|checking your browser|잠시만 기다리|보안 확인/.test(title) || /verify you are (a )?human|보안 확인 수행 중/.test(text))
