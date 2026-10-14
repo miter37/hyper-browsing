@@ -36,9 +36,10 @@ test('compact output keeps safety information but omits detailed probe logs',()=
 });
 
 async function delayedRpcFixture(t,{delay=80,status='completed',result={ok:true,execution:'completed',effect:{newSessions:[{sessionId:'popup_a',setupStatus:'ready'}]},headedFallback:{attempted:true,switched:true},observationRequired:true}}={}){
- let executions=0,checks=0,finished=false;const methods=[];const ids=[];
- const server=http.createServer(async(req,res)=>{let body='';for await(const chunk of req)body+=chunk;const data=JSON.parse(body);methods.push(data.method);ids.push(data.requestId);res.setHeader('content-type','application/json');
- if(data.method==='request.status'){checks++;assert.equal(data.params.requestId,ids[0]);res.end(JSON.stringify({ok:true,result:{state:status==='completed'?(finished?'completed':'running'):status,execution:status==='failed'?'outcome_unknown':'completed',result:finished?result:undefined,error:status==='failed'?'execution failed':undefined}}));return;}
+ let executions=0,checks=0,finished=false;const methods=[];const ids=[];let originalId;
+ const server=http.createServer(async(req,res)=>{let body='';for await(const chunk of req)body+=chunk;const data=JSON.parse(body);methods.push(data.method);res.setHeader('content-type','application/json');
+ if(data.method==='request.status'){checks++;assert.equal(data.params.requestId,originalId,`status polling must query the original requestId; got ${data.params.requestId} vs ${originalId}`);res.end(JSON.stringify({ok:true,result:{state:status==='completed'?(finished?'completed':'running'):status,execution:status==='failed'?'outcome_unknown':'completed',result:finished?result:undefined,error:status==='failed'?'execution failed':undefined}}));return;}
+ ids.push(data.requestId);originalId=data.requestId;
  executions++;setTimeout(()=>{finished=true;res.end(JSON.stringify({ok:true,result}));},delay);
  });await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>{server.closeAllConnections();return new Promise(r=>server.close(r));});return {endpoint:`http://127.0.0.1:${server.address().port}`,counts:()=>({executions,checks,methods})};
 }
