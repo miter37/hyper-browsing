@@ -1,0 +1,14 @@
+site:
+  id: ko_wikipedia_org
+  name: ko.wikipedia.org
+  version: 1
+match:
+  hosts:
+    - ko.wikipedia.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

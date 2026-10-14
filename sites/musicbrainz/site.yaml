@@ -1,0 +1,14 @@
+site:
+  id: musicbrainz
+  name: musicbrainz.org
+  version: 1
+match:
+  hosts:
+    - musicbrainz.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

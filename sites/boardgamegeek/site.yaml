@@ -1,0 +1,14 @@
+site:
+  id: boardgamegeek
+  name: boardgamegeek.com
+  version: 1
+match:
+  hosts:
+    - boardgamegeek.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

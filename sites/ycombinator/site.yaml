@@ -1,0 +1,14 @@
+site:
+  id: ycombinator
+  name: news.ycombinator.com
+  version: 1
+match:
+  hosts:
+    - news.ycombinator.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

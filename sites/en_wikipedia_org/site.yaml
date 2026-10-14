@@ -1,0 +1,14 @@
+site:
+  id: en_wikipedia_org
+  name: en.wikipedia.org
+  version: 1
+match:
+  hosts:
+    - en.wikipedia.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

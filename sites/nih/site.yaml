@@ -1,0 +1,14 @@
+site:
+  id: nih
+  name: pubchem.ncbi.nlm.nih.gov
+  version: 1
+match:
+  hosts:
+    - pubchem.ncbi.nlm.nih.gov
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

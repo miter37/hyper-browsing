@@ -63,6 +63,7 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
   const [a, b, c] = positionals;
   if(['view','expand','inspect','changes'].includes(a)&&flags.session)return {method:'observation.'+a,params:{sessionId:flags.session,observation:flags.observation,comparison:flags.comparison,target:flags.target,format:flags.format,mode:flags.mode,focus:flags.focus,nodeBudget:flags['node-budget'],textBudget:flags['text-budget'],changeBudget:flags['change-budget']}};
   if(a==='verify'&&flags.session){const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):{checks:[]};return {method:'page.verify',params:{sessionId:flags.session,input}};}
+  if(a==='close'&&flags.session){if(boolFlags.has('all'))return {method:'session.closeAll',params:{}};return {method:'session.close',params:{sessionId:flags.session}};}
   if (a === 'request' && b === 'status' && flags.id) return { method: 'request.status', params: { requestId: flags.id } };
 
   if (a === "health") return { method: "health", params: {} };

@@ -72,8 +72,11 @@ export function projectView(original:HwmView,graph:ObservationGraph,options:Proj
  const records=view.entries.filter((e):e is RecordLine=>e.type==='record');let changes=records.filter(e=>e.tag==='change');
  if(options.changeIds)changes=changes.filter(e=>options.changeIds!.includes(e.id));
  else if(options.comparisonId&&changes.length>(options.changeBudget??40)){
-  const hidden=changes.slice(options.changeBudget??40),counts:Record<string,Json>={};for(const c of hidden){const op=String(c.attrs.op);const prior=counts[op] as {min:number;exact:boolean}|undefined;counts[op]={min:(prior?.min??0)+1,exact:true};}
-  gap({scope:'changes',reason:'change-budget',comparison:options.comparisonId,'changes-complete':true,'before-scan-complete':Boolean(view.header['before-scan-complete']),'after-scan-complete':graph.scan.complete,total:{min:hidden.length,exact:true},counts,range:{first:hidden[0].id,last:hidden.at(-1)!.id},expand:token,attribution:'observed-after'},{changes:hidden.map(e=>e.id)});changes=changes.slice(0,options.changeBudget??40);
+  // A budgeted diff buries the decisive signals (url/title) under a flood of unchanged lines; hoist changed url/title to the front so they always survive the cut.
+  const signal=(c:RecordLine)=>{const field=String(c.attrs.field??'');return (field==='url'||field==='title')&&c.attrs.op!=='unchanged';};
+  const signals=changes.filter(signal),rest=changes.filter(c=>!signal(c));
+  const hidden=rest.slice(Math.max(0,(options.changeBudget??40)-signals.length)),counts:Record<string,Json>={};for(const c of hidden){const op=String(c.attrs.op);const prior=counts[op] as {min:number;exact:boolean}|undefined;counts[op]={min:(prior?.min??0)+1,exact:true};}
+  if(hidden.length)gap({scope:'changes',reason:'change-budget',comparison:options.comparisonId,'changes-complete':true,'before-scan-complete':Boolean(view.header['before-scan-complete']),'after-scan-complete':graph.scan.complete,total:{min:hidden.length,exact:true},counts,range:{first:hidden[0].id,last:hidden.at(-1)!.id},expand:token,attribution:'observed-after'},{changes:hidden.map(e=>e.id)});changes=[...signals,...rest].slice(0,options.changeBudget??40);
  }
  view.entries=[...records.filter(e=>['result','state','outline'].includes(e.tag)),...nodes,...records.filter(e=>['edge','candidates'].includes(e.tag)),...(index.items.length?[index]:[]),...records.filter(e=>e.tag==='gap'),...gaps,...changes];
  view.header['projection-budget']={requested:budget,shown:nodes.length,closureMayExceed:true};

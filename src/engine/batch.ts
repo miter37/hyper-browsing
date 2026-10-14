@@ -2,14 +2,16 @@ import { z } from "zod";
 import type { Page } from "playwright";
 import { LocatorStrategySchema } from "../schema/site";
 import { executePrimitive } from "./execute";
+import { locatorFromStrategy } from "./locators";
 import { DEEP_WALK_JS } from "./page-state";
 
 const CommandSchema = z.object({
-  op: z.enum(["fill", "select"]), locator: LocatorStrategySchema.optional(), ref: z.string().regex(/^@?e\d+$/).optional(),
+  op: z.enum(["fill", "select", "extract"]), locator: LocatorStrategySchema.optional(), ref: z.string().regex(/^@?e\d+$/).optional(),
   nth: z.number().int().nonnegative().optional(), within: z.string().optional(),
   value: z.string().optional(), option: z.string().optional(), timeoutMs: z.number().int().min(1).max(5000).optional(),
+  read: z.enum(["text", "value", "attribute"]).optional(), attribute: z.string().optional(), all: z.boolean().optional(), limit: z.number().int().nonnegative().optional(),
 }).strict().refine(v => Boolean(v.locator) !== Boolean(v.ref), "Use exactly one locator or reference")
-  .refine(v => v.op === "fill" ? v.value !== undefined && v.option === undefined : v.option !== undefined && v.value === undefined, "Provide value for fill or option for select")
+  .refine(v => v.op === "fill" ? v.value !== undefined && v.option === undefined : v.op === "select" ? v.option !== undefined && v.value === undefined : true, "Provide value for fill or option for select")
   .refine(v => !v.ref || (v.nth === undefined && !v.within), "Reference cannot be scoped or indexed");
 const BatchSchema = z.object({ commands: z.array(CommandSchema).min(1).max(10) }).strict();
 const STRUCTURE_SCRIPT = `state => {
@@ -38,6 +40,19 @@ export async function runBatch(page: Page, input: unknown, onStep?: (command: an
     const command = spec.commands[i];
     if (Date.now() >= deadline) return { ok: false, execution: "partial", stoppedAt: i, reason: "batch_budget", results, rollback: false };
     if (!initial || await structure() !== initial) return { ok: false, execution: "partial", stoppedAt: i, reason: "observation_required", results, rollback: false };
+    if (command.op === "extract" && command.all && command.locator) {
+      // Reading a list is not ambiguous: every visible match in page order, the same rule as `webctl extract --all`.
+      const read = command.read || "text";
+      const visible = locatorFromStrategy(page, command.locator).filter({ visible: true });
+      const n = Math.min(await visible.count(), Math.max(1, Math.min(Number(command.limit) || 20, 100)));
+      const values: Array<string | null> = [];
+      for (let k = 0; k < n; k++) {
+        const t = visible.nth(k);
+        values.push(await (read === "value" ? t.inputValue({ timeout: 2000 }) : read === "attribute" ? t.getAttribute(command.attribute || "", { timeout: 2000 }) : t.innerText({ timeout: 2000 }).then((s: string) => s.trim())).catch(() => null));
+      }
+      results.push({ index: i, op: "extract", ok: true, execution: "completed", values, count: await visible.count() });
+      continue;
+    }
     const result = await executePrimitive(page, command.op, { ...command, timeoutMs: Math.min(command.timeoutMs || 5000, Math.max(1, deadline - Date.now())) });
     results.push({ index: i, op: command.op, ...result });
     if (onStep) await onStep(command, result);

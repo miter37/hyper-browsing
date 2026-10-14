@@ -1,0 +1,14 @@
+site:
+  id: ecosia
+  name: www.ecosia.org
+  version: 1
+match:
+  hosts:
+    - www.ecosia.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

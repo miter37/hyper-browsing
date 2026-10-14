@@ -1,0 +1,14 @@
+site:
+  id: weather
+  name: www.weather.gov
+  version: 1
+match:
+  hosts:
+    - www.weather.gov
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

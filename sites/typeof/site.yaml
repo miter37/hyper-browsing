@@ -1,0 +1,14 @@
+site:
+  id: typeof
+  name: typeof.net
+  version: 1
+match:
+  hosts:
+    - typeof.net
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

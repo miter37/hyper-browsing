@@ -25,5 +25,5 @@ export function renderCommandResult(result:any,scope:{session:string;document:st
  }else if(Array.isArray(clean.forms)){
   for(const form of clean.forms as any[]){const owner=append('form','n1',{id:form.formId??null,display:form.formName??'',action:form.action??null,method:form.method??null});for(const field of form.fields??[])append('control',owner,{...field,uncollected:['actionRef']});if(form.submitButton)append('control',owner,{...form.submitButton,uncollected:['actionRef']});}delete clean.forms;
  }
- return renderObservation(sanitizeObservation(graph),{session:scope.session,result:record.attrs,extraHeader:{retention:{ok:false,reason:'result-only-observation'}}});
+ return renderObservation(sanitizeObservation(graph),{session:scope.session,result:record.attrs,extraHeader:{retention:{ok:false,reason:'transient-command-result'}}});
 }

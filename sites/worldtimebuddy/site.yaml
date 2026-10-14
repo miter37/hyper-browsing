@@ -1,0 +1,14 @@
+site:
+  id: worldtimebuddy
+  name: www.worldtimebuddy.com
+  version: 1
+match:
+  hosts:
+    - www.worldtimebuddy.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

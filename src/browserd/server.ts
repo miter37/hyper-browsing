@@ -142,7 +142,13 @@ export class BrowserDaemon {
     const probeSession = method === 'session.open' ? original.id : params.sessionId;
     if (probeSession && !original.confirmationRequired && !original.pageState && !original.snapshot?.pageState && !original.effect?.pageState
       && (original.ok === false || ['session.open','page.goto'].includes(method))) {
-      try { original.pageState = await inspectPageState(this.store().get(probeSession),undefined,3000); } catch { /* Preserve the original execution outcome. */ }
+      // A failed navigation leaves the tab on an error/about page whose DOM says nothing;
+      // probing it would advertise state:"ready" for a page that never loaded.
+      if (method === 'session.open' && params.url && original.navigationError) {
+        original.pageState = { state: 'navigation_failed', evidence: String(original.navigationError).split('\n')[0] };
+      } else {
+        try { original.pageState = await inspectPageState(this.store().get(probeSession),undefined,3000); } catch { /* Preserve the original execution outcome. */ }
+      }
     }
     if (!needsHeadedFallback(method, original) || this.chrome.getState()?.headless !== true) return original;
     const fallback: any = { attempted: true, from: "headless", to: "headed", retried: false, observationRequired: true,
@@ -182,7 +188,7 @@ export class BrowserDaemon {
         if(method==='observation.inspect')return this.observations.inspect(params.sessionId,params.observation,params.target);
         const result=method==='observation.view'?this.observations.view(params.sessionId,params.observation,this.projection(params)):
           method==='observation.changes'?this.observations.comparison(params.sessionId,params.comparison,this.projection(params)):
-          method==='observation.expand'?params.comparison?this.observations.expandChanges(params.sessionId,params.comparison,params.target):this.observations.expand(params.sessionId,params.observation,params.target):undefined;
+          method==='observation.expand'?params.comparison?this.observations.expandChanges(params.sessionId,params.comparison,params.target):this.observations.expand(params.sessionId,params.observation,params.target,this.projection(params)):undefined;
         if(!result)throw new ObservationError('unknown_observation_method');
         if(params.format==='hwm')return result;const {hwm,...meta}=result;return {...meta,view:parseHwm(hwm)};
       }catch(e:any){return {ok:false,execution:'not_started',reason:e.code??'invalid_observation_request',error:e.message};}
@@ -496,7 +502,8 @@ export class BrowserDaemon {
     }
     if (method === "page.evaluate") {
       if (!page) throw new Error("sessionId required");
-      return await page.evaluate(params.expression);
+      // An eval count is scoped to the expression, not the whole page; keep the expression visible so a small number is not read as "the page has little content".
+      return { value: await page.evaluate(params.expression), scope: 'eval-expression', expression: params.expression, url: page.url() };
     }
 
     if (method === "site.identify") {

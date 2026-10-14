@@ -1,0 +1,14 @@
+site:
+  id: duckduckgo
+  name: duckduckgo.com
+  version: 1
+match:
+  hosts:
+    - duckduckgo.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

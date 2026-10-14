@@ -29,16 +29,17 @@ export class ObservationService {
  view(session:string,observation:string,options:ProjectionOptions={}){return this.render(session,observation,options);}
  comparison(session:string,id:string,options:ProjectionOptions={}){const c=this.store.getComparison(session,id);return this.render(session,c.after.graph.observation,options,c);}
  private fold(session:string,observation:string,id:string){this.store.get(session,observation);const plan=[...this.plans.values()].find(p=>p.observation===observation&&p.session===session&&id in p.folds);if(!plan)throw new ObservationError('projection_expired');return {plan,fold:structuredClone(plan.folds[id])};}
- expand(session:string,observation:string,target:string){
+ expand(session:string,observation:string,target:string,options:ProjectionOptions={}){
   const saved=this.store.get(session,observation),g=saved.graph;
+  const nodeBudget=options.nodeBudget??6000,textBudget=options.textBudget??Number.MAX_SAFE_INTEGER;
   if(g.gaps.some(gap=>gap.id===target))throw new ObservationError('observation_gap_not_expandable');
-  if(target.startsWith('fv')){const {fold}=this.fold(session,observation,target);if(fold.changes)throw new ObservationError('comparison_required');return this.render(session,observation,{mode:'focus',focusNodes:fold.nodes,nodeBudget:6000,textBudget:Number.MAX_SAFE_INTEGER,exact:true});}
+  if(target.startsWith('fv')){const {fold}=this.fold(session,observation,target);if(fold.changes)throw new ObservationError('comparison_required');return this.render(session,observation,{mode:'focus',focusNodes:fold.nodes,nodeBudget,textBudget,exact:true});}
   const node=g.nodes.find(n=>n.id===target||n.actionRef===target.replace(/^@(?=e\d+$)/,''));if(!node)throw new ObservationError('observation_node_not_found');
   if(node.kind==='heading'&&typeof node.attrs.level==='number'){
    const start=g.nodes.indexOf(node);const end=g.nodes.findIndex((n,i)=>i>start&&n.kind==='heading'&&typeof n.attrs.level==='number'&&n.attrs.level<=Number(node.attrs.level));
-   return this.render(session,observation,{mode:'focus',focusNodes:g.nodes.slice(start,end<0?undefined:end).map(n=>n.id),nodeBudget:6000,textBudget:Number.MAX_SAFE_INTEGER,exact:true});
+   return this.render(session,observation,{mode:'focus',focusNodes:g.nodes.slice(start,end<0?undefined:end).map(n=>n.id),nodeBudget,textBudget,exact:true});
   }
-  return this.render(session,observation,{mode:'focus',focus:node.id,nodeBudget:6000,textBudget:Number.MAX_SAFE_INTEGER,exact:true});
+  return this.render(session,observation,{mode:'focus',focus:node.id,nodeBudget,textBudget,exact:true});
  }
  inspect(session:string,observation:string,target:string){
   const g=this.store.get(session,observation).graph,node=g.nodes.find(n=>n.id===target||n.actionRef===target.replace(/^@(?=e\d+$)/,''));if(!node)throw new ObservationError('observation_node_not_found');

@@ -1,0 +1,14 @@
+site:
+  id: algolia
+  name: hn.algolia.com
+  version: 1
+match:
+  hosts:
+    - hn.algolia.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

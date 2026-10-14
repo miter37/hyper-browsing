@@ -88,7 +88,7 @@ Daemon/session:
   webctl browser hide                 # go back to headless (the default)
   webctl session open [--url URL] [--viewport 1440x900] [--locale en-US]
   webctl session list
-  webctl session close --session ID
+  webctl session close --session ID | close --session ID
   webctl session close --all           # close every open tab (cleanup sweep)
 
 Discovery primitives (same browser session):
@@ -118,6 +118,9 @@ Discovery primitives (same browser session):
   webctl diff --session ID --before SNAPSHOT_FILE_OR_JSON
   webctl api-sniff --session ID [--duration-ms MS]
   webctl wait-idle --session ID [--timeout-ms MS]
+  webctl wait-for --session ID [--css SELECTOR] [--text TEXT] [--state visible|hidden|attached|detached] [--timeout-ms MS]
+  webctl scroll --session ID [--direction down|up|left|right] [--distance PX] [--times N] [--selector CSS] [--delay-ms MS]
+  webctl eval --session ID --expr "JS expression"   # result is scoped to the expression, not the page graph
 
 Knowledge/known mode:
   webctl identify --session ID
@@ -138,7 +141,7 @@ Knowledge/known mode:
   webctl metrics summary
   webctl baseline record --task NAME --duration-ms N --success true|false [--site SITE] [--llm-calls N] [--browser-actions N] [--notes TEXT]
   webctl baseline summary
-  webctl batch --session ID --input-file commands.json
+  webctl batch --session ID --input-file commands.json   # fill / select / extract in one round trip
   webctl request status --id REQUEST_ID [--verbose]
   webctl test snapshot --site SITE_ID --file SNAPSHOT_JSON
 
@@ -188,6 +191,8 @@ async function main() {
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
 
   if(['view','expand','inspect','changes'].includes(a))return print(await client.call('observation.'+a,{sessionId:required('session'),observation:flag('observation'),comparison:flag('comparison'),target:flag('target'),...observationFlags()}));
+  if(a==='close'&&boolFlag('all'))return print(await client.call('session.closeAll'));
+  if(a==='close')return print(await client.call('session.close',{sessionId:required('session')}));
   if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit"), contextLimit: flag("context-limit"), ...observationFlags() }));
   if (a === 'verify') return print(await client.call('page.verify',{sessionId:required('session'),input:flag('input')||flag('input-file')?await actionInput():{checks:[]}}));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));

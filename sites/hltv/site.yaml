@@ -1,0 +1,14 @@
+site:
+  id: hltv
+  name: www.hltv.org
+  version: 1
+match:
+  hosts:
+    - www.hltv.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

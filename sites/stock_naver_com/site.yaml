@@ -1,0 +1,14 @@
+site:
+  id: stock_naver_com
+  name: stock.naver.com
+  version: 1
+match:
+  hosts:
+    - stock.naver.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}
