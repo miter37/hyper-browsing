@@ -138,7 +138,7 @@ try {
   const exact = await resolveUnique(page, { label: "These words" });
   check("exact label wins over substring matches", exact.resolvedBy === "exact" && await exact.locator.getAttribute("id") === "w1", JSON.stringify(exact.resolvedBy));
   const sameHref = await resolveUnique(page, { role: "link", name: "한국어" });
-  check("links to the same href are one target", sameHref.resolvedBy === "same-href", JSON.stringify(sameHref));
+  check("links to the same href remain distinct ambiguous targets", sameHref.ambiguous === true, JSON.stringify(sameHref));
   const noMatch = await resolveUnique(page, { role: "button", name: "Advanced options" }, undefined, 500);
   check("no match returns suggestions instead of a timeout",
     noMatch.noMatch === true && noMatch.suggestions.some((s) => s.name === "Advanced options"), JSON.stringify(noMatch));

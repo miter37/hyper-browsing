@@ -13,9 +13,11 @@ import { recordBaseline, baselineSummary } from "../runtime/baseline";
 import type { PageSnapshot } from "../runtime/snapshot";
 import { finishLearning } from "../runtime/learning-policy";
 import { learningStatus } from "../runtime/learning";
+import {outputFormat} from '../../scripts/hwm-policy.mjs';
 
 const config = getConfig();
-const client = new BrowserdClient(config);
+const nativeClient = new BrowserdClient(config);
+const client={call:(method:string,params:any={})=>nativeClient.call(method,{...params,format:outputFormat(argv[0],flag('format'))})};
 const argv = process.argv.slice(2);
 
 function flag(name: string): string | undefined {
@@ -23,6 +25,7 @@ function flag(name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 function boolFlag(name: string): boolean { return argv.includes(`--${name}`); }
+function observationFlags(){return {context:boolFlag('context'),format:flag('format'),mode:flag('mode'),focus:flag('focus'),nodeBudget:flag('node-budget'),textBudget:flag('text-budget'),changeBudget:flag('change-budget')};}
 function required(name: string): string {
   const v = flag(name);
   if (!v) throw new Error(`Missing --${name}`);
@@ -66,6 +69,8 @@ async function actionInput(): Promise<Record<string, unknown>> {
   return raw ? JSON.parse(raw) : {};
 }
 function print(value: unknown) {
+  if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
+  if(outputFormat(argv[0],flag('format'))==='hwm'&&value&&typeof value==='object'&&'hwm' in value&&typeof value.hwm==='string') {process.stdout.write(value.hwm);return;}
   process.stdout.write(JSON.stringify(value, null, 2) + "\n");
   if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
 }
@@ -87,7 +92,13 @@ Daemon/session:
   webctl session close --all           # close every open tab (cleanup sweep)
 
 Discovery primitives (same browser session):
-  webctl snapshot --session ID [--save] [--query TEXT] [--limit N]
+  webctl snapshot --session ID [--save] [--query TEXT] [--limit N] [--context] [--context-limit N] [--format json|hwm]
+  webctl snapshot --session ID --format hwm [--mode full|overview|focus] [--focus REF] [--node-budget N] [--text-budget N]
+  webctl view --session ID --observation OBS --format hwm [--mode overview|focus|full] [--focus REF]
+  webctl expand --session ID --observation OBS --target NODE_OR_GAP --format hwm
+  webctl inspect --session ID --observation OBS --target NODE
+  webctl changes --session ID --comparison CMP --format hwm [--change-budget N]
+  webctl expand --session ID --comparison CMP --target GAP --format hwm
   webctl verify --session ID --input-file checks.json
   webctl screenshot --session ID [--full-page]
   webctl network start --session ID
@@ -176,26 +187,27 @@ async function main() {
   if (a === "session" && b === "close" && boolFlag("all")) return print(await client.call("session.closeAll"));
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
 
-  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit") }));
+  if(['view','expand','inspect','changes'].includes(a))return print(await client.call('observation.'+a,{sessionId:required('session'),observation:flag('observation'),comparison:flag('comparison'),target:flag('target'),...observationFlags()}));
+  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit"), contextLimit: flag("context-limit"), ...observationFlags() }));
   if (a === 'verify') return print(await client.call('page.verify',{sessionId:required('session'),input:flag('input')||flag('input-file')?await actionInput():{checks:[]}}));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));
   if (a === "network" && b === "start") return print(await client.call("network.start", { sessionId: required("session") }));
   if (a === "network" && b === "stop") return print(await client.call("network.stop", { sessionId: required("session") }));
   if (a === "goto") return print(await client.call("page.goto", { sessionId: required("session"), url: required("url"), observe: boolFlag("observe") }));
-  if (a === "click") return print(await client.call("page.click", { sessionId: required("session"), ...targetFlags(), confirmed: boolFlag("confirm"), force: boolFlag("force"), observe: boolFlag("observe") }));
-  if (a === "hover") return print(await client.call("page.hover", { sessionId: required("session"), ...targetFlags(), force: boolFlag("force"), observe: boolFlag("observe"), query: flag("query") }));
+  if (a === "click") return print(await client.call("page.click", { sessionId: required("session"), ...observationFlags(), ...targetFlags(), confirmed: boolFlag("confirm"), force: boolFlag("force"), observe: boolFlag("observe") }));
+  if (a === "hover") return print(await client.call("page.hover", { sessionId: required("session"), ...observationFlags(), ...targetFlags(), force: boolFlag("force"), observe: boolFlag("observe"), query: flag("query") }));
   if (a === "back") return print(await client.call("page.back", { sessionId: required("session") }));
   if (a === "forward") return print(await client.call("page.forward", { sessionId: required("session") }));
   if (a === "fill") {
     // An empty --value is allowed (clears the field).
     const value = argv.includes("--value") ? (flag("value") ?? "") : required("value");
-    return print(await client.call("page.fill", { sessionId: required("session"), ...targetFlags(), value, submit: boolFlag("submit"), observe: boolFlag("observe") }));
+    return print(await client.call("page.fill", { sessionId: required("session"), ...observationFlags(), ...targetFlags(), value, submit: boolFlag("submit"), observe: boolFlag("observe") }));
   }
-  if (a === "select") return print(await client.call("page.select", { sessionId: required("session"), ...targetFlags(), option: required("option"), observe: boolFlag("observe") }));
+  if (a === "select") return print(await client.call("page.select", { sessionId: required("session"), ...observationFlags(), ...targetFlags(), option: required("option"), observe: boolFlag("observe") }));
   if (a === "list") return print(await client.call("page.list", { sessionId: required("session"), query: flag("query"), limit: flag("limit") }));
   if (a === "press") {
     const hasTarget = ["role", "testid", "text", "label", "placeholder", "css", "ref"].some(x=>argv.includes('--'+x));
-    return print(await client.call("page.press", { sessionId: required("session"), ...(hasTarget?targetFlags():{timeoutMs:timeoutFlag()}), key: required("key"), confirmed: boolFlag("confirm"), observe: boolFlag("observe") }));
+    return print(await client.call("page.press", { sessionId: required("session"), ...observationFlags(), ...(hasTarget?targetFlags():{timeoutMs:timeoutFlag()}), key: required("key"), confirmed: boolFlag("confirm"), observe: boolFlag("observe") }));
   }
   if (a === "extract") return print(await client.call("page.extract", {
     sessionId: required("session"), ...targetFlags(), read: flag("read") || "text", attribute: flag("attribute"),
@@ -214,7 +226,7 @@ async function main() {
       const fsSync = await import("node:fs");
       beforeObj = JSON.parse(fsSync.readFileSync(rawBefore, "utf8"));
     }
-    return print(await client.call("page.diff", { sessionId: required("session"), before: beforeObj }));
+    return print(await client.call("page.diff", { sessionId: required("session"), before: beforeObj, ...observationFlags() }));
   }
   if (a === "api-sniff") return print(await client.call("page.sniffApi", { sessionId: required("session"), durationMs: flag("duration-ms") }));
   if (a === "wait-idle") return print(await client.call("page.waitForIdle", { sessionId: required("session"), timeoutMs: flag("timeout-ms") }));
@@ -239,7 +251,7 @@ async function main() {
   }));
 
   if (a === "identify") return print(await client.call("site.identify", { sessionId: required("session") }));
-  if (a === "batch") return print(await client.call("batch.run", { sessionId: required("session"), input: await actionInput() }));
+  if (a === "batch") return print(await client.call("batch.run", { sessionId: required("session"), ...observationFlags(), input: await actionInput() }));
   if (a === "request" && b === "status") return print(await client.call("request.status", { requestId: required("id") }));
   if (a === "actions") return print(await client.call("action.list", { sessionId: required("session") }));
   if (a === "run") {

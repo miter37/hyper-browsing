@@ -1,0 +1,387 @@
+{
+  "label": "integrated-isolated",
+  "at": "2026-10-14T12:19:03.048Z",
+  "results": [
+    {
+      "count": 30,
+      "median": 28.76800000000003,
+      "p95": 39.14570000000003,
+      "samples": [
+        {
+          "ms": 33.776500000000055,
+          "renderMs": 2.3327000000000453,
+          "scanMs": 3,
+          "bytes": 106106,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 31.94270000000006,
+          "renderMs": 2.3038999999999987,
+          "scanMs": 3,
+          "bytes": 106107,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 28.770599999999945,
+          "renderMs": 3.047200000000089,
+          "scanMs": 3,
+          "bytes": 106107,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 28.712999999999965,
+          "renderMs": 2.1002999999999474,
+          "scanMs": 2,
+          "bytes": 106105,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 27.107200000000034,
+          "renderMs": 2.1422999999999774,
+          "scanMs": 2,
+          "bytes": 106106,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 27.877200000000016,
+          "renderMs": 2.1870999999999867,
+          "scanMs": 2,
+          "bytes": 106107,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 26.646400000000085,
+          "renderMs": 2.341000000000122,
+          "scanMs": 2,
+          "bytes": 106092,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 29.380899999999883,
+          "renderMs": 1.9841000000001259,
+          "scanMs": 2,
+          "bytes": 106105,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 28.76800000000003,
+          "renderMs": 2.014699999999948,
+          "scanMs": 2,
+          "bytes": 106108,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 28.66300000000001,
+          "renderMs": 2.0789000000002034,
+          "scanMs": 2,
+          "bytes": 106104,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 27.805499999999938,
+          "renderMs": 2.072400000000016,
+          "scanMs": 2,
+          "bytes": 106108,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 28.85649999999987,
+          "renderMs": 2.113900000000058,
+          "scanMs": 2,
+          "bytes": 106107,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 29.395999999999958,
+          "renderMs": 2.002899999999954,
+          "scanMs": 3,
+          "bytes": 106106,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 28.50149999999985,
+          "renderMs": 2.0208999999999833,
+          "scanMs": 3,
+          "bytes": 106107,
+          "hwmBytes": 34371,
+          "elements": 30
+        },
+        {
+          "ms": 39.14570000000003,
+          "renderMs": 2.842200000000048,
+          "scanMs": 2,
+          "bytes": 106105,
+          "hwmBytes": 34371,
+          "elements": 30
+        }
+      ]
+    },
+    {
+      "count": 100,
+      "median": 76.47460000000001,
+      "p95": 95.1839,
+      "samples": [
+        {
+          "ms": 79.41799999999989,
+          "renderMs": 9.656800000000203,
+          "scanMs": 6,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 77.88779999999997,
+          "renderMs": 11.713500000000067,
+          "scanMs": 6,
+          "bytes": 345512,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 76.47460000000001,
+          "renderMs": 10.427799999999934,
+          "scanMs": 5,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 75.59989999999993,
+          "renderMs": 9.865700000000288,
+          "scanMs": 5,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 75.47310000000016,
+          "renderMs": 9.553200000000288,
+          "scanMs": 6,
+          "bytes": 345511,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 77.30409999999983,
+          "renderMs": 9.625500000000102,
+          "scanMs": 6,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 80.96199999999999,
+          "renderMs": 9.330399999999827,
+          "scanMs": 6,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 78.27419999999984,
+          "renderMs": 12.99350000000004,
+          "scanMs": 5,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 74.36290000000008,
+          "renderMs": 11.110999999999876,
+          "scanMs": 5,
+          "bytes": 345511,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 72.80989999999974,
+          "renderMs": 10.34439999999995,
+          "scanMs": 5,
+          "bytes": 345511,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 76.10729999999967,
+          "renderMs": 10.387299999999868,
+          "scanMs": 5,
+          "bytes": 345512,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 79.51999999999998,
+          "renderMs": 10.734500000000025,
+          "scanMs": 7,
+          "bytes": 345509,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 76.32950000000028,
+          "renderMs": 9.90059999999994,
+          "scanMs": 6,
+          "bytes": 345510,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 75.16829999999982,
+          "renderMs": 15.207099999999627,
+          "scanMs": 6,
+          "bytes": 345512,
+          "hwmBytes": 111442,
+          "elements": 100
+        },
+        {
+          "ms": 95.1839,
+          "renderMs": 12.896600000000035,
+          "scanMs": 6,
+          "bytes": 345512,
+          "hwmBytes": 111442,
+          "elements": 100
+        }
+      ]
+    },
+    {
+      "count": 300,
+      "median": 200.86039999999957,
+      "p95": 240.4324999999999,
+      "samples": [
+        {
+          "ms": 195.52360000000044,
+          "renderMs": 53.626100000000406,
+          "scanMs": 14,
+          "bytes": 747441,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 168.9956000000002,
+          "renderMs": 49.49240000000009,
+          "scanMs": 13,
+          "bytes": 747445,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 200.86039999999957,
+          "renderMs": 49.792199999999866,
+          "scanMs": 12,
+          "bytes": 747444,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 240.4324999999999,
+          "renderMs": 53.426400000000285,
+          "scanMs": 12,
+          "bytes": 747442,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 209.19740000000002,
+          "renderMs": 49.98689999999988,
+          "scanMs": 12,
+          "bytes": 747441,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 182.28840000000037,
+          "renderMs": 50.30749999999989,
+          "scanMs": 15,
+          "bytes": 747443,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 211.97019999999975,
+          "renderMs": 48.17979999999989,
+          "scanMs": 17,
+          "bytes": 747443,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 202.22119999999995,
+          "renderMs": 53.22429999999986,
+          "scanMs": 20,
+          "bytes": 747443,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 193.74259999999958,
+          "renderMs": 52.531200000000354,
+          "scanMs": 13,
+          "bytes": 747443,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 183.60060000000067,
+          "renderMs": 53.21649999999954,
+          "scanMs": 15,
+          "bytes": 747442,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 209.78980000000047,
+          "renderMs": 51.62289999999939,
+          "scanMs": 16,
+          "bytes": 747440,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 211.38770000000022,
+          "renderMs": 48.58709999999974,
+          "scanMs": 12,
+          "bytes": 747444,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 215.9949999999999,
+          "renderMs": 53.398299999999836,
+          "scanMs": 17,
+          "bytes": 747443,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 185.8130000000001,
+          "renderMs": 54.98019999999997,
+          "scanMs": 12,
+          "bytes": 747443,
+          "hwmBytes": 196996,
+          "elements": 160
+        },
+        {
+          "ms": 196.34460000000036,
+          "renderMs": 45.343699999999444,
+          "scanMs": 12,
+          "bytes": 747444,
+          "hwmBytes": 196996,
+          "elements": 160
+        }
+      ]
+    }
+  ]
+}

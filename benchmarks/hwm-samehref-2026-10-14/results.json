@@ -1,0 +1,727 @@
+{
+  "capturedAt": "2026-10-14T07:18:25.660Z",
+  "encoding": "o200k_base",
+  "summary": [
+    {
+      "scenario": "equivalent",
+      "method": "legacy-first-emulated",
+      "correct": 3,
+      "trials": 3,
+      "calls": 1,
+      "medianMs": 993.6435,
+      "medianTokens": 61,
+      "medianOutputTokens": 41
+    },
+    {
+      "scenario": "equivalent",
+      "method": "ambiguous-then-scope",
+      "correct": 3,
+      "trials": 3,
+      "calls": 2,
+      "medianMs": 1998.9813000000013,
+      "medianTokens": 197,
+      "medianOutputTokens": 161
+    },
+    {
+      "scenario": "different-handlers",
+      "method": "legacy-first-emulated",
+      "correct": 0,
+      "trials": 3,
+      "calls": 1,
+      "medianMs": 1162.7556000000004,
+      "medianTokens": 61,
+      "medianOutputTokens": 41
+    },
+    {
+      "scenario": "different-handlers",
+      "method": "ambiguous-then-scope",
+      "correct": 3,
+      "trials": 3,
+      "calls": 2,
+      "medianMs": 1869.4300000000003,
+      "medianTokens": 197,
+      "medianOutputTokens": 161
+    }
+  ],
+  "rows": [
+    {
+      "scenario": "equivalent",
+      "repeat": 1,
+      "method": "legacy-first-emulated",
+      "correct": true,
+      "selected": "shared",
+      "goal": "shared",
+      "calls": 1,
+      "elapsedMs": 993.6435,
+      "inputTokens": 20,
+      "outputTokens": 41,
+      "totalTokens": 61,
+      "outputBytes": 148,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "nth": 0
+        }
+      ],
+      "results": [
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "equivalent",
+      "repeat": 1,
+      "method": "ambiguous-then-scope",
+      "correct": true,
+      "selected": "shared",
+      "goal": "shared",
+      "calls": 2,
+      "elapsedMs": 1648.5186999999999,
+      "inputTokens": 36,
+      "outputTokens": 161,
+      "totalTokens": 197,
+      "outputBytes": 592,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          }
+        },
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "within": "Alpha"
+        }
+      ],
+      "results": [
+        {
+          "ok": false,
+          "ambiguous": true,
+          "count": 2,
+          "candidates": [
+            {
+              "nth": 0,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Alpha"
+            },
+            {
+              "nth": 1,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Beta"
+            }
+          ],
+          "hint": "Several visible elements match. Re-run with --nth N (from candidates), --within \"<heading/section text>\", or a more specific locator.",
+          "reason": "ambiguous",
+          "execution": "not_started",
+          "risk": "read"
+        },
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "resolvedBy": "within",
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "equivalent",
+      "repeat": 2,
+      "method": "ambiguous-then-scope",
+      "correct": true,
+      "selected": "shared",
+      "goal": "shared",
+      "calls": 2,
+      "elapsedMs": 2026.5677999999998,
+      "inputTokens": 36,
+      "outputTokens": 161,
+      "totalTokens": 197,
+      "outputBytes": 592,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          }
+        },
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "within": "Alpha"
+        }
+      ],
+      "results": [
+        {
+          "ok": false,
+          "ambiguous": true,
+          "count": 2,
+          "candidates": [
+            {
+              "nth": 0,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Alpha"
+            },
+            {
+              "nth": 1,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Beta"
+            }
+          ],
+          "hint": "Several visible elements match. Re-run with --nth N (from candidates), --within \"<heading/section text>\", or a more specific locator.",
+          "reason": "ambiguous",
+          "execution": "not_started",
+          "risk": "read"
+        },
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "resolvedBy": "within",
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "equivalent",
+      "repeat": 2,
+      "method": "legacy-first-emulated",
+      "correct": true,
+      "selected": "shared",
+      "goal": "shared",
+      "calls": 1,
+      "elapsedMs": 1298.4276,
+      "inputTokens": 20,
+      "outputTokens": 41,
+      "totalTokens": 61,
+      "outputBytes": 148,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "nth": 0
+        }
+      ],
+      "results": [
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "equivalent",
+      "repeat": 3,
+      "method": "legacy-first-emulated",
+      "correct": true,
+      "selected": "shared",
+      "goal": "shared",
+      "calls": 1,
+      "elapsedMs": 986.0364999999993,
+      "inputTokens": 20,
+      "outputTokens": 41,
+      "totalTokens": 61,
+      "outputBytes": 148,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "nth": 0
+        }
+      ],
+      "results": [
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "equivalent",
+      "repeat": 3,
+      "method": "ambiguous-then-scope",
+      "correct": true,
+      "selected": "shared",
+      "goal": "shared",
+      "calls": 2,
+      "elapsedMs": 1998.9813000000013,
+      "inputTokens": 36,
+      "outputTokens": 161,
+      "totalTokens": 197,
+      "outputBytes": 592,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          }
+        },
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "within": "Alpha"
+        }
+      ],
+      "results": [
+        {
+          "ok": false,
+          "ambiguous": true,
+          "count": 2,
+          "candidates": [
+            {
+              "nth": 0,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Alpha"
+            },
+            {
+              "nth": 1,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Beta"
+            }
+          ],
+          "hint": "Several visible elements match. Re-run with --nth N (from candidates), --within \"<heading/section text>\", or a more specific locator.",
+          "reason": "ambiguous",
+          "execution": "not_started",
+          "risk": "read"
+        },
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "resolvedBy": "within",
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "different-handlers",
+      "repeat": 1,
+      "method": "legacy-first-emulated",
+      "correct": false,
+      "selected": "alpha",
+      "goal": "beta",
+      "calls": 1,
+      "elapsedMs": 1162.7556000000004,
+      "inputTokens": 20,
+      "outputTokens": 41,
+      "totalTokens": 61,
+      "outputBytes": 148,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "nth": 0
+        }
+      ],
+      "results": [
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "different-handlers",
+      "repeat": 1,
+      "method": "ambiguous-then-scope",
+      "correct": true,
+      "selected": "beta",
+      "goal": "beta",
+      "calls": 2,
+      "elapsedMs": 1820.7153999999991,
+      "inputTokens": 36,
+      "outputTokens": 161,
+      "totalTokens": 197,
+      "outputBytes": 592,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          }
+        },
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "within": "Beta"
+        }
+      ],
+      "results": [
+        {
+          "ok": false,
+          "ambiguous": true,
+          "count": 2,
+          "candidates": [
+            {
+              "nth": 0,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Alpha"
+            },
+            {
+              "nth": 1,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Beta"
+            }
+          ],
+          "hint": "Several visible elements match. Re-run with --nth N (from candidates), --within \"<heading/section text>\", or a more specific locator.",
+          "reason": "ambiguous",
+          "execution": "not_started",
+          "risk": "read"
+        },
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "resolvedBy": "within",
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "different-handlers",
+      "repeat": 2,
+      "method": "ambiguous-then-scope",
+      "correct": true,
+      "selected": "beta",
+      "goal": "beta",
+      "calls": 2,
+      "elapsedMs": 1869.4300000000003,
+      "inputTokens": 36,
+      "outputTokens": 161,
+      "totalTokens": 197,
+      "outputBytes": 592,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          }
+        },
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "within": "Beta"
+        }
+      ],
+      "results": [
+        {
+          "ok": false,
+          "ambiguous": true,
+          "count": 2,
+          "candidates": [
+            {
+              "nth": 0,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Alpha"
+            },
+            {
+              "nth": 1,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Beta"
+            }
+          ],
+          "hint": "Several visible elements match. Re-run with --nth N (from candidates), --within \"<heading/section text>\", or a more specific locator.",
+          "reason": "ambiguous",
+          "execution": "not_started",
+          "risk": "read"
+        },
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "resolvedBy": "within",
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "different-handlers",
+      "repeat": 2,
+      "method": "legacy-first-emulated",
+      "correct": false,
+      "selected": "alpha",
+      "goal": "beta",
+      "calls": 1,
+      "elapsedMs": 1049.2947999999997,
+      "inputTokens": 20,
+      "outputTokens": 41,
+      "totalTokens": 61,
+      "outputBytes": 148,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "nth": 0
+        }
+      ],
+      "results": [
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "different-handlers",
+      "repeat": 3,
+      "method": "legacy-first-emulated",
+      "correct": false,
+      "selected": "alpha",
+      "goal": "beta",
+      "calls": 1,
+      "elapsedMs": 1198.7485000000015,
+      "inputTokens": 20,
+      "outputTokens": 41,
+      "totalTokens": 61,
+      "outputBytes": 148,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "nth": 0
+        }
+      ],
+      "results": [
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    },
+    {
+      "scenario": "different-handlers",
+      "repeat": 3,
+      "method": "ambiguous-then-scope",
+      "correct": true,
+      "selected": "beta",
+      "goal": "beta",
+      "calls": 2,
+      "elapsedMs": 1943.3948000000019,
+      "inputTokens": 36,
+      "outputTokens": 161,
+      "totalTokens": 197,
+      "outputBytes": 592,
+      "commands": [
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          }
+        },
+        {
+          "locator": {
+            "role": "link",
+            "name": "Open",
+            "exact": true
+          },
+          "within": "Beta"
+        }
+      ],
+      "results": [
+        {
+          "ok": false,
+          "ambiguous": true,
+          "count": 2,
+          "candidates": [
+            {
+              "nth": 0,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Alpha"
+            },
+            {
+              "nth": 1,
+              "tag": "a",
+              "role": "link",
+              "name": "Open",
+              "href": "#same",
+              "context": "Beta"
+            }
+          ],
+          "hint": "Several visible elements match. Re-run with --nth N (from candidates), --within \"<heading/section text>\", or a more specific locator.",
+          "reason": "ambiguous",
+          "execution": "not_started",
+          "risk": "read"
+        },
+        {
+          "ok": true,
+          "effect": {
+            "urlChanged": false,
+            "url": "about:blank",
+            "observed": false,
+            "pageState": {
+              "state": "ready"
+            }
+          },
+          "resolvedBy": "within",
+          "execution": "completed",
+          "risk": "read"
+        }
+      ]
+    }
+  ],
+  "tokenizerVersion": "4.0.0"
+}

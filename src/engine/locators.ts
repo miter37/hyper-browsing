@@ -27,7 +27,7 @@ export interface LocatorCandidate {
 export interface Suggestion { tag: string; role?: string; name?: string; use: string }
 
 export type UniqueResolution =
-  | { locator: Locator; resolvedBy?: "exact" | "same-href" | "within" | "role-family"; equivalentMatches?: number }
+  | { locator: Locator; resolvedBy?: "exact" | "within" | "role-family" }
   | { ambiguous: true; count: number; candidates: LocatorCandidate[] }
   | { hiddenOnly: true; hiddenCount: number; alternatives: Suggestion[] }
   | { noMatch: true; suggestions: Suggestion[] };
@@ -112,7 +112,7 @@ async function similarVisible(page: Page, strategy: LocatorStrategy): Promise<Su
 /**
  * Resolves an agent-given locator to one visible element.
  * - Several visible matches: if exactly one has exactly the asked name/label/text, take it (a substring match like
- *   "These words" also hits "Not these words"); if all are links to the same href, they are one target; with
+ *   "These words" also hits "Not these words"); matching hrefs do not merge distinct targets; with
  *   `within`, keep the matches whose heading/form/landmark contains it; otherwise refuse with described candidates.
  * - Nothing visible yet: a still-loading list is waited for (then counted again, so it cannot become a silent
  *   first-match click). Only hidden matches -> `hiddenOnly` quickly, with visible look-alikes; none -> `noMatch`
@@ -181,11 +181,6 @@ export async function resolveUnique(
     if (exact.length === 1) return { locator: visible.nth(exact[0]), resolvedBy: "exact" };
     if (exact.length > 1) indices = exact;
   }
-  const first = ds[indices[0]];
-  if (first && first.href && first.href !== "#" && indices.every((i) => ds[i].href === first.href)) {
-    return { locator: visible.nth(indices[0]), resolvedBy: "same-href", equivalentMatches: indices.length };
-  }
-
   const candidates: LocatorCandidate[] = indices.slice(0, MAX_CANDIDATES).map((i, k) => {
     const d = ds[i];
     return {

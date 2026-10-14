@@ -1,10 +1,16 @@
 import http from "node:http";
-import type { BrowserContext } from "playwright";
+import type { BrowserContext, Page } from "playwright";
 import type { AppConfig } from "../config";
 import { ensureRuntime } from "../runtime/paths";
 import { ensureToken } from "./token";
 import { SessionStore } from "./session-store";
 import { captureSnapshot, saveSnapshot } from "../runtime/snapshot";
+import { renderObservation } from '../runtime/hwm/renderer';
+import { compareObservations, observeExecution } from '../runtime/hwm/changes';
+import { ObservationService } from '../runtime/hwm/service';
+import { ObservationError } from '../runtime/hwm/store';
+import { parseHwm } from '../runtime/hwm/view';
+import type { ProjectionOptions } from '../runtime/hwm/projection';
 import { actOn, fillOrSelect, goHistory } from "../engine/interact";
 import { locatorFromStrategy } from "../engine/locators";
 import { detectBlock, settle } from "../engine/page-state";
@@ -26,6 +32,7 @@ import { referencesFor } from "../runtime/references";
 import { executePrimitive } from "../engine/execute";
 import { runBatch } from "../engine/batch";
 import { compactResult } from "../runtime/output";
+import {renderCommandResult} from '../runtime/hwm/result';
 import { RequestStore } from "./request-store";
 import { serial } from "../runtime/learning-policy";
 import crypto from "node:crypto";
@@ -47,6 +54,21 @@ function json(res: http.ServerResponse, status: number, body: unknown) {
 }
 
 export class BrowserDaemon {
+  private observations=new ObservationService();
+  private projection(params:any):ProjectionOptions{
+    if(params.mode!==undefined&&!['full','overview','focus'].includes(params.mode))throw Object.assign(new Error('mode must be full, overview or focus'),{execution:'not_started'});
+    const options:ProjectionOptions={mode:params.mode??(params.format==='hwm'?'overview':'full'),focus:params.focus};
+    for(const key of ['nodeBudget','textBudget','changeBudget'] as const)if(params[key]!==undefined){const n=Number(params[key]);if(!Number.isSafeInteger(n)||n<1||n>1000000)throw Object.assign(new Error('Invalid projection budget'),{execution:'not_started'});options[key]=n;}
+    if(options.mode==='focus'&&!options.focus)throw Object.assign(new Error('focus mode requires focus'),{execution:'not_started'});return options;
+  }
+  private publish(params:any,data:Parameters<NonNullable<Parameters<typeof observeExecution>[5]>>[0]){
+    const stored=this.observations.remember(params.sessionId,data.after,data.header);if(!stored.ok)return {retention:stored,...(params.format==='hwm'?{hwm:renderObservation(data.after,{session:params.sessionId,before:data.before,changes:data.changes,result:data.result,projection:this.projection(params),retentionFailure:stored.reason,extraHeader:{...data.header,retention:{...stored}}})}:{})};
+    let comparison:string|undefined;
+    if(data.before){try{comparison=this.observations.rememberComparison(params.sessionId,data.before,data.after,data.changes,data.result).id;}catch{/* Keep execution evidence even when retention refuses a comparison. */}}
+    const result:Record<string,unknown>=params.format==='hwm'?(comparison?this.observations.comparison(params.sessionId,comparison,this.projection(params)):{hwm:renderObservation(data.after,{session:params.sessionId,before:data.before,changes:data.changes,result:data.result,extraHeader:{...data.header,retention:JSON.parse(JSON.stringify({...stored,comparison:'unavailable'}))}})}):{};
+    delete result.ok;
+    return {...result,observation:data.after.observation,...(comparison?{comparison}:{retention:{comparison:'unavailable'}})};
+  }
   private context?: BrowserContext;
   private sessions?: SessionStore;
   private chrome: ChromeManager;
@@ -73,11 +95,24 @@ export class BrowserDaemon {
       try {
         const { method, params = {}, requestId = crypto.randomUUID() } = await readJson(req);
         const started = Date.now();
-        const result = method === "request.status" ? await this.dispatch(method, params) : await this.requests.run(requestId, method, params, () => this.dispatch(method, params));
+        let result = method === "request.status" ? await this.dispatch(method, params) : await this.requests.run(requestId, method, params, () => this.dispatch(method, {...params,observationRequestId:requestId}));
+        // Command duration belongs to the same result consumed by the HWM renderer.
+        if (result && typeof result === "object" && !Array.isArray(result)) result.durationMs = Date.now() - started;
+        // The HWM wire carries one representation; never ship the entire JSON graph as a duplicate.
+        if(params.format==='hwm'){
+          let page:Page|undefined;try{page=params.sessionId?this.sessions?.get(params.sessionId):undefined;}catch{/* A closed session still has a valid command result. */}
+          try{
+            const hwm=renderCommandResult(result,{session:params.sessionId??'unobserved',document:page?referencesFor(page).documentIdentity():'unobserved',url:page?page.url():result?.url??'about:blank'});
+            if(result&&typeof result==='object'&&!Array.isArray(result))result.hwm=hwm;else result={value:result,hwm,durationMs:Date.now()-started};
+          }catch{
+            // An output error must not change an already-known execution outcome.
+            if(result&&typeof result==='object'&&!Array.isArray(result)){delete result.hwm;result.observationError='result-projection-failed';}else result={value:result,observationError:'result-projection-failed'};
+          }
+        }
         // How long each command took, so slow steps are visible to the agent and in transcripts.
-        if (result && typeof result === "object" && !Array.isArray(result)) (result as any).durationMs = Date.now() - started;
-        const full = params.verbose || params.observe || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
-        json(res, 200, { ok: true, result: full ? result : compactResult(result) });
+        const full = params.verbose || params.observe || params.context || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
+        const output=params.format==='hwm'?Object.fromEntries(Object.entries(result).filter(([key])=>!['snapshot','changes'].includes(key))):full?result:compactResult(result);
+        json(res, 200, { ok: true, result: output });
       } catch (error: any) {
         json(res, 200, { ok: false, execution: error.execution === "not_started" ? "not_started" : "outcome_unknown", error: error?.message || String(error), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
       }
@@ -94,7 +129,7 @@ export class BrowserDaemon {
   private async dispatch(method: string, params: any): Promise<any> {
     // A display change relaunches the shared Chrome instance. Never interrupt an
     // in-flight operation in another session, and leave status queries unblocked.
-    if (["request.status", "learning.status", "learning.finish"].includes(method)) return this.dispatchUnlocked(method, params);
+    if (["request.status", "learning.status", "learning.finish"].includes(method)||method.startsWith('observation.')) return this.dispatchUnlocked(method, params);
     return serial(`browser:${this.config.runtimeDir}`, () => this.dispatchWithFallback(method, params));
   }
   private async dispatchWithFallback(method: string, params: any): Promise<any> {
@@ -140,6 +175,18 @@ export class BrowserDaemon {
   }
   private async dispatchUnlocked(method: string, params: any): Promise<any> {
     if (method === "request.status") return { queriedRequestId: params.requestId, ...this.requests.status(params.requestId) };
+    if(method.startsWith('observation.')){
+      try{
+        if(!params.sessionId)throw new ObservationError('session_required');
+        if(params.format!==undefined&&!['json','hwm'].includes(params.format))throw new ObservationError('unsupported_format');
+        if(method==='observation.inspect')return this.observations.inspect(params.sessionId,params.observation,params.target);
+        const result=method==='observation.view'?this.observations.view(params.sessionId,params.observation,this.projection(params)):
+          method==='observation.changes'?this.observations.comparison(params.sessionId,params.comparison,this.projection(params)):
+          method==='observation.expand'?params.comparison?this.observations.expandChanges(params.sessionId,params.comparison,params.target):this.observations.expand(params.sessionId,params.observation,params.target):undefined;
+        if(!result)throw new ObservationError('unknown_observation_method');
+        if(params.format==='hwm')return result;const {hwm,...meta}=result;return {...meta,view:parseHwm(hwm)};
+      }catch(e:any){return {ok:false,execution:'not_started',reason:e.code??'invalid_observation_request',error:e.message};}
+    }
     // Bookkeeping and cleanup must not launch/restart Chrome or block a finished user task.
     if (method === "learning.finish") {
       try { return await finishLearning(this.config, params.sessionId, params.input || { taskStatus: params.taskStatus, decision: params.decision, reason: params.reason }); }
@@ -150,11 +197,13 @@ export class BrowserDaemon {
     }
     if (method === "session.close") {
       await this.store().close(params.sessionId);
+      this.observations.clearSession(params.sessionId);
       const learning = await finishObservedLearning(this.config, params.sessionId).catch((e: any) => ({ learningPending: false, warning: e.message }));
       return { closed: params.sessionId, learning, learning_pending: false };
     }
     if (method === "session.closeAll") {
       const closed = await this.store().closeAll();
+      for(const id of closed)this.observations.clearSession(id);
       for (const sessionId of closed) await finishObservedLearning(this.config, sessionId).catch(() => {});
       return { closed, count: closed.length };
     }
@@ -237,18 +286,24 @@ export class BrowserDaemon {
     const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
     if (method === "batch.run") {
       if (!page) throw new Error("sessionId required");
-      return runBatch(page, params.input, async (command, result) => {
+      if(params.format&&!['json','hwm'].includes(params.format))throw new Error('format must be json or hwm');
+      this.projection(params);
+      const execute=()=>runBatch(page, params.input, async (command, result) => {
         if (result.ok) await recordLearningEvent(this.config, page, params.sessionId, "fill", { locator: command.locator || referencesFor(page).semanticLocator(command.ref), valuePresent: Boolean(command.value || command.option), batch: true });
       });
+      return params.context===true||params.format==='hwm'?observeExecution(page,params.sessionId,execute,params.observationRequestId,params.format==='hwm'?'hwm':'json',data=>this.publish(params,data),{lightweight:params.context!==true,query:params.query,before:this.observations.latest(params.sessionId)}):execute();
     }
     if (page && ["page.click", "page.hover", "page.fill", "page.select", "page.press"].includes(method)) {
+      if(params.format&&!['json','hwm'].includes(params.format))throw new Error('format must be json or hwm');
+      this.projection(params);
       const kind = method.slice(5) as "click" | "hover" | "fill" | "select" | "press";
-      const result = await executePrimitive(page, kind, params);
+      const context=params.context===true||params.format==='hwm';
+      const result:any = context?await observeExecution(page,params.sessionId,()=>executePrimitive(page,kind,params),params.observationRequestId,params.format==='hwm'?'hwm':'json',data=>this.publish(params,data),{lightweight:params.context!==true,before:this.observations.latest(params.sessionId),query:params.query??(params.ref?referencesFor(page).metadata(params.ref)?.name:params.locator?.name??params.locator?.label??params.locator?.placeholder)}) : await executePrimitive(page, kind, params);
       if (result.ok && kind !== "hover") await recordLearningEvent(this.config, page, params.sessionId, kind === "select" ? "fill" : kind, {
         locator: params.locator ? { ...params.locator, ...(params.within ? { within: params.within } : {}) } : referencesFor(page).semanticLocator(params.ref),
         valuePresent: Boolean(params.value || params.option), key: params.key,
       });
-      if (params.observe) result.snapshot = await captureSnapshot(page, { references: referencesFor(page), query: params.query });
+      if (params.observe&&!context) result.snapshot = await captureSnapshot(page, { references: referencesFor(page), query: params.query });
       if (kind === "click") result.clicked = result.ok;
       if (kind === "hover") result.hovered = result.ok;
       return { ...result, learning_pending: false };
@@ -301,10 +356,16 @@ export class BrowserDaemon {
     }
     if (method === "page.snapshot") {
       if (!page) throw new Error("sessionId required");
-      const snapshot = await captureSnapshot(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined, references: referencesFor(page) });
+      if (params.format !== undefined && !['json','hwm'].includes(params.format)) throw new Error('Unsupported snapshot format; use json or hwm');
+      const projection=this.projection(params);
+      const snapshot = await captureSnapshot(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined, references: referencesFor(page), context: params.context === true || params.format === 'hwm', contextLimit: params.contextLimit ? Number(params.contextLimit) : undefined });
+      if(params.format==='hwm'&&!snapshot.contextGraph) return {ok:false,execution:'not_started',reason:'capture_failed',snapshot};
+      const header=JSON.parse(JSON.stringify({'collection-timing':snapshot.collectionTiming,'state-observation':{...snapshot.stateObservation,pageState:snapshot.pageState,blocked:snapshot.blocked}}));
+      const retention=snapshot.contextGraph?this.observations.remember(params.sessionId,snapshot.contextGraph,header):undefined;
+      const hwm=params.format==='hwm'&&snapshot.contextGraph?retention?.ok?this.observations.view(params.sessionId,snapshot.contextGraph.observation,projection).hwm:renderObservation(snapshot.contextGraph,{session:params.sessionId,projection,retentionFailure:retention?.reason??'observation_unavailable',extraHeader:{...header,retention:{...retention}}}):undefined;
       const file = params.save ? await saveSnapshot(this.config, params.sessionId, snapshot) : undefined;
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "snapshot", { saved: Boolean(params.save), query: params.query });
-      return { snapshot, file, learning_pending: false, learning_warning: learning.warning, learningPolicy };
+      return { snapshot, hwm, file,retention, learning_pending: false, learning_warning: learning.warning, learningPolicy };
     }
     if (method === "page.list") {
       if (!page) throw new Error("sessionId required");
@@ -392,7 +453,16 @@ export class BrowserDaemon {
     if (method === "page.diff") {
       if (!page) throw new Error("sessionId required");
       const before: any = params.before;
-      if (!before || !before.elements) throw new Error("params.before (PageSnapshot) required for diff");
+      if(params.format&&!['json','hwm'].includes(params.format))throw new Error('format must be json or hwm');
+      const graph=before?.contextGraph??before?.snapshot?.contextGraph;
+      if(graph&&(params.context===true||params.format==='hwm')){
+        const after=await captureSnapshot(page,{references:referencesFor(page),context:true});
+        if(!after.contextGraph)return {after,observationError:'capture-failed'};
+        const changes=compareObservations(graph,after.contextGraph);
+        return {changes,after,...this.publish(params,{before:graph,after:after.contextGraph,changes,result:{execution:'completed',operation:'observation-comparison'},header:JSON.parse(JSON.stringify({'collection-timing':after.collectionTiming,'state-observation':after.stateObservation}))})};
+      }
+      if (!before || !before.elements) throw new Error("params.before (PageSnapshot) required for diff; context diff requires a saved contextGraph");
+      if(params.context===true||params.format==='hwm')throw new Error('Context diff requires a saved contextGraph');
       const after = await captureSnapshot(page, { references: referencesFor(page) });
       const diff = compareSnapshots(before, after);
       return { diff, after };

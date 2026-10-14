@@ -1,0 +1,18 @@
+@hwm p20 version="0.2" session="s1" document="d5" url="https://example.test/hotels" view="overview" captured-at="2026-10-14T06:05:00Z" scan={"scope":"fixture","complete":false} collected=["text","text-source","accessible-name","name-source","checked","href"] state="partial" state-evidence="fixture: brand options not rendered"
+@state st1 complete=false
+- g7 selected=["e40"] selected-complete=true
+- g8 selected=["e50"] selected-complete=false
+n1 document
+  g7 fieldset "Guest rating"@native-label selected=["e40"] selected-complete=true
+    e40 control "Any"@aria-label role="radio" checked=true
+    e41 control "Very good 8+ (1382)"@aria-label role="radio" checked=false
+  g8 fieldset "Brand"@native-label selected=["e50"] selected-complete=false
+    e50 control "Logitech" role="checkbox" checked=true
+@gap gp1 kind="unobserved" reason="not-rendered" parent="g8"
+  g4 list groupSource="repeated-dom-shape"
+    g41 item
+      t1 text "Sponsored"
+      e231 link "Logitech - Signature M650 L Full-size Wireless Optical Scroll Mouse" href="/product/A1" truncated={"shown":67,"total":108}
+      t2 text "$39.99"
+@gap gp2 kind="folded" reason="budget" parent="g4" range={"after-order":0,"items":22} items={"min":22,"exact":true} expand="g4"
+@end p20 complete

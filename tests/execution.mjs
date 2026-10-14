@@ -97,6 +97,8 @@ test('actual daemon exposes refs, batch, compact details and duplicate-request p
   const sessions=await daemon.sessions.list();const sessionId=sessions[0].id;
   const call=(method,params={},requestId)=>postRpc({endpoint,token:token.trim(),method,params:{sessionId,...params},requestId});
   const snap=(await call('page.snapshot')).result.snapshot;
+  const hwm=(await call('page.snapshot',{format:'hwm'})).result;
+  assert.ok(hwm.hwm?.startsWith('@hwm '));assert.ok(hwm.hwm.includes('document'));assert.equal(hwm.snapshot,undefined);assert.ok(snap.contextGraph);
   const input=snap.elements.find(e=>e.name==='Name');const button=snap.elements.find(e=>e.name==='Count');
   assert.ok(input.ref);assert.ok(button.ref);
   const batch=(await call('batch.run',{input:{commands:[{op:'fill',ref:input.ref,value:'Alice'}]}})).result;

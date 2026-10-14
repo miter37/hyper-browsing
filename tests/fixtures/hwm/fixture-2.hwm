@@ -1,0 +1,13 @@
+@hwm p2 version="0.2" session="s1" document="d2" url="https://example.test/find" view="focus" captured-at="2026-10-14T06:01:00Z" scan={"scope":"fixture","complete":true} collected=["text","text-source","accessible-name","name-source","href","value","expanded"] state="ready"
+n1 document
+  g1 form
+    e41 control "Enter destination"@aria-label role="combobox" value="" expanded=false
+  g2 group
+    h1 heading "Trending destinations" level=2
+    e42 link "New York, United States" href="/city/new-york" ^section:h1
+  g3 group
+    e43 link "Hotels" href="/search?city=New%20York"
+@candidates q1 query="New York" scope="n1" rule="match-v1" total=2 shown=2 complete=true
+- e42 match="accessible-name"
+- e43 match="href.query" transform="url-search-params-v1"
+@end p2 complete

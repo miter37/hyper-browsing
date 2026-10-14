@@ -1,0 +1,254 @@
+{
+  "capturedAt": "2026-10-14T08:28:29.335Z",
+  "scope": "Local HTML; HB captureSnapshot; no actions, learning or LLM comparison",
+  "runs": [
+    {
+      "count": 10,
+      "repetition": 1,
+      "elapsedMs": 104.3184,
+      "graphNodes": 23,
+      "phases": {
+        "referenceStateMs": 4.423799999999915,
+        "pageEvaluationMs": 7.11970000000008,
+        "resultTransferMs": 5.657100000000014,
+        "referenceBindingMs": 82.15089999999998,
+        "retainedReferences": 10,
+        "cleanupMs": 0.17470000000002983
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 10,
+        "pendingDisposals": 0,
+        "disposalSettled": 0,
+        "disposalFailed": 0
+      }
+    },
+    {
+      "count": 10,
+      "repetition": 2,
+      "elapsedMs": 28.161200000000008,
+      "graphNodes": 23,
+      "phases": {
+        "referenceStateMs": 0.004500000000007276,
+        "pageEvaluationMs": 2.224899999999934,
+        "resultTransferMs": 5.326599999999985,
+        "referenceBindingMs": 17.965299999999957,
+        "retainedReferences": 10,
+        "cleanupMs": 0.16109999999991942
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 10,
+        "pendingDisposals": 0,
+        "disposalSettled": 10,
+        "disposalFailed": 0
+      }
+    },
+    {
+      "count": 10,
+      "repetition": 3,
+      "elapsedMs": 26.570699999999988,
+      "graphNodes": 23,
+      "phases": {
+        "referenceStateMs": 0.003399999999942338,
+        "pageEvaluationMs": 2.0207000000000335,
+        "resultTransferMs": 5.2123000000000275,
+        "referenceBindingMs": 16.928199999999947,
+        "retainedReferences": 10,
+        "cleanupMs": 0.16190000000005966
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 10,
+        "pendingDisposals": 0,
+        "disposalSettled": 20,
+        "disposalFailed": 0
+      }
+    },
+    {
+      "count": 100,
+      "repetition": 1,
+      "elapsedMs": 162.91000000000008,
+      "graphNodes": 203,
+      "phases": {
+        "referenceStateMs": 1.7293000000000802,
+        "pageEvaluationMs": 5.987300000000005,
+        "resultTransferMs": 30.370100000000093,
+        "referenceBindingMs": 121.73130000000003,
+        "retainedReferences": 100,
+        "cleanupMs": 0.09989999999993415
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 100,
+        "pendingDisposals": 0,
+        "disposalSettled": 31,
+        "disposalFailed": 0,
+        "lastInvalidation": {
+          "reason": "navigation",
+          "attempted": 11,
+          "complete": true,
+          "elapsedMs": 1.4412999999999556
+        }
+      }
+    },
+    {
+      "count": 100,
+      "repetition": 2,
+      "elapsedMs": 138.24019999999996,
+      "graphNodes": 203,
+      "phases": {
+        "referenceStateMs": 0.0027000000000043656,
+        "pageEvaluationMs": 3.705099999999902,
+        "resultTransferMs": 23.871399999999994,
+        "referenceBindingMs": 108.43309999999997,
+        "retainedReferences": 100,
+        "cleanupMs": 0.09910000000013497
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 100,
+        "pendingDisposals": 0,
+        "disposalSettled": 131,
+        "disposalFailed": 0,
+        "lastInvalidation": {
+          "reason": "navigation",
+          "attempted": 11,
+          "complete": true,
+          "elapsedMs": 1.4412999999999556
+        }
+      }
+    },
+    {
+      "count": 100,
+      "repetition": 3,
+      "elapsedMs": 136.26070000000004,
+      "graphNodes": 203,
+      "phases": {
+        "referenceStateMs": 0.0024000000000796717,
+        "pageEvaluationMs": 3.3563000000001466,
+        "resultTransferMs": 21.383800000000065,
+        "referenceBindingMs": 109.13080000000014,
+        "retainedReferences": 100,
+        "cleanupMs": 0.0989999999999327
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 100,
+        "pendingDisposals": 0,
+        "disposalSettled": 231,
+        "disposalFailed": 0,
+        "lastInvalidation": {
+          "reason": "navigation",
+          "attempted": 11,
+          "complete": true,
+          "elapsedMs": 1.4412999999999556
+        }
+      }
+    },
+    {
+      "count": 300,
+      "repetition": 1,
+      "elapsedMs": 488.3565000000001,
+      "graphNodes": 603,
+      "phases": {
+        "referenceStateMs": 8.215299999999843,
+        "pageEvaluationMs": 14.428900000000112,
+        "resultTransferMs": 81.54139999999984,
+        "referenceBindingMs": 379.9976999999999,
+        "retainedReferences": 300,
+        "cleanupMs": 0.16849999999999454
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 300,
+        "pendingDisposals": 0,
+        "disposalSettled": 332,
+        "disposalFailed": 0,
+        "lastInvalidation": {
+          "reason": "navigation",
+          "attempted": 101,
+          "complete": true,
+          "elapsedMs": 10.63189999999986
+        }
+      }
+    },
+    {
+      "count": 300,
+      "repetition": 2,
+      "elapsedMs": 400.8123999999998,
+      "graphNodes": 603,
+      "phases": {
+        "referenceStateMs": 0.0032999999998537533,
+        "pageEvaluationMs": 12.826900000000023,
+        "resultTransferMs": 81.54600000000005,
+        "referenceBindingMs": 303.12159999999994,
+        "retainedReferences": 300,
+        "cleanupMs": 0.10340000000041982
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 300,
+        "pendingDisposals": 0,
+        "disposalSettled": 632,
+        "disposalFailed": 0,
+        "lastInvalidation": {
+          "reason": "navigation",
+          "attempted": 101,
+          "complete": true,
+          "elapsedMs": 10.63189999999986
+        }
+      }
+    },
+    {
+      "count": 300,
+      "repetition": 3,
+      "elapsedMs": 424.3658999999998,
+      "graphNodes": 603,
+      "phases": {
+        "referenceStateMs": 0.002900000000408909,
+        "pageEvaluationMs": 10.217399999999998,
+        "resultTransferMs": 67.86290000000008,
+        "referenceBindingMs": 343.0147999999999,
+        "retainedReferences": 300,
+        "cleanupMs": 0.09639999999990323
+      },
+      "references": {
+        "source": "host-registered-references",
+        "registeredReferences": 300,
+        "pendingDisposals": 0,
+        "disposalSettled": 932,
+        "disposalFailed": 0,
+        "lastInvalidation": {
+          "reason": "navigation",
+          "attempted": 101,
+          "complete": true,
+          "elapsedMs": 10.63189999999986
+        }
+      }
+    }
+  ],
+  "summary": [
+    {
+      "count": 10,
+      "elapsedMs": 28.161200000000008,
+      "pageEvaluationMs": 2.224899999999934,
+      "resultTransferMs": 5.326599999999985,
+      "referenceBindingMs": 17.965299999999957
+    },
+    {
+      "count": 100,
+      "elapsedMs": 138.24019999999996,
+      "pageEvaluationMs": 3.705099999999902,
+      "resultTransferMs": 23.871399999999994,
+      "referenceBindingMs": 109.13080000000014
+    },
+    {
+      "count": 300,
+      "elapsedMs": 424.3658999999998,
+      "pageEvaluationMs": 12.826900000000023,
+      "resultTransferMs": 81.54139999999984,
+      "referenceBindingMs": 343.0147999999999
+    }
+  ]
+}

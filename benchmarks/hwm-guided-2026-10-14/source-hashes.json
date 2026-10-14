@@ -1,0 +1,45 @@
+{
+  "capturedAt": "2026-10-14T10:14:20.259Z",
+  "files": [
+    {
+      "file": "src/browserd/server.ts",
+      "sha256": "973ba0ae675f3403640c3010f8e63642aa524b9e211c4fc3c58b776113cdc978"
+    },
+    {
+      "file": "src/runtime/snapshot.ts",
+      "sha256": "f68c302604dc38c4abc22e60d58ddb970106ad9107f4c6408ba9530325cd8664"
+    },
+    {
+      "file": "src/runtime/hwm/store.ts",
+      "sha256": "948025d2ceb4b513605e7220cedf8825bc0759668709e28dfe6d3fd41bc37ee5"
+    },
+    {
+      "file": "src/runtime/hwm/service.ts",
+      "sha256": "b23f9e85acb904f0d4a10b2732160af44f0059c933327eb5a67fff5b44bfb753"
+    },
+    {
+      "file": "src/runtime/hwm/renderer.ts",
+      "sha256": "b0c237ed9806cc49c9575c9f6ff1eb505e6043c0f4b4b6cf366eeca7bfd15395"
+    },
+    {
+      "file": "src/runtime/hwm/projection.ts",
+      "sha256": "3585476816ae1bd1456681a4f4ebfd6635862dce84ede47acc060c80f2227031"
+    },
+    {
+      "file": "src/runtime/hwm/view.ts",
+      "sha256": "fab6aa07627f85a7bcb41cbb83c3ea8cac90b42cfce65d32d2ebb406c9cf3184"
+    },
+    {
+      "file": "src/runtime/discovery-tools.ts",
+      "sha256": "6c06343e0ecabc1546fe88849cfa476f16aa5b825267749d5fc4fea722d49114"
+    },
+    {
+      "file": "scripts/webctl-rpc.mjs",
+      "sha256": "5262bd07fea1e7b9e1cfe1cacd996daf5d5c036d8e559418af48a71a1eb61134"
+    },
+    {
+      "file": "src/bin/webctl.ts",
+      "sha256": "b888fcc1a2a31507495835ade221def2e116a0bb594669a790772cbc38cab7e2"
+    }
+  ]
+}

@@ -2,6 +2,8 @@ import { waitBeforeInput } from '../engine/input-pacing';
 import type { Page } from "playwright";
 import { captureSnapshot, type PageSnapshot, type SnapshotElement } from "./snapshot";
 import { DEEP_WALK_JS, settle } from "../engine/page-state";
+import { PRIVATE_FIELD_SCRIPT } from './private-fields';
+import { redactContent, redactUrl } from '../utils/strings';
 
 export interface AnnoyanceResult {
   dismissedCount: number;
@@ -169,6 +171,7 @@ export interface FormInfo {
 // Walks open shadow roots too; lists custom comboboxes ([role=combobox], aria-haspopup=listbox) with their shown value.
 const FORMS_SCRIPT = `(() => {
   ${DEEP_WALK_JS}
+  ${PRIVATE_FIELD_SCRIPT}
   function clean(s) { return (s || "").replace(/\\s+/g, " ").trim(); }
   function shown(el) {
     const r = el.getBoundingClientRect();
@@ -201,8 +204,7 @@ const FORMS_SCRIPT = `(() => {
       (el.labels && el.labels[0] ? labelText(el.labels[0]) : "") || undefined;
     const groupEl = el.closest("fieldset, [role=group], [role=radiogroup]");
     const group = groupEl ? (clean((groupEl.querySelector(":scope > legend") || {}).textContent) || clean(groupEl.getAttribute("aria-label")) || undefined) : undefined;
-    const auto = String(el.getAttribute("autocomplete") || "").toLowerCase();
-    const secret = el.type === "password" || auto.startsWith("cc-") || auto === "one-time-code" || /\\b(cvc|cvv|otp|ssn)\\b/i.test((el.name || "") + " " + (el.id || ""));
+    const sensitive = secret(el);
     const field = {
       tag: tag.toLowerCase(),
       role: custom ? "combobox" : undefined,
@@ -213,8 +215,8 @@ const FORMS_SCRIPT = `(() => {
       group: group ? group.slice(0, 80) : undefined,
       placeholder: el.getAttribute("placeholder") || undefined,
       required: Boolean(el.required || el.getAttribute("aria-required") === "true"),
-      value: custom ? (clean(el.value || el.textContent).slice(0, 80) || undefined)
-        : secret ? (el.value ? "[HIDDEN]" : undefined) : (el.value || undefined),
+      value: sensitive ? ((el.value || (custom && el.textContent)) ? "[HIDDEN]" : undefined)
+        : custom ? (clean(el.value || el.textContent).slice(0, 80) || undefined) : (el.value || undefined),
       selectedText: tag === "SELECT" ? (Array.from(el.selectedOptions).map((o) => clean(o.textContent)).filter(Boolean).join(", ") || undefined) : undefined,
       checked: el.type === "checkbox" || el.type === "radio" ? Boolean(el.checked) : undefined,
       hidden: shown(el) ? undefined : true,
@@ -245,11 +247,11 @@ export async function analyzeForms(page: Page): Promise<{ formsCount: number; fo
   const forms = (await page.evaluate(FORMS_SCRIPT).catch(() => [])) as FormInfo[];
   return {
     formsCount: forms.length,
-    forms,
+    forms: forms.map(form=>({...form,...(form.action?{action:redactUrl(form.action)}:{}),fields:form.fields.map(field=>Object.fromEntries(Object.entries(field).map(([key,value])=>[key,typeof value==='string'?redactContent(value):value])) as unknown as FormFieldInfo)})),
   };
 }
 
-export interface ListItem { title?: string; href?: string; text: string }
+export interface ListItem { title?: string; href?: string; text: string; titleTruncated:boolean; titleLength:number; titleShown:number; textTruncated:boolean; textLength:number; textShown:number; lengthUnit:'unicode-code-point' }
 
 // Page script for listItems: the largest run of same-shaped siblings that each hold a link or a heading
 // (result cards, table rows, list items), read item by item. Walks open shadow roots.
@@ -296,10 +298,14 @@ const LIST_SCRIPT = `(opts) => {
   const items = g.items.slice(0, opts.limit).map((k) => {
     const h = headingOf(k);
     const a = q(k, "a[href]");
+    const title = Array.from(clean(h ? (h.innerText || h.textContent) : (a ? (a.innerText || a.textContent) : "")));
+    const text = Array.from(textOf(k));
     return {
-      title: clean(h ? (h.innerText || h.textContent) : (a ? (a.innerText || a.textContent) : "")).slice(0, 120) || undefined,
+      title: title.slice(0, 120).join("") || undefined,
       href: a ? a.href : undefined,
-      text: textOf(k).slice(0, 200),
+      text: text.slice(0, 200).join(""),
+      titleTruncated: title.length > 120, titleLength: title.length, titleShown: Math.min(title.length,120),
+      textTruncated: text.length > 200, textLength: text.length, textShown: Math.min(text.length,200), lengthUnit: "unicode-code-point",
     };
   });
   const c = g.el;

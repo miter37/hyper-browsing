@@ -2,9 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Page } from "playwright";
 import type { AppConfig } from "../config";
-import { redactText } from "../utils/strings";
+import { redactText, redactUrl } from "../utils/strings";
 import { DEEP_WALK_JS, detectBlock, inspectPageState, type BlockInfo, type PageStateInfo } from "../engine/page-state";
-import { REFERENCE_GUARD, type ElementReferences } from "./references";
+import { REFERENCE_GUARD, referencesFor, type ElementReferences } from "./references";
+import { randomUUID } from 'node:crypto';
+import { CONTEXT_COLLECTOR, sanitizeObservation, type ObservationGraph } from './hwm/observation';
+import { PRIVATE_FIELD_SCRIPT } from './private-fields';
 
 export interface SnapshotElement {
   ref?: string;
@@ -58,6 +61,11 @@ export interface TextHit {
 }
 
 export interface PageSnapshot {
+  collectionTiming?: { startedAt: string; finishedAt: string; document: string; documentChanged: boolean;
+    phases?: { referenceStateMs?:number; pageEvaluationMs?:number; resultTransferMs?:number; referenceBindingMs?:number; cleanupMs?:number; retainedReferences?:number };
+    references?:ReturnType<ElementReferences['diagnostics']> };
+  stateObservation?: { startedAt: string; finishedAt: string; document: string; documentChanged: boolean; simultaneousWithGraph: false };
+  contextGraph?: ObservationGraph;
   observation?: { complete: boolean; errors: string[]; skippedNodes: number };
   pageState?: PageStateInfo;
   capturedAt: string;
@@ -91,6 +99,9 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   const started = performance.now();
   const limit = opts.limit;
   const query = opts.query ? opts.query.toLowerCase().replace(/\\s+/g, " ").trim() : "";
+  const styles=new WeakMap(),rects=new WeakMap();
+  function styleOf(el){let value=styles.get(el);if(!value){value=getComputedStyle(el);styles.set(el,value);}return value;}
+  function rectOf(el){let value=rects.get(el);if(!value){value=el.getBoundingClientRect();rects.set(el,value);}return value;}
   ${DEEP_WALK_JS}
 
   const CAND = "a, button, input, select, textarea, label, summary, [role], [data-testid], [tabindex]:not([tabindex='-1']), [contenteditable=true]";
@@ -107,16 +118,16 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     return trimmed.length ? trimmed : undefined;
   }
   function rendered(el) {
-    const style = getComputedStyle(el);
+    const style = styleOf(el);
     if (style.display === "contents") return Array.from(el.children).some((c) => rendered(c));
-    const rect = el.getBoundingClientRect();
+    const rect = rectOf(el);
     if (rect.width <= 0 || rect.height <= 0) return false;
     return style.visibility !== "hidden" && style.display !== "none";
   }
-  function transparentSelf(el) { return getComputedStyle(el).opacity === "0"; }
+  function transparentSelf(el) { return styleOf(el).opacity === "0"; }
   function isVisible(el) { return rendered(el) && !transparentSelf(el); }
   function hitsSelf(el) {
-    const r = el.getBoundingClientRect();
+    const r = rectOf(el);
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return null;
     const root = el.getRootNode();
@@ -127,23 +138,23 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   // An opacity:0 control that covers a real area (not a 1px visually-hidden input) and is the top-most element
   // at its own centre is what a click lands on.
   function onTop(el) {
-    const r = el.getBoundingClientRect();
+    const r = rectOf(el);
     if (r.width < 8 || r.height < 8) return false;
     return hitsSelf(el) === true;
   }
   // Zero visible area once overflow:hidden/clip/auto ancestors are applied. A fixed element escapes its ancestors.
   // A hit-test on the element itself overrides the geometry (a hover-opened sub-menu is reachable).
   function clipState(el) {
-    if (getComputedStyle(el).position === "fixed") return undefined;
-    const r = el.getBoundingClientRect();
+    if (styleOf(el).position === "fixed") return undefined;
+    const r = rectOf(el);
     let left = r.left, top = r.top, right = r.right, bottom = r.bottom;
     let scrollable = false;
     for (let n = el.parentElement; n && n !== document.documentElement; n = n.parentElement) {
-      const st = getComputedStyle(n);
+      const st = styleOf(n);
       const clipX = st.overflowX !== "visible";
       const clipY = st.overflowY !== "visible";
       if (clipX || clipY) {
-        const b = n.getBoundingClientRect();
+        const b = rectOf(n);
         if (clipX) { left = Math.max(left, b.left); right = Math.min(right, b.right); }
         if (clipY) { top = Math.max(top, b.top); bottom = Math.min(bottom, b.bottom); }
         if (right - left < 1 || bottom - top < 1) {
@@ -159,6 +170,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
   // Visible text without icon-font ligatures ("arrow_drop_down") and aria-hidden decorations.
   function textOf(el) {
+    if(secret(el))return undefined;
     if (!el.querySelector("[aria-hidden='true'], i, [class*='icon' i], [class*='material' i], [class*='symbol' i]")) return cleanStr(el.innerText);
     const parts = [];
     const skip = new Map();
@@ -167,7 +179,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       let bad = false;
       for (let p = t.parentElement; p && p !== el.parentElement; p = p.parentElement) {
         if (skip.has(p)) { bad = skip.get(p); if (bad) break; continue; }
-        const st = getComputedStyle(p);
+        const st = styleOf(p);
         const first = (st.fontFamily || "").split(",")[0];
         const b = p.getAttribute("aria-hidden") === "true" || ICON_FONT.test(first) || st.display === "none" || st.visibility === "hidden";
         skip.set(p, b);
@@ -203,11 +215,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     }
     return undefined;
   }
-  function secret(el) {
-    const auto = String(el.getAttribute("autocomplete") || "").toLowerCase();
-    return el.type === "password" || auto.startsWith("cc-") || auto === "one-time-code" ||
-      /\\b(cvc|cvv|otp|ssn)\\b/i.test((el.name || "") + " " + (el.id || ""));
-  }
+  ${PRIVATE_FIELD_SCRIPT}
   function ariaState(el, attr) {
     const v = el.getAttribute(attr);
     if (v === "true") return true;
@@ -286,7 +294,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   function brief(el) {
     const tag = el.tagName.toLowerCase();
     const role = cleanStr(el.getAttribute("role")) || implicitRole(el, tag);
-    const name = cleanStr(el.getAttribute("aria-label")) || (cleanStr(el.innerText) || cleanStr(el.textContent) || "").slice(0, 60) || undefined;
+    const name = cleanStr(el.getAttribute("aria-label")) || (!secret(el) ? (cleanStr(el.innerText) || cleanStr(el.textContent) || "").slice(0, 60) : undefined) || undefined;
     return { tag, role, name };
   }
   function score(e) {
@@ -331,7 +339,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     if (!rendered(el)) {
       // A matching control that exists but is hidden: tell the agent it is there and what may reveal it.
       if (query && hidden.length < 10 && (CONTROL_TAGS[tagU] || el.hasAttribute("role"))) {
-        const n = cleanStr(el.getAttribute("aria-label")) || (el.labels && el.labels[0] ? labelText(el.labels[0]) : undefined) || cleanStr(el.textContent);
+        const n = cleanStr(el.getAttribute("aria-label")) || (el.labels && el.labels[0] ? labelText(el.labels[0]) : undefined) || (!secret(el)?cleanStr(el.textContent):undefined);
         if (n && n.length <= 120 && n.toLowerCase().includes(query)) {
           let openWith;
           for (let a = el.parentElement || (el.getRootNode().host || null), d = 0; a && d < 14 && !openWith; a = a.parentElement || (a.getRootNode().host || null), d++) {
@@ -358,7 +366,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     if (explicitRole && STRUCTURAL.test(explicitRole) && !cleanStr(el.getAttribute("aria-label")) && !el.hasAttribute("aria-labelledby") && !el.hasAttribute("data-testid")) return;
     // A tabindex-only element counts when it looks clickable and is not just a wrapper of other controls.
     if (!CONTROL_TAGS[tagU] && tagU !== "LABEL" && tagU !== "SUMMARY" && !explicitRole && !el.hasAttribute("data-testid") && !el.isContentEditable) {
-      if (getComputedStyle(el).cursor !== "pointer" || el.querySelector(INTERACTIVE_DESC)) return;
+      if (styleOf(el).cursor !== "pointer" || el.querySelector(INTERACTIVE_DESC)) return;
     }
     const container = !CONTROL_TAGS[tagU] && Boolean(el.querySelector(INTERACTIVE_DESC));
     const role = explicitRole || implicitRole(el, tag);
@@ -388,7 +396,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
         if (opts.refs.next > opts.refs.max) throw new Error('Reference quota reached; open a new task session');
         saved = {id:opts.refs.next++,guard}; opts.refs.ids.set(el,saved);
       }
-      entry.ref = 'e' + saved.id;
+      entry.ref = 'e' + opts.refs.epoch + String(saved.id).padStart(16, '0');
       entry._node = el;
       entry._guard = guard;
     }
@@ -438,6 +446,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
   // Plain-text matches: status lines ("489 items") and custom span/div controls that are not in the list.
   const textHits = [];
+  const queryNodes = [];
   if (query) {
     const listed = new Set(picked.map((m) => m.el));
     const seenParents = new Set();
@@ -449,6 +458,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
         if (!t.textContent || !t.textContent.toLowerCase().includes(query)) continue;
         const p = t.parentElement;
         if (!p || seenParents.has(p) || /^(SCRIPT|STYLE|NOSCRIPT|TITLE|OPTION)$/.test(p.tagName) || !isVisible(p)) continue;
+        let sensitive=false;for(let a=p;a;a=a.parentElement||a.getRootNode().host)if(secret(a)){sensitive=true;break;}if(sensitive)continue;
+        queryNodes.push(t);
         seenParents.add(p);
         let covered = false;
         for (const l of listed) if (l === p || l.contains(p)) { covered = true; break; }
@@ -487,7 +498,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     viewport: { width: innerWidth, height: innerHeight },
     headings,
     open: open.length ? open : undefined,
-    elements: picked.map((m) => m.entry),
+    elements: picked.map((m) => {if(opts.refs){opts.refs.targets.delete(m.entry.ref);opts.refs.targets.set(m.entry.ref,new WeakRef(m.el));while(opts.refs.targets.size>1200)opts.refs.targets.delete(opts.refs.targets.keys().next().value);}return m.entry;}),
+    contextGraph: opts.context ? (${CONTEXT_COLLECTOR})(opts, picked, queryNodes) : undefined,
     truncated: omittedCount > 0,
     omitted: omittedCount ? { count: omittedCount, byHeading: Object.fromEntries(top) } : undefined,
     hidden: hidden.length ? hidden : undefined,
@@ -505,33 +517,32 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number } = {}
+  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
-  const opts = { query: options.query || "", limit };
+  const opts = { query: options.query || "", limit, context: true,
+    contextLimit: Math.max(1, Math.min(Number(options.contextLimit) || 2000, 6000)), observation: 'p' + randomUUID().replace(/-/g,'') };
+  const references = options.references ?? referencesFor(page);
+  let collectionTiming: PageSnapshot['collectionTiming'];
   const capture = async (): Promise<any> => {
-    if (!options.references) return page.evaluate(`(${SNAPSHOT_SCRIPT})(${JSON.stringify(opts)})`);
-    const state = await options.references.snapshotState();
-    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts, refs: state.state } });
+    if (!references) return page.evaluate(`(${SNAPSHOT_SCRIPT})(${JSON.stringify(opts)})`);
+    const referenceStarted=performance.now();
+    const state = await references.snapshotState();
+    const phases:NonNullable<NonNullable<PageSnapshot['collectionTiming']>['phases']>={referenceStateMs:performance.now()-referenceStarted};
+    collectionTiming = { startedAt: new Date().toISOString(), finishedAt:'',document:references.documentIdentity(),documentChanged:false,phases };
+    const evaluationStarted=performance.now();
+    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts, document:collectionTiming.document, refs: state.state } });
+    phases.pageEvaluationMs=performance.now()-evaluationStarted;
     try {
+      const transferStarted=performance.now();
       const data: any = await result.evaluate((data: any) => ({ ...data, elements: data.elements.map(({ _node, ...metadata }: any) => metadata) }));
-      const array = await result.getProperty("elements");
-      const items = await array.getProperties();
-      for (const [index, item] of items) {
-        if (!/^\d+$/.test(index)) { await item.dispose(); continue; }
-        const raw = data.elements[Number(index)];
-        const node = await item.getProperty("_node");
-        const element = node.asElement();
-        if (element && raw?.ref) {
-          const { _node, _guard, _fullName, ...metadata } = raw;
-          options.references.retain(raw.ref, element as any, _guard, { ...metadata, name: _fullName || metadata.name }, state.generation);
-        } else await node.dispose();
-        await item.dispose();
-      }
-      await array.dispose();
+      phases.resultTransferMs=performance.now()-transferStarted;
+      const bindingStarted=performance.now();let retainedReferences=0;
+      for(const raw of data.elements){const {_node,_guard,_fullName,...metadata}=raw;if(raw.ref){references.retainMetadata(raw.ref,_guard,{...metadata,name:_fullName||metadata.name},state.generation);retainedReferences++;}}
+      phases.referenceBindingMs=performance.now()-bindingStarted;phases.retainedReferences=retainedReferences;
       return data;
-    } finally { await result.dispose(); }
+    } finally { const cleanupStarted=performance.now();await result.dispose();phases.cleanupMs=performance.now()-cleanupStarted;collectionTiming.references=references.diagnostics();collectionTiming.finishedAt=new Date().toISOString();collectionTiming.documentChanged=collectionTiming.document!==references.documentIdentity(); }
   };
   let data: any;
   try { data = await capture(); }
@@ -553,17 +564,28 @@ export async function captureSnapshot(
     ...e,
     name: e.name ? redactText(e.name) : undefined,
     text: e.text ? redactText(e.text) : undefined,
-    href: e.href ? redactText(e.href) : undefined,
+    href: e.href ? redactUrl(e.href) : undefined,
     value: e.value ? redactText(e.value) : undefined,
     selectedText: e.selectedText ? redactText(e.selectedText) : undefined,
     context: e.context ? redactText(e.context) : undefined,
   }));
 
-  return {
+  const stateStart = new Date().toISOString(), stateDocument = references?.documentIdentity();
+  const pageState = await inspectPageState(page, data.observation, options.waitMs ?? (options.query ? 0 : 3000));
+  const blocked = await detectBlock(page);
+  const stateObservation = stateDocument ? { startedAt:stateStart,finishedAt:new Date().toISOString(),document:stateDocument,documentChanged:stateDocument!==references?.documentIdentity(),simultaneousWithGraph:false as const } : undefined;
+  if (collectionTiming && (collectionTiming.documentChanged || collectionTiming.document!==references?.documentIdentity())) {
+    collectionTiming.documentChanged=true;
+    data.observation={...data.observation,complete:false,errors:[...(data.observation?.errors||[]),'document_changed_during_observation']};
+    if(data.contextGraph){data.contextGraph.scan.complete=false;data.contextGraph.gaps.push({id:'gapDocumentChange',kind:'unavailable',reason:'document-changed',parent:'n1'});}
+  }
+  const snapshot:PageSnapshot={
+    collectionTiming,stateObservation,
+    ...(data.contextGraph ? { contextGraph: sanitizeObservation({...data.contextGraph,discovery:{...data.contextGraph.discovery,hidden:data.hidden,textHits:data.textHits,collapsed:data.collapsed,omitted:data.omitted,truncated:Boolean(data.truncated),diagnostics:data.diagnostics,open:data.open,headings:data.headings,observation:data.observation}}) } : {}),
     capturedAt: new Date().toISOString(),
     observation: data.observation,
-    pageState: await inspectPageState(page, data.observation, options.waitMs ?? (options.query ? 0 : 3000)),
-    url: data.url,
+    pageState,
+    url: redactUrl(data.url),
     title: redactText(data.title),
     viewport: data.viewport,
     headings: (data.headings || []).map(redactText),
@@ -575,9 +597,10 @@ export async function captureSnapshot(
     textHits: data.textHits?.map((h: TextHit) => ({ ...h, text: redactText(h.text) })),
     collapsed: data.collapsed,
     diagnostics: data.diagnostics,
-    blocked: await detectBlock(page),
+    blocked,
     scanMs: data.scanMs,
   };
+  return snapshot;
 }
 
 export async function saveSnapshot(config: AppConfig, sessionId: string, snapshot: PageSnapshot): Promise<string> {

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "wikipedia-1",
+    "cli": 4,
+    "workCli": 4,
+    "taskMs": 22443,
+    "sumMs": 5818.1512,
+    "evals": 0,
+    "errors": 2,
+    "setupMs": 2202.5308,
+    "cleaned": true
+  },
+  {
+    "id": "ebay-1",
+    "cli": 13,
+    "workCli": 13,
+    "taskMs": 125752,
+    "sumMs": 32472.328400000002,
+    "evals": 0,
+    "errors": 0,
+    "setupMs": 2013.2096,
+    "cleaned": true
+  },
+  {
+    "id": "github-1",
+    "cli": 8,
+    "workCli": 8,
+    "taskMs": 55647,
+    "sumMs": 11625.393800000002,
+    "evals": 2,
+    "errors": 0,
+    "setupMs": 2119.8051,
+    "cleaned": true
+  },
+  {
+    "id": "mdn-1",
+    "cli": 20,
+    "workCli": 20,
+    "taskMs": 122475,
+    "sumMs": 11027.127900000001,
+    "evals": 3,
+    "errors": 1,
+    "setupMs": 1950.2052,
+    "cleaned": true
+  },
+  {
+    "id": "hn-1",
+    "cli": 6,
+    "workCli": 6,
+    "taskMs": 53172,
+    "sumMs": 7533.421,
+    "evals": 0,
+    "errors": 0,
+    "setupMs": 2084.3339,
+    "cleaned": true
+  },
+  {
+    "id": "booking-1",
+    "cli": 37,
+    "workCli": 33,
+    "taskMs": 186761,
+    "sumMs": 35491.551999999996,
+    "evals": 1,
+    "errors": 1,
+    "setupMs": 1871.4895999999999,
+    "cleaned": true
+  }
+]

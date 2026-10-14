@@ -1,0 +1,26 @@
+[
+  {
+    "id": "bestbuy-1",
+    "cli": 35,
+    "elapsedSeconds": 315.567,
+    "eval": 1,
+    "errors": 2,
+    "cleaned": true
+  },
+  {
+    "id": "walmart-1",
+    "cli": 45,
+    "elapsedSeconds": 248.867,
+    "eval": 10,
+    "errors": 3,
+    "cleaned": true
+  },
+  {
+    "id": "expedia-1",
+    "cli": 45,
+    "elapsedSeconds": 254.419,
+    "eval": 15,
+    "errors": 7,
+    "cleaned": true
+  }
+]

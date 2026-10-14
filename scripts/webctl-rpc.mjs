@@ -4,6 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { postRpc } from './rpc-transport.mjs';
+import {outputFormat} from './hwm-policy.mjs';
 
 const FALLBACK_CODE = 42;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,6 +61,7 @@ function parseLocator(flags, boolFlags) {
 
 function mapCommandToRpcBase(positionals, flags, boolFlags) {
   const [a, b, c] = positionals;
+  if(['view','expand','inspect','changes'].includes(a)&&flags.session)return {method:'observation.'+a,params:{sessionId:flags.session,observation:flags.observation,comparison:flags.comparison,target:flags.target,format:flags.format,mode:flags.mode,focus:flags.focus,nodeBudget:flags['node-budget'],textBudget:flags['text-budget'],changeBudget:flags['change-budget']}};
   if(a==='verify'&&flags.session){const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):{checks:[]};return {method:'page.verify',params:{sessionId:flags.session,input}};}
   if (a === 'request' && b === 'status' && flags.id) return { method: 'request.status', params: { requestId: flags.id } };
 
@@ -74,8 +76,9 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
   }
 
   if (a === "snapshot" && flags.session) {
-    return { method: "page.snapshot", params: { sessionId: flags.session, save: boolFlags.has("save"), query: flags.query, limit: flags.limit } };
+    return { method: "page.snapshot", params: { sessionId: flags.session, save: boolFlags.has("save"), query: flags.query, limit: flags.limit, context: boolFlags.has("context"), contextLimit: flags['context-limit'], format:flags.format } };
   }
+  if(a==='diff'&&flags.session&&flags.before){return {method:'page.diff',params:{sessionId:flags.session,before:JSON.parse(flags.before.startsWith('{')?flags.before:fs.readFileSync(flags.before,'utf8')),context:boolFlags.has('context'),format:flags.format}};}
 
   if (a === "hover" && flags.session) {
     return {
@@ -259,11 +262,14 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
 export function mapCommandToRpc(positionals, flags, boolFlags) {
   if (boolFlags.has('ref')) throw new Error('Missing --ref value. Use --ref e27, or quote the legacy value: --ref \'@e27\' (PowerShell treats bare @e27 as splatting).');
   const rpc = mapCommandToRpcBase(positionals, flags, boolFlags);
+  if(rpc&&['page.snapshot','page.diff','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(rpc.method))Object.assign(rpc.params,{mode:flags.mode,focus:flags.focus,nodeBudget:flags['node-budget'],textBudget:flags['text-budget'],changeBudget:flags['change-budget']});
+  if(rpc&&['page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(rpc.method)){rpc.params.context=boolFlags.has('context');rpc.params.format=flags.format;}
   if (rpc && flags.ref) {
     if (!['page.click','page.hover','page.fill','page.select','page.press','page.extract'].includes(rpc.method)) throw new Error('This command does not accept --ref');
     if (['role','testid','text','label','placeholder','css','nth','within'].some(k=>flags[k]!==undefined) || boolFlags.has('all')) throw new Error('Use --ref alone; references cannot be indexed, scoped, or extracted with --all');
     rpc.params.ref = flags.ref.replace(/^@(?=e\d+$)/, ''); rpc.params.locator = undefined;
   }
+  if(rpc)rpc.params.format=outputFormat(positionals[0],flags.format);
   return rpc;
 }
 
@@ -279,7 +285,8 @@ async function main() {
   }
   const response = await postRpc({endpoint:`http://127.0.0.1:${creds.port}`,token:creds.token,...rpc});
   if (response.fallbackAllowed && rpc.method !== 'request.status') process.exit(FALLBACK_CODE);
-  process.stdout.write(JSON.stringify(response.result,null,2)+'\n');
+  if(rpc.params.format==='hwm'&&typeof response.result?.hwm==='string')process.stdout.write(response.result.hwm);
+  else process.stdout.write(JSON.stringify(response.result,null,2)+'\n');
   process.exit(!response.rpcOk || response.result?.ok === false ? 1 : 0);
 }
 

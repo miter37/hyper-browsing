@@ -1,5 +1,7 @@
 # Hyper-Browsing
 
+일반 브라우징 명령은 기존 조작 요소와 본문·소속·상태·일치 근거·변화를 한 관찰 모델의 HWM 0.2로 전달합니다. JSON은 스크립트 호환 직렬화(`--format json` 또는 `WEBAGENT_OUTPUT_FORMAT=json`)이며 관리 명령과 inspect는 기본 JSON입니다. [합의 명세](docs/HWM-0.2-consent.md)와 [정보 보존표](docs/HWM-0.2-preservation.md)를 참고하세요. 현재 측정값 외의 새로운 공간 관계 계산은 후속 단계입니다.
+
 <p align="right">
   <a href="./README.md">English</a> · <strong>한국어</strong>
 </p>

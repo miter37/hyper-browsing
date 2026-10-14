@@ -1,0 +1,11 @@
+@hwm p11 version="0.2" session="s1" document="d2" url="https://example.test/find" view="focus" captured-at="2026-10-14T06:02:10Z" scan={"scope":"fixture","complete":true} collected=["accessible-name","name-source","value","expanded","open"] state="ready"
+@result x1 request="req7" execution="completed"
+@state st1 complete=true
+- e41 value="" form="g1"
+n1 document
+  g1 form
+    e41 control "Enter destination"@aria-label role="combobox" value="" expanded=false
+  g9 dialog "Sign in"@aria-label open=true
+@change c1 op="changed" before={"obs":"p10","node":"e41"} after={"obs":"p11","node":"e41"} field="value" old="New York City" new="" identity="tracked-dom-node" attribution="observed-after" request="req7"
+@change c2 op="added" after={"obs":"p11","node":"g9"} attribution="observed-after" request="req7"
+@end p11 complete

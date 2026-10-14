@@ -1,0 +1,16 @@
+@hwm p1 version="0.2" session="s1" document="d1" url="https://example.test/search" view="overview" captured-at="2026-10-14T06:00:00Z" scan={"scope":"fixture","complete":true} collected=["text","text-source","accessible-name","name-source","href"] state="ready"
+n1 document
+  g1 region tag="main"
+    h1 heading "Results" level=1
+    g2 list
+      g3 item
+        t1 text "Wireless Mouse A"
+        t2 text "$18.40"
+        t3 text "Free shipping"
+        e31 link "Details" href="/item/a"
+      g4 item
+        t4 text "Wireless Mouse B"
+        t5 text "$16.00"
+        t6 text "$8 shipping"
+        e32 link "Details" href="/item/b"
+@end p1 complete

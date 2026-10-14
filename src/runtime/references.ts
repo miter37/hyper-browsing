@@ -1,6 +1,7 @@
 import type { Page, ElementHandle, JSHandle, Locator } from "playwright";
 import type { SnapshotElement } from "./snapshot";
 import type { LocatorStrategy } from "../schema/site";
+import { randomBytes, randomUUID } from "node:crypto";
 
 export type ActionTarget = Pick<Locator, "evaluate" | "click" | "hover" | "fill" | "press" | "selectOption" | "inputValue" | "getAttribute" | "innerText" | "scrollIntoViewIfNeeded" | "isVisible" | "count">;
 export const REFERENCE_GUARD = `(el) => {
@@ -14,6 +15,9 @@ export const REFERENCE_GUARD = `(el) => {
   return JSON.stringify({tag:el.tagName,id:el.id,item:el.getAttribute('data-id'),key:el.getAttribute('data-key'),role:el.getAttribute('role'),name:el.getAttribute('aria-label'),labelled:labelled(el),href:el.getAttribute('href'),testId:el.getAttribute('data-testid'),placeholder:el.getAttribute('placeholder'),type:el.getAttribute('type'),text:/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)?null:clean(el.textContent),label:clean(el.labels?.[0]?.textContent),context});
 }`;
 let nextBlock = 1;
+// Opaque decimal epoch preserves e<digits> CLI compatibility. Never convert a ref to Number.
+// 128 random bits separate process instances; fixed widths make concatenation unambiguous.
+const referenceEpoch = BigInt('0x' + randomBytes(16).toString('hex')).toString().padStart(39, '0');
 const stores = new WeakMap<Page, ElementReferences>();
 export function normalizeReference(ref: string): string { return /^@?e\d+$/.test(ref) ? ref.replace(/^@/, '') : ref; }
 
@@ -28,42 +32,63 @@ export function targetFor(handle: ElementHandle<HTMLElement | SVGElement>): Acti
 }
 
 export class ElementReferences {
+  private readonly pageIdentity = randomUUID().replace(/-/g,'');
   private state?: JSHandle;
   private generation = 0;
-  private entries = new Map<string, { handle: ElementHandle<HTMLElement | SVGElement>; guard: string; metadata: SnapshotElement }>();
-  constructor(private page: Page) {
-    page.on("framenavigated", frame => { if (frame === page.mainFrame()) this.invalidate(); });
-    page.on("close", () => this.invalidate());
+  private entries = new Map<string, { handle?: ElementHandle<HTMLElement | SVGElement>; guard: string; metadata: SnapshotElement }>();
+  private pendingDisposals=new Set<Promise<void>>();
+  private disposalSettled=0;
+  private disposalFailed=0;
+  private lastInvalidation?:{reason:string;attempted:number;complete:boolean;elapsedMs:number|null};
+  diagnostics(){return {source:'host-registered-references' as const,registeredReferences:this.entries.size,boundHandles:[...this.entries.values()].filter(e=>e.handle).length,pendingDisposals:this.pendingDisposals.size,disposalSettled:this.disposalSettled,disposalFailed:this.disposalFailed,...(this.lastInvalidation?{lastInvalidation:{...this.lastInvalidation}}:{})};}
+  private dispose(handle:JSHandle):Promise<void>{
+    const pending=handle.dispose().catch(()=>{this.disposalFailed++;}).finally(()=>{this.disposalSettled++;this.pendingDisposals.delete(pending);});
+    this.pendingDisposals.add(pending);return pending;
   }
-  private invalidate() {
+  documentIdentity(): string { return `d${this.pageIdentity}_${this.generation}`; }
+  constructor(private page: Page) {
+    page.on("framenavigated", frame => { if (frame === page.mainFrame()) this.invalidate('navigation'); });
+    page.on("close", () => this.invalidate('close'));
+  }
+  private invalidate(reason:string) {
+    const started=performance.now(),pending:Promise<void>[]=[];
     this.generation++;
-    for (const entry of this.entries.values()) void entry.handle.dispose().catch(() => {});
+    for (const entry of this.entries.values()) if(entry.handle)pending.push(this.dispose(entry.handle));
     this.entries.clear();
-    if (this.state) void this.state.dispose().catch(() => {});
+    if (this.state) pending.push(this.dispose(this.state));
     this.state = undefined;
+    const event={reason,attempted:pending.length,complete:false,elapsedMs:null as number|null};this.lastInvalidation=event;
+    void Promise.all(pending).then(()=>{event.complete=true;event.elapsedMs=performance.now()-started;});
   }
   async snapshotState() {
     const generation = this.generation;
     if (!this.state) {
       const base = nextBlock; nextBlock += 1_000_000;
-      const state = await this.page.evaluateHandle(base => ({ ids: new WeakMap(), next: base, max: base + 999999 }), base);
-      if (generation !== this.generation) { await state.dispose(); throw new Error("Snapshot document changed; observe again"); }
+      if (!Number.isSafeInteger(base + 999999)) throw new Error('Reference block capacity reached');
+      const state = await this.page.evaluateHandle(({ base, epoch }) => ({ ids: new WeakMap(), targets:new Map(), next: base, max: base + 999999, epoch, observedIds: new WeakMap(), observedNext: 1 }), { base, epoch: referenceEpoch });
+      if (generation !== this.generation) { await this.dispose(state); throw new Error("Snapshot document changed; observe again"); }
       this.state = state;
     }
     return { state: this.state, generation };
   }
   retain(ref: string, handle: ElementHandle<HTMLElement | SVGElement>, guard: string, metadata: SnapshotElement, generation: number) {
     ref = normalizeReference(ref);
-    if (generation !== this.generation) { void handle.dispose(); return; }
+    if (generation !== this.generation) { void this.dispose(handle); return; }
     const old = this.entries.get(ref);
-    if (old) void old.handle.dispose().catch(() => {});
+    if (old?.handle) void this.dispose(old.handle);
     this.entries.delete(ref);
     this.entries.set(ref, { handle, guard, metadata });
     // Bound live handles without recycling IDs or resolving evicted references heuristically.
     while (this.entries.size > 1200) {
       const oldest = this.entries.keys().next().value!;
-      void this.entries.get(oldest)!.handle.dispose().catch(() => {}); this.entries.delete(oldest);
+      const handle=this.entries.get(oldest)!.handle;if(handle)void this.dispose(handle); this.entries.delete(oldest);
     }
+  }
+  retainMetadata(ref:string,guard:string,metadata:SnapshotElement,generation:number){
+    if(generation!==this.generation)return;
+    ref=normalizeReference(ref);const old=this.entries.get(ref);if(old?.handle)void this.dispose(old.handle);
+    this.entries.delete(ref);this.entries.set(ref,{guard,metadata});
+    while(this.entries.size>1200){const id=this.entries.keys().next().value!,entry=this.entries.get(id)!;if(entry.handle)void this.dispose(entry.handle);this.entries.delete(id);}
   }
   metadata(ref: string): SnapshotElement | undefined { return this.entries.get(normalizeReference(ref))?.metadata; }
   semanticLocator(ref: string): LocatorStrategy | undefined {
@@ -81,8 +106,15 @@ export class ElementReferences {
     const entry = this.entries.get(ref);
     const stale = { ok: false as const, reason: "stale_ref" as const, execution: "not_started" as const, hint: "The observed element is no longer valid. Take a fresh snapshot; do not substitute a similar element." };
     if (!entry) return stale;
+    if(!entry.handle){
+      const generation=this.generation,state=this.state;if(!state)return stale;
+      const node=await state.evaluateHandle((s:any,id:string)=>s.targets.get(id)?.deref()??null,ref).catch(()=>null);
+      const handle=node?.asElement();
+      if(!handle||generation!==this.generation||this.entries.get(ref)!==entry){if(node)await this.dispose(node);return stale;}
+      entry.handle=handle as ElementHandle<HTMLElement|SVGElement>;
+    }
     const valid = await entry.handle.evaluate((el, guard) => el.isConnected ? eval(`(${guard})`)(el) : null, REFERENCE_GUARD).catch(() => null);
-    if (valid !== entry.guard) { this.entries.delete(ref); await entry.handle.dispose().catch(() => {}); return stale; }
+    if (valid !== entry.guard) { this.entries.delete(ref); await this.dispose(entry.handle); return stale; }
     return { locator: targetFor(entry.handle), resolvedBy: "reference" };
   }
 }

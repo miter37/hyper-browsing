@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-14T12:20:05.135Z",
+  "rows": [
+    {
+      "site": "bestbuy",
+      "completed": 0,
+      "checkpoints": 4,
+      "totalCli": 6,
+      "workCli": 3,
+      "eval": 0,
+      "errors": 1,
+      "elapsedWorkMs": 28918,
+      "commandMs": 23398.769200000002,
+      "headed": false,
+      "cleaned": true
+    },
+    {
+      "site": "walmart",
+      "completed": 0,
+      "checkpoints": 4,
+      "totalCli": 4,
+      "workCli": 3,
+      "eval": 0,
+      "errors": 1,
+      "elapsedWorkMs": 55394,
+      "commandMs": 24220.5184,
+      "headed": true,
+      "cleaned": true
+    },
+    {
+      "site": "expedia",
+      "completed": 0,
+      "checkpoints": 4,
+      "totalCli": 8,
+      "workCli": 8,
+      "eval": 0,
+      "errors": 0,
+      "elapsedWorkMs": 67946,
+      "commandMs": 22813.917299999997,
+      "headed": true,
+      "cleaned": true
+    }
+  ]
+}

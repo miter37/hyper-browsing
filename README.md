@@ -1,5 +1,7 @@
 # Hyper-Browsing
 
+Browser commands now deliver HWM 0.2: existing controls, prose, containment, state, matching evidence and changes from one observation model. JSON remains the script-compatible serialization (`--format json` or `WEBAGENT_OUTPUT_FORMAT=json`); administrative commands and `inspect` retain JSON defaults. See [the contract](docs/HWM-0.2-consent.md) and [preservation map](docs/HWM-0.2-preservation.md). New spatial calculations beyond the current measurements remain planned.
+
 <p align="right">
   <strong>English</strong> · <a href="./README.ko.md">한국어</a>
 </p>
