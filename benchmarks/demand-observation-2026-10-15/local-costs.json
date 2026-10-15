@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-15T01:35:11.380Z",
+  "scope": "three deterministic local read fixtures, same completion evidence; not LLM/live success-rate proof",
+  "baseline": "HB control-only snapshot plus actual HB extract; no HWM graph, pretty JSON",
+  "current": "HB map + scoped read, compact JSON, includes delivery envelope",
+  "rows": [
+    {
+      "task": "second item text",
+      "legacyBytes": 32929,
+      "nativeBytes": 2034,
+      "legacyCalls": 2,
+      "nativeCalls": 2,
+      "legacyMs": 131,
+      "nativeMs": 30,
+      "completed": true
+    },
+    {
+      "task": "find named paragraph text",
+      "legacyBytes": 29727,
+      "nativeBytes": 1509,
+      "legacyCalls": 2,
+      "nativeCalls": 2,
+      "legacyMs": 59,
+      "nativeMs": 55,
+      "completed": true
+    },
+    {
+      "task": "current named input value",
+      "legacyBytes": 20086,
+      "nativeBytes": 1379,
+      "legacyCalls": 2,
+      "nativeCalls": 2,
+      "legacyMs": 72,
+      "nativeMs": 58,
+      "completed": true
+    }
+  ],
+  "medianReduction": 0.9382307388624009
+}

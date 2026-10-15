@@ -176,13 +176,19 @@ webctl verify --session ID --input-file checks.json
 최대 20개 명시 조건, 전체 기본 5초. 조건별 기대값·관찰값과 APPLIED/NOT_APPLIED/UNKNOWN을 반환한다. 실행이나 자산 저장은 하지 않는다. 입력 형식과 예시는 [VERIFICATION.md](VERIFICATION.md). 기존 @e27 참조를 PowerShell에 직접 전달할 때는 `--ref '@e27'`처럼 감싼다.
 ## HWM 0.2 관찰 그래프 (단계 1A)
 
-`webctl snapshot --session ID`는 기존 조작 요소와 본문·소속·관계를 같은 관찰에서 수집해 HWM으로 전달한다. `--format json` 또는 `WEBAGENT_OUTPUT_FORMAT=json`은 스크립트 호환 JSON과 contextGraph를 반환한다. `--context-limit N`은 본문 수집 soft 한도(기본 2000, 하드 최대 6000)다. 선택된 실행 요소와 조상·주변 내용은 한도보다 우선한다. `--limit`은 기존 컨트롤 목록 한도다.
+`webctl snapshot --session ID`의 기본 출력은 가벼운 패널 지도(hb, compact JSON)다. 전체 본문 그래프를 만들지 않는다. `read --map MAP --panel PANEL --want controls|content|state`로 필요한 범위만 새로 읽으며 want는 쉼표로 묶을 수 있다. `--query TEXT`, `--item N`, `--target N…또는발급된e…`, `--offset N`, `--limit N`, `--text-limit N`, `--byte-budget N`으로 범위를 지정한다. 실행 ref target도 같은 패널 포함 여부와 기존 guard를 검증하며 open shadow host 경로를 포함한다. 마지막 실제 수신 delivery를 `--since DELIVERY`로 넘기면 이미 전달한 필드는 생략하며, `--consumer`로 수신자를 구별할 수 있다. since가 없으면 요청 범위를 자체 완결적으로 반환한다. `--repeat`는 의도적 재전달이다. `explain --map MAP --panel PANEL`은 같은 영역을 현재 DOM에서 읽어 HWM 상세를 제공하며, 예산을 넘으면 같은 저장 그래프의 노드 수를 줄여 정상 접힘 문법으로 맞춘다. 최소 투영도 맞지 않을 때만 detail_budget_exceeded를 반환한다.
+
+질의 read의 match는 실제 일치 필드, hint/hintSource는 주변 문구의 파생 근거다. 이름 없는 컨트롤의 viewportBox는 뷰포트 CSS 픽셀 [x,y,width,height]다. redacted에 href가 있으면 출력 링크가 마스킹되었다는 뜻이다. aria-hidden은 접근성 선언이며 rendering은 관찰한 CSS 사실로, 시각적 가림이나 과업 성공을 대신 판정하지 않는다. 이어 읽기 offset은 같은 want/query/item/target 집합에서만 사용한다.
+
+명시적인 `--format hwm` snapshot은 기존 상세 관찰이고, `--format json` 또는 `WEBAGENT_OUTPUT_FORMAT=json`은 기존 스크립트 호환 JSON과 contextGraph를 반환한다. 이 두 상세 경로의 `--context-limit N`은 본문 수집 soft 한도(기본2000, 하드6000), `--limit`은 기존 컨트롤 한도다. hb 지도에는 적용되지 않는다. 새 read의 coverage.complete는 현재 요청 범위의 완결성, nextOffset은 추가 조회 위치, 문자열 Truncated/Length는 잘림 정보다. P…/N…는 읽기용, e…만 실행 참조다.
+
+N… 읽기 대상도 발급 시점의 구조 식별 경계(id/data-key/data-id/href/role/type 및 조상)를 검증한다. 같은 DOM 객체가 다른 항목으로 재사용되면 옛 대상은 read_target_not_found로 거부하며 새 관찰은 새 N…을 발급한다. 본문·값의 단순 변경은 별개의 항목이라고 추정하지 않는다. 이 별칭은 실제 DOM 동일성을 추적하는 그래프 tracking.id와 별도이며, 전역·영구 식별자로 저장하지 않는다. content 차분에서 사라진 이름/접근성 선언 등 이미 전달한 선택 필드는 unavailableFields로 철회한다. 첫 지도 URL도 공통 마스킹을 거치며 마스킹한 경우 redacted:["url"]을 표시한다.
 
 본문과 조작 요소의 조상·순서, 명시적 레이블/폼/ARIA 연결, 검색 `matches`의 일치 필드, 누락 `gaps`를 함께 제공한다. 프레임 내부는 이 단계에서 아직 수집하지 않고 `frame-not-scanned`로 표시한다. 조작 가능한 참조는 기존 요소 참조 계층에서 발급한 것만 연결한다.
 
-기본 형식은 HWM, 기본 투영은 overview다. full/focus/view/expand/inspect는 같은 관찰의 상세 조회이며 별도 브라우징 방식이 아니다. `--save`는 마스킹된 snapshot JSON과 그래프를 저장한다. 관리 명령과 inspect는 기본 JSON을 유지한다.
+기본 형식은 hb 지도/범위 응답이다. 명시 HWM의 기본 투영은 overview이며 full/focus/view/expand/inspect는 상세 경로다. 명시 JSON/HWM snapshot의 --save는 마스킹된 snapshot JSON과 그래프를 저장한다. hb map은 전체 그래프 파일 저장을 하지 않는다. 관리 명령과 inspect는 기본 JSON을 유지한다.
 
-overview/focus에서 raw box/space는 full/inspect 상세로 옮기고 detail-projection으로 축약을 선언한다. 기본 view(inside/outside/partial)와 layout-boundary는 유지한다. 정본 노드에 actionRef가 없으면 snapshot --query 또는 기존 --role/--name/--label/--within으로 선택할 수 있다. 정본 ID를 --ref로 실행하지 않는다. session open 결과의 세션 키는 id다.
+overview/focus에서 raw box/space는 full/inspect 상세로 옮기고 detail-projection으로 축약을 선언한다. 기본 view(inside/outside/partial)와 layout-boundary는 유지한다. 정본 노드에 actionRef가 없으면 기본 모드에서 read --map MAP --panel PANEL --want controls --query TEXT 또는 기존 --role/--name/--label/--within으로 선택할 수 있다. 정본 ID를 --ref로 실행하지 않는다. session open 결과의 세션 키는 id다.
 
 그래프 수집 시점은 `collectionTiming`, 후속 페이지 상태/차단 진단은 `stateObservation`으로 구분된다. 중간 문서 교체는 부분 관찰로 표시한다. 같은 문서라는 사실이 두 시점의 DOM이 동일함을 보장하지 않는다.
 
@@ -203,7 +209,7 @@ webctl batch --session ID --input-file batch.json --format hwm
 webctl diff --session ID --before saved-snapshot.json --format hwm
 ```
 
-click/hover/fill/select/press/batch의 기본 HWM은 보관된 최근 관찰과 조작 후 대상 주변 관찰(limit=24, context-limit=800)을 비교해 @result/@change를 전달한다. 명령은 한 번만 실행한다. 이전 관찰이 없거나 만료되면 no-prior-observation이며 즉각적인 실행 전 상태를 지어내지 않는다. 명시 `--context`는 상세 전후 관찰을 요청한다. `--format json --context`에서는 snapshot.contextGraph와 changes로 같은 근거를 조회한다.
+click/hover/fill/select/press/batch의 기본 hb는 기존 실행 계층의 결과/effect와 delivery만 반환한다. 전체 조작 후 그래프를 추가 생성하지 않는다. since는 이전 실제 수신 기준이며 다른 영역이 그대로라는 보장은 아니다. 실행은 한 번만 한다. 명시 --format hwm은 기존 보관 관찰과 대상 주변 관찰(limit24/context-limit800)의 @result/@change 상세를 유지한다. 이전 관찰이 없으면 no-prior-observation이다. --format json --context는 상세 snapshot.contextGraph와 changes를 제공한다.
 
 diff의 `--before`에는 `snapshot --context --save`로 저장한 JSON 파일 또는 snapshot/contextGraph를 포함하는 명령 결과 JSON을 넣는다. HWM 텍스트를 입력 파일로 넣는 기능은 아니다. diff는 현재 화면을 읽으며 조작을 실행하지 않는다. 문서 식별이 달라지면 별도 사건으로 남기고 실제 문서 교체 여부는 미확정으로 표시한다.
 
@@ -214,7 +220,7 @@ diff의 `--before`에는 `snapshot --context --save`로 저장한 JSON 파일 �
 ```text
 webctl snapshot --session ID --format hwm --mode overview --node-budget 120 --text-budget 240
 webctl view --session ID --observation OBS --format hwm --mode focus --focus REF
-webctl expand --session ID --observation OBS --target NODE_OR_GAP --format hwm
+webctl expand --session ID --observation OBS --target NODE_OR_GAP --format hwm --node-budget 80 --text-budget 160
 webctl inspect --session ID --observation OBS --target NODE
 webctl changes --session ID --comparison CMP --format hwm --change-budget 40
 webctl expand --session ID --comparison CMP --target CHANGE_GAP --format hwm
@@ -222,13 +228,19 @@ webctl expand --session ID --comparison CMP --target CHANGE_GAP --format hwm
 
 OBS는 @hwm 관찰 ID 또는 contextGraph.observation, CMP는 조작/diff 결과의 comparison 또는 HWM 헤더 retention.comparison이다. JSON 명령에서 반환되는 observation도 같은 ID다. 펼침 대상은 노드의 정본 ID, 발급된 actionRef, 또는 @gap의 expand 값이다. inspect는 저장된 정본 노드/원래 조상/연결/누락을 JSON으로 반환한다. view/expand/changes는 --format hwm일 때 HWM, 그 외에는 동일 투영 AST를 JSON의 view로 반환한다.
 
+노드·제목·노드 gap의 expand에 --node-budget/--text-budget을 지정할 수 있다. 같은 저장 관찰을 범위 안에서 투영하며 브라우저를 재조회하지 않는다. 필수 조상·관계 때문에 노드 예산은 soft이고, 문자열 예산은 주 문자열에 적용된다. 남은 내용은 folded로 표시한다. 예산을 생략하면 기존 상세 펼침 기본값(노드 6000, 주 문자열 자르지 않음)을 유지한다. 원본 관찰과 inspect 내용은 변경하지 않는다.
+
+eval은 기본 hb에서 식의 원래 결과를 compact JSON으로 반환한다. 명시 HWM은 scope="eval-expression"과 최대240 code point 식 안내를 제공한다. 더 길면 expressionTruncated/expressionLength/expressionLengthUnit을 표시하며 결과 value는 이 안내 예산으로 자르지 않는다. --format json은 기존 원래 결과의 호환 직렬화를 유지한다.
+
+`close --session ID`와 `close --all`은 각각 session close의 별칭이다. 두 CLI에서 같으며, --all은 본래 명시된 모든 탭 닫기와 같은 동작이다. session open의 navigationError가 있는 경우 실패한 문서의 DOM을 ready 근거로 삼지 않고 기존 navigation_error 상태와 첫 줄 오류를 제공한다.
+
 원시 수집 gap(unobserved/unavailable/redacted)은 저장된 내용 접기가 아니다. `expand`에 원시 gap ID를 넘기면 `observation_gap_not_expandable`이다. `kind=folded`의 실제 `expand` 값만 접힌 내용을 조회하는 핸들이다.
 
 보관 거절 시에는 `retention={ok:false,reason:...}`로 이유를 제공하고, 요청한 overview/focus와 문자열 예산을 유지한다. 저장되지 못한 숨김 내용은 `kind=unavailable`, `collected=true`, 보관 거절 reason, 원래 `omission-reason`을 표시하며 expand 핸들을 제공하지 않는다. 이는 수집하지 않은 내용과도 다르다. 거절 기록은 관찰 수 상한/TTL 안에서만 보관하며 해당 기간의 조회는 `observation_too_large`/`observation_store_full`을 반환한다. 기록까지 만료·퇴출되면 `observation_expired`이고 현재 화면으로 대체하지 않는다.
 
 기존 `list`의 제목·본문 발췌에는 `titleTruncated/textTruncated`, 원문 및 표시 길이(`titleLength/titleShown`, `textLength/textShown`)와 `lengthUnit=unicode-code-point`를 붙인다. 잘린 발췌에 문구가 없다는 이유로 전체 항목에 없다고 판단하지 않는다. 전체 내용을 확인하려면 HWM의 해당 항목을 펼치거나 새 관찰을 요청한다.
 
-명시 full은 수집 범위 전체를 표시한다. overview는 주요 구조와 요소의 항목/문단 맥락을 예산 안에서 선택하고 나머지를 접는다. focus는 대상의 항목/문단/폼 맥락, 원래 조상, 명시 연결의 외부 종점·레이블과 렌더링된 dialog 선언을 보존한다. dialog를 실제 가림 요소라고 단정하지 않는다. 필수 조상·관계 폐쇄로 node-budget을 초과할 수 있으며 projection-budget에 표시한다. 기본 노드 예산은 120, overview/focus 문자열 예산은 Unicode code point 240개다. full은 별도 문자열 예산을 주지 않으면 자르지 않는다. 기본 형식/모드는 HWM/overview다. node-budget을 지정하지 않은 일반 관찰은 선택된 기존 실행 요소와 조상/항목 맥락을 우선 유지한다.
+명시 full은 수집 범위 전체를 표시한다. overview는 주요 구조와 요소의 항목/문단 맥락을 예산 안에서 선택하고 나머지를 접는다. focus는 대상의 항목/문단/폼 맥락, 원래 조상, 명시 연결의 외부 종점·레이블과 렌더링된 dialog 선언을 보존한다. dialog를 실제 가림 요소라고 단정하지 않는다. 필수 조상·관계 폐쇄로 node-budget을 초과할 수 있으며 projection-budget에 표시한다. 기본 노드 예산은 120, overview/focus 문자열 예산은 Unicode code point 240개다. full은 별도 문자열 예산을 주지 않으면 자르지 않는다. 명시 HWM의 기본 모드는 overview다. 일반 명령 기본은 hb 지도/범위 응답이다. node-budget을 지정하지 않은 일반 관찰은 선택된 기존 실행 요소와 조상/항목 맥락을 우선 유지한다.
 
 단일 자식의 정보 없는 div/span 래퍼만 뷰에서 축약한다. via에는 원래 조상 ID를 남기며 inspect로 보존된 정보를 읽을 수 있다. 분기·이름·상태·실행·연결·개요·스크롤·gap 경계는 축약하지 않는다. 반복 구조 표시는 observed-tree-shape-v1의 kind/tag/role/속성 이름/자식 구조에 따른 사실이며 내용·값이 같다는 뜻이 아니다. 접은 항목의 원문·상태는 저장 그래프에서 펼친다.
 
@@ -236,4 +248,6 @@ OBS는 @hwm 관찰 ID 또는 contextGraph.observation, CMP는 조작/diff 결과
 
 관찰/비교의 조회 유효기간은 저장 시점부터 5분이며 접근으로 연장하지 않는다. 기본 관찰 32개, 비교 32개, 공용 직렬화 예산 16MiB, 단일 항목 2MiB이며 FIFO로 퇴출한다. 프로젝트 계획은 최대 32개/4MiB로 별도 제한한다. 이 수치는 해당 보관 계층의 직렬화 예산으로 전체 Node/Chrome 메모리 한도가 아니다. 만료 데이터는 읽기/쓰기 시 정리한다. 조회 불가 시 observation_expired, comparison_expired 또는 projection_expired이며 현재 브라우저를 재조회하지 않는다. session close는 해당 보관을 지운다. 과거 ref의 실행 유효성과 저장 관찰의 조회 유효기간은 별개다.
 
-@gap scope=nodes에는 원래 roots/order 범위와 누락한 노드/항목 개수가, scope=field에는 필드·잘린 code point 개수가 나온다. expand는 조회 가능한 gap ID다. scope=changes에는 보유 변화 목록의 완결성과 이전/이후 관찰 완결성을 따로 표시하며, 원래 비교의 변화 ID 범위를 보관한다. 부분 관찰의 누락을 실제 삭제로 바꾸지 않는다. 만료·퇴출 후에는 옛 관찰을 새 화면으로 대체하지 않는다.
+@gap scope=nodes에는 원래 roots/order 범위와 누락한 노드/항목 개수가, scope=field에는 필드·잘린 code point 개수가 나온다. 큰 roots 목록은 overview/focus에서 order-bounds(원래 형제 인덱스의 최소/최대, 연속 범위 보장 아님)와 roots-detail="expand"로 접는다. expand는 정확한 노드/소속/순서를 같은 관찰에서 복구하는 gap ID다. scope=changes에는 보유 변화 목록의 완결성과 이전/이후 관찰 완결성을 따로 표시하며, 원래 비교의 변화 ID 범위를 보관한다. 부분 관찰의 누락을 실제 삭제로 바꾸지 않는다. 만료·퇴출 후에는 옛 관찰을 새 화면으로 대체하지 않는다.
+
+overview/focus의 전역 @links 색인은 최대 12개 목적지/항목 JSON 4096 bytes의 안내 예산으로 투영하며 중복 목적지를 먼저 예약한다. 각 노드 href와 개별 실행 ref는 유지한다. index-complete=false는 저장 관찰의 색인 중 일부만 출력했다는 뜻이고, complete는 원래 수집 범위의 완결성이므로 별개다. 접힌 scope=links gap은 생략한 색인 항목/참조 수와 expand를 제공한다. 펼치면 같은 관찰의 전체 색인을 반환한다(추가 출력 비용 있음). full은 색인을 접지 않는다. repeated-shapes의 상세 구조 해시/단일 항목 그룹과 성능 phases/references는 기본 출력에서 상세 축약하며 detail-sections에 경로를 표시한다. 수집 시 문서 교체/시점 불일치 근거, 본문·소속·상태·위치 경계는 유지한다.

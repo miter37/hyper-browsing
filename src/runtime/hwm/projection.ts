@@ -2,14 +2,18 @@ import { createHash } from 'node:crypto';
 import type { ObservationGraph } from './observation';
 import type { HwmView, NodeLine, RecordLine, Json } from './view';
 export interface ProjectionOptions {mode?:'full'|'overview'|'focus';focus?:string;nodeBudget?:number;textBudget?:number;changeBudget?:number;comparisonId?:string;focusNodes?:string[];changeIds?:string[];exact?:boolean}
-export interface Fold {nodes?:string[];field?:string;changes?:string[]}
+export interface Fold {nodes?:string[];field?:string;changes?:string[];links?:boolean}
 /** Pure projection over one frozen graph. Defaults preserve the old full tree. */
 export function projectView(original:HwmView,graph:ObservationGraph,options:ProjectionOptions={}){
  const view=structuredClone(original),mode=options.mode??'full',budget=options.nodeBudget??120,textBudget=options.textBudget??(mode==='full'?Number.MAX_SAFE_INTEGER:240);
  for(const n of [budget,textBudget,options.changeBudget??40])if(!Number.isSafeInteger(n)||n<1)throw new Error('Projection budgets must be positive integers');
  const token='v'+createHash('sha256').update(JSON.stringify([mode,options.focus??null,budget,textBudget,options.changeBudget??null,options.comparisonId??null,options.focusNodes??null,options.changeIds??null,options.exact??false])).digest('hex').slice(0,16);
  view.header.view=mode;view.header['projection-id']=token;
- if(mode!=='full')view.header['detail-projection']='raw-geometry-in-full-or-inspect';
+ if(mode!=='full'){
+  view.header['detail-projection']='raw-geometry-in-full-or-inspect';
+  view.header['detail-sections']={full:['structure-shapes','diagnostics'],expand:['folded-ranges','links']};
+  const timing=view.header['collection-timing'];if(timing&&typeof timing==='object'&&!Array.isArray(timing)){delete timing.phases;delete timing.references;}
+ }
  const aliases=new Map(graph.nodes.map(n=>[n.id,n.actionRef??n.id])),byId=new Map(graph.nodes.map(n=>[n.id,n])),reverse=new Map([...aliases].map(([id,ref])=>[ref,id]));
  const resolve=(ref:string)=>byId.has(ref)?ref:reverse.get(ref.replace(/^@(?=e\d+$)/,''));
  const descendants=(id:string)=>graph.nodes.filter(n=>{let p:string|null=n.id;while(p){if(p===id)return true;p=byId.get(p)?.parent??null;}return false;}).map(n=>n.id);
@@ -54,11 +58,12 @@ export function projectView(original:HwmView,graph:ObservationGraph,options:Proj
  const gap=(attrs:Record<string,Json>,fold:Fold)=>{const id='f'+token+'_'+(++ordinal);folds[id]=fold;gaps.push({type:'record',tag:'gap',id,attrs:{kind:'folded',...attrs,expand:id},items:[]});return id;};
  const omitted=new Map<string,string[]>();for(const n of graph.nodes)if(!selected.has(n.id)){let parent=n.parent;while(parent&&(!selected.has(parent)||collapsed.has(parent)))parent=byId.get(parent)?.parent??null;const owner=parent??graph.nodes[0].id;omitted.set(owner,[...(omitted.get(owner)??[]),n.id]);}
  for(const [parent,ids]of omitted){const omittedSet=new Set(ids),roots=ids.filter(id=>!omittedSet.has(byId.get(id)?.parent??''));const hash=roots.length?shapes.get(roots[0]):undefined;const sample=(children.get(parent)??[]).find(id=>selected.has(id)&&shapes.get(id)===hash);const uniform=sample&&roots.every(id=>byId.get(id)?.parent===parent&&shapes.get(id)===hash);
-  const id=gap({scope:'nodes',reason:uniform?'repeated-shape':'view-budget',parent:aliases.get(parent)!,...(uniform?{sample:aliases.get(sample!),rule:'observed-tree-shape-v1'}:{}),range:{roots:roots.map(id=>({node:aliases.get(id)!,order:byId.get(id)!.order})),'roots-complete':true},nodes:{min:ids.length,exact:true},items:{min:roots.length,exact:true},'source-observation':graph.observation,expand:token},{nodes:ids});for(const node of ids)foldedTargets[aliases.get(node)!]=id;}
+  const range:Record<string,Json>=mode!=='full'&&roots.length>8?{'order-bounds':{min:Math.min(...roots.map(id=>byId.get(id)!.order)),max:Math.max(...roots.map(id=>byId.get(id)!.order))},'order-scope':'original-sibling-index','roots-detail':'expand'}:{roots:roots.map(id=>({node:aliases.get(id)!,order:byId.get(id)!.order})),'roots-complete':true};
+  const id=gap({scope:'nodes',reason:uniform?'repeated-shape':'view-budget',parent:aliases.get(parent)!,...(uniform?{sample:aliases.get(sample!),rule:'observed-tree-shape-v1'}:{}),range,nodes:{min:ids.length,exact:true},items:{min:roots.length,exact:true},'source-observation':graph.observation,expand:token},{nodes:ids});for(const node of ids)foldedTargets[aliases.get(node)!]=id;}
  const nodes:NodeLine[]=[];const depths=new Map<string,number>();for(const line of view.entries.filter((e):e is NodeLine=>e.type==='node')){
   const id=reverse.get(line.id)!;if(!selected.has(id)||collapsed.has(id))continue;let parent=byId.get(id)?.parent??null;const via:string[]=[];while(parent&&collapsed.has(parent)){via.push(aliases.get(parent)!);parent=byId.get(parent)?.parent??null;}
   line.parent=parent?aliases.get(parent)!:null;line.depth=line.parent?(depths.get(line.parent)??0)+1:0;depths.set(line.id,line.depth);if(via.length)line.attrs.via=via;
-  if(repeated.has(id))line.attrs['repeated-shapes']={rule:'observed-tree-shape-v1','source-scan-complete':graph.scan.complete,groups:[...repeated.get(id)!].map(([shape,ids])=>({shape,sample:aliases.get(ids[0])!,items:{min:ids.length,exact:true}}))};
+  if(repeated.has(id))line.attrs['repeated-shapes']={rule:'observed-tree-shape-v1','source-scan-complete':graph.scan.complete,groups:[...repeated.get(id)!].filter(([,ids])=>mode==='full'||ids.length>1).map(([shape,ids])=>({... (mode==='full'?{shape}:{}),sample:aliases.get(ids[0])!,items:{min:ids.length,exact:true}}))};
   if(line.primary){const points=Array.from(line.primary.value);if(points.length>textBudget){line.primary.value=points.slice(0,textBudget).join('');const field=['heading','paragraph','text'].includes(line.kind)?'text':'accessible-name';line.attrs['primary-length']=points.length;line.attrs['primary-shown']=textBudget;line.attrs['primary-length-unit']='unicode-code-point';gap({scope:'field',reason:'string-budget',node:line.id,parent:line.id,field,chars:{min:points.length-textBudget,exact:true},unit:'unicode-code-point','source-observation':graph.observation,expand:token},{nodes:[id],field});}}
   if(mode!=='full'){delete line.attrs.box;delete line.attrs.space;}
   nodes.push(line);
@@ -69,13 +74,27 @@ export function projectView(original:HwmView,graph:ObservationGraph,options:Proj
   let href=n.attrs.href,basis='resolved-url';try{href=new URL(href,graph.url).href;}catch{basis='raw-href';}links.set(href,{refs:[...(links.get(href)?.refs??[]),aliases.get(n.id)!],basis});
  }
  const index:RecordLine={type:'record',tag:'links',id:'lDestinations',attrs:{rule:'url-resolution-v1',complete:graph.scan.complete,scope:'observed-nodes'},items:[...[...links].sort(([a],[b])=>a<b?-1:a>b?1:0).map(([href,{refs,basis}])=>({ref:href,literal:true,attrs:{refs,total:{min:refs.length,exact:true},'refs-complete':true,basis}})),...redacted]};
+ let linkFold=false;
+ if(mode!=='full'&&index.items.length){
+  const all=index.items,chosen=new Set<RecordLine['items'][number]>();let used=0;
+  // Destination duplicates are useful disambiguation evidence. Keep a bounded
+  // index, never merge action targets, and leave every shown node's href intact.
+  for(const item of [...all.filter(i=>(i.attrs.refs as Json[]).length>1),...all.filter(i=>(i.attrs.refs as Json[]).length===1)]){
+   const size=Buffer.byteLength(JSON.stringify(item));if(chosen.size<12&&used+size<=4096){chosen.add(item);used+=size;}
+  }
+  index.items=all.filter(item=>chosen.has(item));linkFold=index.items.length<all.length;
+  index.attrs['index-complete']=!linkFold;
+  if(linkFold){const hidden=all.filter(item=>!chosen.has(item));index.attrs.destinations={min:all.length,exact:true};
+   gap({scope:'links',reason:'view-budget',parent:aliases.get(graph.nodes[0].id)!,destinations:{min:hidden.length,exact:true},references:{min:hidden.reduce((n,item)=>n+(item.attrs.refs as Json[]).length,0),exact:true},'source-observation':graph.observation,detail:'full-index'},{links:true});
+  }
+ }else index.attrs['index-complete']=true;
  const records=view.entries.filter((e):e is RecordLine=>e.type==='record');let changes=records.filter(e=>e.tag==='change');
  if(options.changeIds)changes=changes.filter(e=>options.changeIds!.includes(e.id));
  else if(options.comparisonId&&changes.length>(options.changeBudget??40)){
   const hidden=changes.slice(options.changeBudget??40),counts:Record<string,Json>={};for(const c of hidden){const op=String(c.attrs.op);const prior=counts[op] as {min:number;exact:boolean}|undefined;counts[op]={min:(prior?.min??0)+1,exact:true};}
   gap({scope:'changes',reason:'change-budget',comparison:options.comparisonId,'changes-complete':true,'before-scan-complete':Boolean(view.header['before-scan-complete']),'after-scan-complete':graph.scan.complete,total:{min:hidden.length,exact:true},counts,range:{first:hidden[0].id,last:hidden.at(-1)!.id},expand:token,attribution:'observed-after'},{changes:hidden.map(e=>e.id)});changes=changes.slice(0,options.changeBudget??40);
  }
- view.entries=[...records.filter(e=>['result','state','outline'].includes(e.tag)),...nodes,...records.filter(e=>['edge','candidates'].includes(e.tag)),...(index.items.length?[index]:[]),...records.filter(e=>e.tag==='gap'),...gaps,...changes];
+ view.entries=[...records.filter(e=>['result','state','outline'].includes(e.tag)),...nodes,...records.filter(e=>['edge','candidates'].includes(e.tag)),...(index.items.length||linkFold?[index]:[]),...records.filter(e=>e.tag==='gap'),...gaps,...changes];
  view.header['projection-budget']={requested:budget,shown:nodes.length,closureMayExceed:true};
  return {view,folds,foldedTargets,projection:token};
 }

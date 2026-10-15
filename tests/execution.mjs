@@ -26,6 +26,17 @@ async function fixture(t, html='<h1>Example</h1>') {
   t.after(async()=>{await browser.close();await fs.rm(root,{recursive:true,force:true});});
   return {c,page};
 }
+
+test('a small intercepted target reports its hit-test layer and visible controls without dismissing it',async t=>{
+ const {page}=await fixture(t,'<button id="target" style="position:absolute;left:30px;top:30px;width:120px;height:40px" onclick="window.didClick=true">Show details</button><section role="dialog" aria-label="Notice" style="position:fixed;left:10px;top:10px;width:280px;height:150px;background:white;z-index:9"><p>Read this notice</p><button aria-label="Dismiss notice" onclick="this.parentElement.remove()">X</button><textarea autocomplete="one-time-code" style="position:absolute;top:90px">SENSITIVE_DRAFT_ABC</textarea></section>');
+ const result=await executePrimitive(page,'click',{locator:{role:'button',name:'Show details',exact:true},timeoutMs:250});
+ assert.equal(result.ok,false);assert.equal(result.execution,'outcome_unknown');
+ assert.equal(result.obstruction?.test,'target-center');
+ assert.equal(result.obstruction?.container?.name,'Notice');
+ assert.ok(result.obstruction?.controls?.some(c=>c.name==='Dismiss notice'));
+ assert.ok(!JSON.stringify(result.obstruction).includes('SENSITIVE_DRAFT_ABC'));
+ assert.equal(await page.locator('[role=dialog]').count(),1);assert.equal(await page.evaluate(()=>Boolean(window.didClick)),false);
+});
 test('references pin observed elements across reordering and invalidate replacements',async t=>{
   const {page}=await fixture(t,'<button id="a" onclick="window.clicked=\'a\'">Same</button><button id="b" onclick="window.clicked=\'b\'">Same</button>');
   const snap=await captureSnapshot(page,{references:referencesFor(page)});

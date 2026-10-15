@@ -1,0 +1,159 @@
+{
+  "at": "2026-10-15T00:40:52.044Z",
+  "headless": true,
+  "learning": false,
+  "mode": "one page per site; read-only sequential extraction",
+  "tokenizer": "o200k_base proxy, not billing tokens",
+  "withoutHwm": "control-centered pretty JSON projection excluding contextGraph/collectionTiming/stateObservation; not historical engine",
+  "hashes": [
+    {
+      "file": "src/runtime/snapshot.ts",
+      "sha256": "efdbc838a325cc30632c993561955d850d8762520134e401d2ca38396cd5d3c0"
+    },
+    {
+      "file": "src/runtime/hwm/projection.ts",
+      "sha256": "047181f87cb38e79e74b7391638cc80fe0893067613de70a6b8e9626d0e58c6e"
+    },
+    {
+      "file": "src/runtime/hwm/service.ts",
+      "sha256": "2ab6d5365d63529b8a332ce385fff6be5ebec847633695d5f97362e3a5a0cde7"
+    }
+  ],
+  "rows": [
+    {
+      "site": "Airbnb",
+      "title": "Airbnb | New York City - Vacation Rentals & Places to Stay - New York",
+      "url": "https://www.airbnb.com/s/New-York-City--New-York--United-States/homes?acp_id=6333bccb-ed88-460f-950a-ed9788913f4d&adults=2&checkin=2026-10-20&checkout=2026-10-23&date_picker_type=calendar&ref_fsid=2a72c54a-c8b6-47d8-af16-c50ba4d9cbb8&ref_search_session_id=00a8a413-05c6-40fa-bcb8-a429725aaafa&place_id=ChIJOwg_06VPwokRYv534QaPC8g&refinement_paths%5B%5D=%2Fhomes&flexible_trip_lengths%5B%5D=one_week&monthly_start_date=2026-11-01&monthly_length=3&monthly_end_date=2027-02-01&search_mode=regular_search&price_filter_input_type=2&price_filter_num_nights=3&channel=EXPLORE&search_type=filter_change&amenities%5B%5D=4&selected_filter_order%5B%5D=amenities%3A4&update_selected_filters=false",
+      "pageState": {
+        "state": "ready"
+      },
+      "observation": "p6cf754e19ca5481493276d5cc4dea107",
+      "playwrightAria": {
+        "bytes": 32265,
+        "proxyTokens": 11892
+      },
+      "hbWithoutHwmProjection": {
+        "bytes": 46167,
+        "proxyTokens": 15145
+      },
+      "hbWithoutHwmCompact": {
+        "bytes": 36370,
+        "proxyTokens": 12305
+      },
+      "hbWithHwm": {
+        "bytes": 167628,
+        "proxyTokens": 54181
+      },
+      "controls": 160,
+      "graphNodes": 2000,
+      "graphScan": {
+        "scope": "main-document-and-open-shadow",
+        "complete": false
+      },
+      "controlObservation": {
+        "complete": true,
+        "errors": [],
+        "skippedNodes": 0
+      },
+      "samePage": true,
+      "atomicAcrossMethods": false,
+      "dismissedDialog": true,
+      "ariaUnchangedAroundHb": false,
+      "ariaAfter": {
+        "bytes": 32067,
+        "proxyTokens": 11843
+      },
+      "durationMs": 13511
+    },
+    {
+      "site": "Wikipedia",
+      "title": "Apollo 11 - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Apollo_11",
+      "pageState": {
+        "state": "ready"
+      },
+      "observation": "pcb70bed73cce45df86c6c325de3639ec",
+      "playwrightAria": {
+        "bytes": 419327,
+        "proxyTokens": 111880
+      },
+      "hbWithoutHwmProjection": {
+        "bytes": 37683,
+        "proxyTokens": 11368
+      },
+      "hbWithoutHwmCompact": {
+        "bytes": 26877,
+        "proxyTokens": 8267
+      },
+      "hbWithHwm": {
+        "bytes": 149263,
+        "proxyTokens": 39706
+      },
+      "controls": 160,
+      "graphNodes": 2000,
+      "graphScan": {
+        "scope": "main-document-and-open-shadow",
+        "complete": false
+      },
+      "controlObservation": {
+        "complete": true,
+        "errors": [],
+        "skippedNodes": 0
+      },
+      "samePage": true,
+      "atomicAcrossMethods": false,
+      "dismissedDialog": false,
+      "ariaUnchangedAroundHb": true,
+      "ariaAfter": {
+        "bytes": 419327,
+        "proxyTokens": 111880
+      },
+      "durationMs": 5466
+    },
+    {
+      "site": "Hacker News",
+      "title": "Hacker News",
+      "url": "https://news.ycombinator.com/",
+      "pageState": {
+        "state": "ready"
+      },
+      "observation": "p34cdc873d22543f78af5b2d65ecd19a9",
+      "playwrightAria": {
+        "bytes": 40587,
+        "proxyTokens": 10053
+      },
+      "hbWithoutHwmProjection": {
+        "bytes": 34017,
+        "proxyTokens": 10912
+      },
+      "hbWithoutHwmCompact": {
+        "bytes": 23826,
+        "proxyTokens": 7887
+      },
+      "hbWithHwm": {
+        "bytes": 90710,
+        "proxyTokens": 23827
+      },
+      "controls": 160,
+      "graphNodes": 1218,
+      "graphScan": {
+        "scope": "main-document-and-open-shadow",
+        "complete": true
+      },
+      "controlObservation": {
+        "complete": true,
+        "errors": [],
+        "skippedNodes": 0
+      },
+      "samePage": true,
+      "atomicAcrossMethods": false,
+      "dismissedDialog": false,
+      "ariaUnchangedAroundHb": true,
+      "ariaAfter": {
+        "bytes": 40587,
+        "proxyTokens": 10053
+      },
+      "durationMs": 3818
+    }
+  ]
+}

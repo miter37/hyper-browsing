@@ -8,6 +8,7 @@ test('daemon captures once then expands/inspects without accessing Chrome or the
  await sessions.get(opened.id).setContent('<p>New DOM</p>');daemon.chrome.ensureConnected=async()=>{throw new Error('Chrome must not be accessed');};
  const inspected=await daemon.dispatchUnlocked('observation.inspect',{sessionId:opened.id,observation:obs,target:input.actionRef});assert.equal(inspected.node.attrs.value,'A');
  const gap=view.entries.find(e=>e.tag==='gap'&&e.attrs.scope==='nodes');const expanded=await daemon.dispatchUnlocked('observation.expand',{sessionId:opened.id,observation:obs,target:gap.id,format:'hwm'});assert.ok(!parseHwm(expanded.hwm).entries.some(e=>e.primary?.value==='New DOM'));
+ const bounded=await daemon.dispatchUnlocked('observation.expand',{sessionId:opened.id,observation:obs,target:gap.id,format:'hwm',nodeBudget:5,textBudget:4});const boundedView=parseHwm(bounded.hwm);assert.equal(boundedView.header['projection-budget'].requested,5);assert.ok(boundedView.entries.filter(e=>e.type==='node'&&e.primary).every(e=>Array.from(e.primary.value).length<=4));
  const comparison=await daemon.dispatchUnlocked('observation.changes',{sessionId:opened.id,comparison:filled.comparison,format:'hwm',changeBudget:1});assert.ok(parseHwm(comparison.hwm).entries.some(e=>e.tag==='result'&&e.attrs.execution==='completed'));
  const expired=await daemon.dispatchUnlocked('observation.expand',{sessionId:opened.id,observation:'pMissing',target:'n1',format:'hwm'});assert.equal(expired.reason,'observation_expired');assert.equal(expired.execution,'not_started');
 });

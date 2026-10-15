@@ -17,8 +17,9 @@ export const DEEP_WALK_JS = `
     walkDiagnostics.skippedNodes++;
     if (walkDiagnostics.errors.length < 6 && !walkDiagnostics.errors.includes(code)) walkDiagnostics.errors.push(code);
   }
-  function deepWalk(cb, max) {
-    const stack = document.documentElement ? [document.documentElement] : [];
+  function deepWalk(cb, max, root) {
+    const start = root || document.documentElement;
+    const stack = start ? [start] : [];
     if (!stack.length) walkIssue('missing_document');
     let seen = 0;
     while (stack.length && seen < (max || 60000)) {

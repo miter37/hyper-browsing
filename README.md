@@ -1,6 +1,6 @@
 # Hyper-Browsing
 
-Browser commands now deliver HWM 0.2: existing controls, prose, containment, state, matching evidence and changes from one observation model. JSON remains the script-compatible serialization (`--format json` or `WEBAGENT_OUTPUT_FORMAT=json`); administrative commands and `inspect` retain JSON defaults. See [the contract](docs/HWM-0.2-consent.md) and [preservation map](docs/HWM-0.2-preservation.md). New spatial calculations beyond the current measurements remain planned.
+Browser commands default to lightweight `hb` responses: a panel map, requested scoped content/controls/state, and action effects. Pass the last received `delivery` as `--since` to avoid repeating known fields. Use `read --map MAP --panel PANEL --want content,controls,state`; request scoped HWM only when needed with `explain`. Explicit `--format json` and `--format hwm` preserve compatibility/detail paths. See [the demand-driven design](docs/plans/HB-demand-driven-observation-design.md) and [the detailed HWM contract](docs/HWM-0.2-consent.md). Global task-cost improvements remain subject to measurement.
 
 <p align="right">
   <strong>English</strong> · <a href="./README.ko.md">한국어</a>

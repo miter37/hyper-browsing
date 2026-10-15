@@ -1,0 +1,1584 @@
+{
+  "at": "2026-10-15T00:22:20.566Z",
+  "site": "https://www.airbnb.com",
+  "headless": true,
+  "learningDisabled": true,
+  "tokenizer": "js-tiktoken o200k_base proxy; not Luna billing tokens",
+  "rows": [
+    {
+      "seq": 3,
+      "command": "snapshot",
+      "durationMs": 689.7905999999999,
+      "rawBytes": 92339,
+      "canonicalBytes": 92339,
+      "proxyTokens": 26347,
+      "sections": {
+        "@hwm": {
+          "bytes": 1512,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 194,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 691,
+          "lines": 8
+        },
+        "@outline": {
+          "bytes": 1226,
+          "lines": 7
+        },
+        "nodes": {
+          "bytes": 58134,
+          "lines": 353
+        },
+        "@links": {
+          "bytes": 9946,
+          "lines": 55
+        },
+        "@gap": {
+          "bytes": 20588,
+          "lines": 134
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 9736,
+      "nodes": 353,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 7832,
+      "lossless": {
+        "bytes": 72188,
+        "proxyTokens": 20633,
+        "templates": 15,
+        "uses": 316,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 84329,
+        "proxyTokens": 23695,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 66256,
+        "proxyTokens": 18593,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 4,
+      "command": "fill",
+      "durationMs": 2511.7776,
+      "rawBytes": 50263,
+      "canonicalBytes": 50263,
+      "proxyTokens": 16478,
+      "sections": {
+        "@hwm": {
+          "bytes": 1562,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 845,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 489,
+          "lines": 8
+        },
+        "@outline": {
+          "bytes": 1226,
+          "lines": 7
+        },
+        "nodes": {
+          "bytes": 12867,
+          "lines": 103
+        },
+        "@candidates": {
+          "bytes": 450,
+          "lines": 5
+        },
+        "@links": {
+          "bytes": 7079,
+          "lines": 55
+        },
+        "@gap": {
+          "bytes": 13287,
+          "lines": 119
+        },
+        "@change": {
+          "bytes": 12410,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 2114,
+      "nodes": 103,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 2747,
+      "lossless": {
+        "bytes": 36524,
+        "proxyTokens": 11686,
+        "templates": 9,
+        "uses": 225,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 47336,
+        "proxyTokens": 15466,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 33597,
+        "proxyTokens": 10674,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 5,
+      "command": "snapshot",
+      "durationMs": 627.3876,
+      "rawBytes": 35496,
+      "canonicalBytes": 35496,
+      "proxyTokens": 10960,
+      "sections": {
+        "@hwm": {
+          "bytes": 1514,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 194,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 489,
+          "lines": 8
+        },
+        "@outline": {
+          "bytes": 1226,
+          "lines": 7
+        },
+        "nodes": {
+          "bytes": 11173,
+          "lines": 88
+        },
+        "@candidates": {
+          "bytes": 649,
+          "lines": 8
+        },
+        "@links": {
+          "bytes": 7079,
+          "lines": 55
+        },
+        "@gap": {
+          "bytes": 13124,
+          "lines": 119
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1896,
+      "nodes": 88,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 2102,
+      "lossless": {
+        "bytes": 28243,
+        "proxyTokens": 8984,
+        "templates": 5,
+        "uses": 183,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 33213,
+        "proxyTokens": 10164,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 25960,
+        "proxyTokens": 8188,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 6,
+      "command": "click",
+      "durationMs": 3201.7715,
+      "rawBytes": 102968,
+      "canonicalBytes": 102968,
+      "proxyTokens": 33214,
+      "sections": {
+        "@hwm": {
+          "bytes": 1564,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 1084,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 838,
+          "lines": 15
+        },
+        "@outline": {
+          "bytes": 853,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 48438,
+          "lines": 192
+        },
+        "@candidates": {
+          "bytes": 572,
+          "lines": 4
+        },
+        "@links": {
+          "bytes": 676,
+          "lines": 6
+        },
+        "@gap": {
+          "bytes": 37713,
+          "lines": 105
+        },
+        "@change": {
+          "bytes": 11182,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 6240,
+      "nodes": 192,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 17899,
+      "lossless": {
+        "bytes": 75952,
+        "proxyTokens": 24434,
+        "templates": 12,
+        "uses": 226,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 84887,
+        "proxyTokens": 27086,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 62606,
+        "proxyTokens": 19556,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 7,
+      "command": "click",
+      "durationMs": 2094.1450999999997,
+      "rawBytes": 102764,
+      "canonicalBytes": 102764,
+      "proxyTokens": 33420,
+      "sections": {
+        "@hwm": {
+          "bytes": 1564,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 488,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 646,
+          "lines": 14
+        },
+        "@outline": {
+          "bytes": 853,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 48232,
+          "lines": 190
+        },
+        "@candidates": {
+          "bytes": 638,
+          "lines": 4
+        },
+        "@links": {
+          "bytes": 1104,
+          "lines": 9
+        },
+        "@gap": {
+          "bytes": 37733,
+          "lines": 105
+        },
+        "@change": {
+          "bytes": 11458,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 5820,
+      "nodes": 190,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 17987,
+      "lossless": {
+        "bytes": 74423,
+        "proxyTokens": 23434,
+        "templates": 13,
+        "uses": 238,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 84595,
+        "proxyTokens": 27263,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 60771,
+        "proxyTokens": 18469,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 8,
+      "command": "click",
+      "durationMs": 1395.2146,
+      "rawBytes": 101429,
+      "canonicalBytes": 101429,
+      "proxyTokens": 32991,
+      "sections": {
+        "@hwm": {
+          "bytes": 1562,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 277,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 646,
+          "lines": 14
+        },
+        "@outline": {
+          "bytes": 853,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 47715,
+          "lines": 187
+        },
+        "@candidates": {
+          "bytes": 240,
+          "lines": 2
+        },
+        "@links": {
+          "bytes": 1104,
+          "lines": 9
+        },
+        "@gap": {
+          "bytes": 37415,
+          "lines": 105
+        },
+        "@change": {
+          "bytes": 11569,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 6658,
+      "nodes": 187,
+      "changes": 40,
+      "execution": "not_started",
+      "repeatedShapeBytes": 17657,
+      "lossless": {
+        "bytes": 73739,
+        "proxyTokens": 23135,
+        "templates": 9,
+        "uses": 219,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 83592,
+        "proxyTokens": 26941,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 60331,
+        "proxyTokens": 18242,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 9,
+      "command": "click",
+      "durationMs": 1809.034,
+      "rawBytes": 102703,
+      "canonicalBytes": 102703,
+      "proxyTokens": 32436,
+      "sections": {
+        "@hwm": {
+          "bytes": 1563,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 500,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 646,
+          "lines": 14
+        },
+        "@outline": {
+          "bytes": 853,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 48170,
+          "lines": 189
+        },
+        "@candidates": {
+          "bytes": 636,
+          "lines": 4
+        },
+        "@links": {
+          "bytes": 1104,
+          "lines": 9
+        },
+        "@gap": {
+          "bytes": 37733,
+          "lines": 105
+        },
+        "@change": {
+          "bytes": 11450,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 5792,
+      "nodes": 189,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 17987,
+      "lossless": {
+        "bytes": 74982,
+        "proxyTokens": 23516,
+        "templates": 12,
+        "uses": 236,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 84535,
+        "proxyTokens": 26278,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 61368,
+        "proxyTokens": 18560,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 10,
+      "command": "click",
+      "durationMs": 2568.0110000000004,
+      "rawBytes": 56292,
+      "canonicalBytes": 56292,
+      "proxyTokens": 17914,
+      "sections": {
+        "@hwm": {
+          "bytes": 1563,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 900,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 467,
+          "lines": 8
+        },
+        "@outline": {
+          "bytes": 1975,
+          "lines": 11
+        },
+        "nodes": {
+          "bytes": 15273,
+          "lines": 122
+        },
+        "@candidates": {
+          "bytes": 214,
+          "lines": 2
+        },
+        "@links": {
+          "bytes": 7079,
+          "lines": 55
+        },
+        "@gap": {
+          "bytes": 17398,
+          "lines": 133
+        },
+        "@change": {
+          "bytes": 11375,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 3422,
+      "nodes": 122,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 3220,
+      "lossless": {
+        "bytes": 40279,
+        "proxyTokens": 12717,
+        "templates": 11,
+        "uses": 256,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 52891,
+        "proxyTokens": 16744,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 37034,
+        "proxyTokens": 11592,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 11,
+      "command": "click",
+      "durationMs": 2161.3069,
+      "rawBytes": 54741,
+      "canonicalBytes": 54741,
+      "proxyTokens": 18486,
+      "sections": {
+        "@hwm": {
+          "bytes": 1564,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 562,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 481,
+          "lines": 8
+        },
+        "@outline": {
+          "bytes": 1975,
+          "lines": 11
+        },
+        "nodes": {
+          "bytes": 13226,
+          "lines": 102
+        },
+        "@candidates": {
+          "bytes": 194,
+          "lines": 2
+        },
+        "@links": {
+          "bytes": 7079,
+          "lines": 55
+        },
+        "@gap": {
+          "bytes": 18068,
+          "lines": 135
+        },
+        "@change": {
+          "bytes": 11544,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 2204,
+      "nodes": 102,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 3002,
+      "lossless": {
+        "bytes": 38376,
+        "proxyTokens": 12676,
+        "templates": 8,
+        "uses": 247,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 51557,
+        "proxyTokens": 17384,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 35192,
+        "proxyTokens": 11574,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 12,
+      "command": "click",
+      "durationMs": 1646.8618,
+      "rawBytes": 54671,
+      "canonicalBytes": 54671,
+      "proxyTokens": 18493,
+      "sections": {
+        "@hwm": {
+          "bytes": 1565,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 544,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 467,
+          "lines": 8
+        },
+        "@outline": {
+          "bytes": 1975,
+          "lines": 11
+        },
+        "nodes": {
+          "bytes": 13176,
+          "lines": 101
+        },
+        "@candidates": {
+          "bytes": 194,
+          "lines": 2
+        },
+        "@links": {
+          "bytes": 7079,
+          "lines": 55
+        },
+        "@gap": {
+          "bytes": 18068,
+          "lines": 135
+        },
+        "@change": {
+          "bytes": 11555,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 2176,
+      "nodes": 101,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 3002,
+      "lossless": {
+        "bytes": 38691,
+        "proxyTokens": 12775,
+        "templates": 8,
+        "uses": 247,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 51486,
+        "proxyTokens": 17391,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 35506,
+        "proxyTokens": 11673,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 13,
+      "command": "click",
+      "durationMs": 3647.1505,
+      "rawBytes": 59311,
+      "canonicalBytes": 59311,
+      "proxyTokens": 19951,
+      "sections": {
+        "@hwm": {
+          "bytes": 1984,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 837,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 1189,
+          "lines": 10
+        },
+        "@outline": {
+          "bytes": 383,
+          "lines": 2
+        },
+        "nodes": {
+          "bytes": 19402,
+          "lines": 88
+        },
+        "@candidates": {
+          "bytes": 5271,
+          "lines": 74
+        },
+        "@links": {
+          "bytes": 12911,
+          "lines": 36
+        },
+        "@gap": {
+          "bytes": 16879,
+          "lines": 81
+        },
+        "@change": {
+          "bytes": 407,
+          "lines": 1
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 2068,
+      "nodes": 88,
+      "changes": 1,
+      "execution": "completed",
+      "repeatedShapeBytes": 3258,
+      "lossless": {
+        "bytes": 50345,
+        "proxyTokens": 17310,
+        "templates": 8,
+        "uses": 108,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 55769,
+        "proxyTokens": 18760,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 46860,
+        "proxyTokens": 16122,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 14,
+      "command": "snapshot",
+      "durationMs": 1018.7827,
+      "rawBytes": 203710,
+      "canonicalBytes": 203710,
+      "proxyTokens": 67727,
+      "sections": {
+        "@hwm": {
+          "bytes": 1944,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 194,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 2467,
+          "lines": 21
+        },
+        "@outline": {
+          "bytes": 812,
+          "lines": 4
+        },
+        "nodes": {
+          "bytes": 85834,
+          "lines": 349
+        },
+        "@links": {
+          "bytes": 38463,
+          "lines": 106
+        },
+        "@gap": {
+          "bytes": 73948,
+          "lines": 289
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 9558,
+      "nodes": 349,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 10994,
+      "lossless": {
+        "bytes": 155114,
+        "proxyTokens": 52893,
+        "templates": 27,
+        "uses": 547,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 192425,
+        "proxyTokens": 63980,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 145638,
+        "proxyTokens": 49652,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 15,
+      "command": "click",
+      "durationMs": 2785.4356,
+      "rawBytes": 51815,
+      "canonicalBytes": 51815,
+      "proxyTokens": 17449,
+      "sections": {
+        "@hwm": {
+          "bytes": 1987,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 1130,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 1189,
+          "lines": 10
+        },
+        "@outline": {
+          "bytes": 987,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 11241,
+          "lines": 91
+        },
+        "@candidates": {
+          "bytes": 862,
+          "lines": 12
+        },
+        "@links": {
+          "bytes": 11923,
+          "lines": 36
+        },
+        "@gap": {
+          "bytes": 9317,
+          "lines": 65
+        },
+        "@change": {
+          "bytes": 13131,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1758,
+      "nodes": 91,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 1908,
+      "lossless": {
+        "bytes": 40176,
+        "proxyTokens": 13299,
+        "templates": 7,
+        "uses": 106,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 49620,
+        "proxyTokens": 16693,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 37981,
+        "proxyTokens": 12543,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 16,
+      "command": "snapshot",
+      "durationMs": 947.565,
+      "rawBytes": 67841,
+      "canonicalBytes": 67841,
+      "proxyTokens": 23341,
+      "sections": {
+        "@hwm": {
+          "bytes": 1940,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 194,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 2361,
+          "lines": 21
+        },
+        "@outline": {
+          "bytes": 1142,
+          "lines": 6
+        },
+        "nodes": {
+          "bytes": 10565,
+          "lines": 79
+        },
+        "@candidates": {
+          "bytes": 328,
+          "lines": 5
+        },
+        "@links": {
+          "bytes": 35890,
+          "lines": 107
+        },
+        "@gap": {
+          "bytes": 15373,
+          "lines": 126
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1288,
+      "nodes": 79,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 2525,
+      "lossless": {
+        "bytes": 57136,
+        "proxyTokens": 20535,
+        "templates": 5,
+        "uses": 251,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 65028,
+        "proxyTokens": 22366,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 54323,
+        "proxyTokens": 19560,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 17,
+      "command": "click",
+      "durationMs": 1928.895,
+      "rawBytes": 51520,
+      "canonicalBytes": 51520,
+      "proxyTokens": 18029,
+      "sections": {
+        "@hwm": {
+          "bytes": 1987,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 993,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 1189,
+          "lines": 10
+        },
+        "@outline": {
+          "bytes": 925,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 11680,
+          "lines": 82
+        },
+        "@candidates": {
+          "bytes": 327,
+          "lines": 5
+        },
+        "@links": {
+          "bytes": 11923,
+          "lines": 36
+        },
+        "@gap": {
+          "bytes": 10681,
+          "lines": 66
+        },
+        "@change": {
+          "bytes": 11767,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1382,
+      "nodes": 82,
+      "changes": 40,
+      "execution": "completed",
+      "repeatedShapeBytes": 2851,
+      "lossless": {
+        "bytes": 39337,
+        "proxyTokens": 13302,
+        "templates": 7,
+        "uses": 110,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 48382,
+        "proxyTokens": 16953,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 36199,
+        "proxyTokens": 12226,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 18,
+      "command": "snapshot",
+      "durationMs": 983.8787,
+      "rawBytes": 79003,
+      "canonicalBytes": 79003,
+      "proxyTokens": 26991,
+      "sections": {
+        "@hwm": {
+          "bytes": 1942,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 194,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 2484,
+          "lines": 22
+        },
+        "@outline": {
+          "bytes": 1759,
+          "lines": 9
+        },
+        "nodes": {
+          "bytes": 12525,
+          "lines": 79
+        },
+        "@candidates": {
+          "bytes": 1483,
+          "lines": 20
+        },
+        "@links": {
+          "bytes": 36522,
+          "lines": 108
+        },
+        "@gap": {
+          "bytes": 22046,
+          "lines": 162
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1676,
+      "nodes": 79,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 2176,
+      "lossless": {
+        "bytes": 64619,
+        "proxyTokens": 23222,
+        "templates": 8,
+        "uses": 306,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 76537,
+        "proxyTokens": 26127,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 62153,
+        "proxyTokens": 22358,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 19,
+      "command": "click",
+      "durationMs": 1859.3722,
+      "rawBytes": 52115,
+      "canonicalBytes": 52115,
+      "proxyTokens": 17972,
+      "sections": {
+        "@hwm": {
+          "bytes": 1987,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 301,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 1189,
+          "lines": 10
+        },
+        "@outline": {
+          "bytes": 935,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 13533,
+          "lines": 92
+        },
+        "@candidates": {
+          "bytes": 238,
+          "lines": 3
+        },
+        "@links": {
+          "bytes": 12747,
+          "lines": 37
+        },
+        "@gap": {
+          "bytes": 9497,
+          "lines": 66
+        },
+        "@change": {
+          "bytes": 11640,
+          "lines": 40
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1782,
+      "nodes": 92,
+      "changes": 40,
+      "execution": "not_started",
+      "repeatedShapeBytes": 2733,
+      "lossless": {
+        "bytes": 39651,
+        "proxyTokens": 13412,
+        "templates": 8,
+        "uses": 113,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 49095,
+        "proxyTokens": 16939,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 36855,
+        "proxyTokens": 12446,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 20,
+      "command": "snapshot",
+      "durationMs": 878.4017,
+      "rawBytes": 64876,
+      "canonicalBytes": 64876,
+      "proxyTokens": 22115,
+      "sections": {
+        "@hwm": {
+          "bytes": 1940,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 194,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 2361,
+          "lines": 21
+        },
+        "@outline": {
+          "bytes": 760,
+          "lines": 4
+        },
+        "nodes": {
+          "bytes": 9037,
+          "lines": 75
+        },
+        "@candidates": {
+          "bytes": 949,
+          "lines": 11
+        },
+        "@links": {
+          "bytes": 35942,
+          "lines": 107
+        },
+        "@gap": {
+          "bytes": 13645,
+          "lines": 123
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 1522,
+      "nodes": 75,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 797,
+      "lossless": {
+        "bytes": 54611,
+        "proxyTokens": 19533,
+        "templates": 5,
+        "uses": 248,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 63791,
+        "proxyTokens": 21743,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 53526,
+        "proxyTokens": 19161,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 21,
+      "command": "click",
+      "durationMs": 2071.2806,
+      "rawBytes": 30682,
+      "canonicalBytes": 30682,
+      "proxyTokens": 9731,
+      "sections": {
+        "@hwm": {
+          "bytes": 2340,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 1192,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 1233,
+          "lines": 7
+        },
+        "@outline": {
+          "bytes": 930,
+          "lines": 5
+        },
+        "nodes": {
+          "bytes": 13668,
+          "lines": 98
+        },
+        "@candidates": {
+          "bytes": 539,
+          "lines": 4
+        },
+        "@links": {
+          "bytes": 1749,
+          "lines": 4
+        },
+        "@gap": {
+          "bytes": 8576,
+          "lines": 56
+        },
+        "@change": {
+          "bytes": 407,
+          "lines": 1
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 2162,
+      "nodes": 98,
+      "changes": 1,
+      "execution": "completed",
+      "repeatedShapeBytes": 3064,
+      "lossless": {
+        "bytes": 26013,
+        "proxyTokens": 8210,
+        "templates": 6,
+        "uses": 49,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 27334,
+        "proxyTokens": 8599,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 22950,
+        "proxyTokens": 7163,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 23,
+      "command": "list",
+      "durationMs": 514.1777,
+      "rawBytes": 5162,
+      "canonicalBytes": 5162,
+      "proxyTokens": 1748,
+      "sections": {
+        "@hwm": {
+          "bytes": 1196,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 125,
+          "lines": 1
+        },
+        "nodes": {
+          "bytes": 2572,
+          "lines": 11
+        },
+        "@links": {
+          "bytes": 1221,
+          "lines": 4
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 50,
+      "nodes": 11,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 164,
+      "lossless": {
+        "bytes": 5147,
+        "proxyTokens": 1749,
+        "templates": 1,
+        "uses": 3,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 5194,
+        "proxyTokens": 1736,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 5179,
+        "proxyTokens": 1737,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    {
+      "seq": 25,
+      "command": "view",
+      "durationMs": 525.1801,
+      "rawBytes": 208008,
+      "canonicalBytes": 208008,
+      "proxyTokens": 69006,
+      "sections": {
+        "@hwm": {
+          "bytes": 2295,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 139,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 2885,
+          "lines": 21
+        },
+        "@outline": {
+          "bytes": 812,
+          "lines": 4
+        },
+        "nodes": {
+          "bytes": 86966,
+          "lines": 350
+        },
+        "@links": {
+          "bytes": 40673,
+          "lines": 106
+        },
+        "@gap": {
+          "bytes": 74190,
+          "lines": 289
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 9578,
+      "nodes": 350,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 11070,
+      "lossless": {
+        "bytes": 159518,
+        "proxyTokens": 54379,
+        "templates": 27,
+        "uses": 548,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 196652,
+        "proxyTokens": 65230,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 149971,
+        "proxyTokens": 51109,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    }
+  ],
+  "paired": {
+    "observation": "p523df0adc39f4321b9474f04617741a6",
+    "controls": 160,
+    "graphNodes": 2000,
+    "elementCenteredProjection": {
+      "bytes": 36892,
+      "proxyTokens": 12489,
+      "sameCapture": true,
+      "sameInformationAsHwm": false,
+      "description": "current snapshot without contextGraph/collectionTiming/stateObservation; not an old-engine run"
+    },
+    "hwm": {
+      "seq": 25,
+      "command": "view",
+      "durationMs": 525.1801,
+      "rawBytes": 208008,
+      "canonicalBytes": 208008,
+      "proxyTokens": 69006,
+      "sections": {
+        "@hwm": {
+          "bytes": 2295,
+          "lines": 1
+        },
+        "@result": {
+          "bytes": 139,
+          "lines": 1
+        },
+        "@state": {
+          "bytes": 2885,
+          "lines": 21
+        },
+        "@outline": {
+          "bytes": 812,
+          "lines": 4
+        },
+        "nodes": {
+          "bytes": 86966,
+          "lines": 350
+        },
+        "@links": {
+          "bytes": 40673,
+          "lines": 106
+        },
+        "@gap": {
+          "bytes": 74190,
+          "lines": 289
+        },
+        "@end": {
+          "bytes": 48,
+          "lines": 1
+        }
+      },
+      "indentBytes": 9578,
+      "nodes": 350,
+      "changes": 0,
+      "execution": "completed",
+      "repeatedShapeBytes": 11070,
+      "lossless": {
+        "bytes": 159518,
+        "proxyTokens": 54379,
+        "templates": 27,
+        "uses": 548,
+        "roundTripExact": true
+      },
+      "detailOnly": {
+        "bytes": 196652,
+        "proxyTokens": 65230,
+        "lossless": false
+      },
+      "combined": {
+        "bytes": 149971,
+        "proxyTokens": 51109,
+        "roundTripAgainstDetail": true,
+        "losslessAgainstOriginal": false
+      }
+    },
+    "graphJsonBytes": 799385
+  },
+  "commandCount": 26,
+  "setupFailure": true,
+  "hashes": [
+    {
+      "file": "SKILL.md",
+      "sha256": "b98f0372d92e7ad0e943f07e7bd8375206342aa93500150fcb08965b99a6f5bc"
+    },
+    {
+      "file": "scripts/launcher.mjs",
+      "sha256": "d50830be9215991bf7a122989ee39b72b39dc6b80bdb516d56237584333bda34"
+    },
+    {
+      "file": "src/browserd/server.ts",
+      "sha256": "232f3c864cb18a062d38cd77ed9f4658ee79bea3f7aa7afbeb6f4e3e4c36d340"
+    },
+    {
+      "file": "src/runtime/hwm/renderer.ts",
+      "sha256": "25a96d59e74492e415fc48ada95ee0862dd416867dce9fa4813f90d0125c943c"
+    },
+    {
+      "file": "src/runtime/hwm/projection.ts",
+      "sha256": "b269ada2c6cbbe11caebf7c5a00dbee78b19a5a1796eb39fb9c89a764d815f47"
+    }
+  ]
+}

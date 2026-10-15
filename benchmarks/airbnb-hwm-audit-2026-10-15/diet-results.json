@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-15T00:34:40.584Z",
+  "scope": "same stored Airbnb observation; no new browsing",
+  "observation": "p523df0adc39f4321b9474f04617741a6",
+  "tokenizer": "js-tiktoken o200k_base proxy; not model billing tokens",
+  "original": {
+    "bytes": 208008,
+    "proxyTokens": 69006
+  },
+  "current": {
+    "bytes": 166201,
+    "proxyTokens": 54032
+  },
+  "fullIndexExpansion": {
+    "bytes": 52838,
+    "proxyTokens": 18493,
+    "destinations": 105
+  },
+  "preserved": {
+    "visibleNodes": 350,
+    "nodeDataExactExceptStructureDetail": true,
+    "stateOutlineCandidatesExact": true,
+    "fullDestinationRefsExact": true
+  },
+  "note": "Detail folding, not lossless inline compression. Full index retrieval incurs additional output; full/expand recover stored details."
+}

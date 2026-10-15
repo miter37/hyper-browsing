@@ -1,6 +1,6 @@
 # Hyper-Browsing
 
-일반 브라우징 명령은 기존 조작 요소와 본문·소속·상태·일치 근거·변화를 한 관찰 모델의 HWM 0.2로 전달합니다. JSON은 스크립트 호환 직렬화(`--format json` 또는 `WEBAGENT_OUTPUT_FORMAT=json`)이며 관리 명령과 inspect는 기본 JSON입니다. [합의 명세](docs/HWM-0.2-consent.md)와 [정보 보존표](docs/HWM-0.2-preservation.md)를 참고하세요. 현재 측정값 외의 새로운 공간 관계 계산은 후속 단계입니다.
+일반 브라우징 명령은 작은 `hb` 응답을 기본으로 전달합니다. 첫 화면은 패널 지도, 이후에는 `read --map MAP --panel PANEL --want content,controls,state`로 요청한 범위만 읽고 조작 후에는 변화만 확인합니다. 마지막으로 받은 `delivery`를 `--since`에 넘기면 이미 받은 필드를 반복하지 않습니다. HWM은 필요한 범위의 `explain` 상세로 사용하며, 명시적인 `--format json`과 `--format hwm`은 호환·상세 경로로 유지합니다. [요청 중심 설계](docs/plans/HB-demand-driven-observation-design.md)와 [HWM 상세 계약](docs/HWM-0.2-consent.md)을 참고하세요. 전체 과업 비용의 우월성은 추가 측정 대상입니다.
 
 <p align="right">
   <a href="./README.md">English</a> · <strong>한국어</strong>

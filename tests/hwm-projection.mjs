@@ -9,7 +9,7 @@ test('overview folds stored nodes with retrievable gaps and links preserve each 
  assert.equal(v.header.view,'overview');assert.ok(v.entries.filter(e=>e.type==='node').length<g.nodes.length);assert.ok(v.entries.some(e=>e.tag==='gap'&&e.attrs.kind==='folded'));
  assert.ok(v.entries.some(e=>e.type==='node'&&e.attrs['repeated-shapes']));assert.ok(v.entries.some(e=>e.tag==='gap'&&e.attrs.reason==='repeated-shape'));
  const links=v.entries.find(e=>e.tag==='links');assert.equal(links.items[0].attrs.refs.length,12);assert.equal(new Set(links.items[0].attrs.refs).size,12);
- const gap=v.entries.find(e=>e.tag==='gap'&&e.attrs.scope==='nodes');assert.equal(gap.attrs.expand,gap.id);assert.ok(gap.attrs.range.roots.length);const expanded=service.expand('s1',g.observation,gap.attrs.expand);assert.ok(expanded.hwm.includes('Details'));assert.ok(service.inspect('s1',g.observation,g.nodes.find(n=>n.text==='Item 10').id).node.text==='Item 10');
+ const gap=v.entries.find(e=>e.tag==='gap'&&e.attrs.scope==='nodes');assert.equal(gap.attrs.expand,gap.id);assert.ok(gap.attrs.range.roots?.length||gap.attrs.range['roots-detail']==='expand');const expanded=service.expand('s1',g.observation,gap.attrs.expand);assert.ok(expanded.hwm.includes('Details'));assert.ok(service.inspect('s1',g.observation,g.nodes.find(n=>n.text==='Item 10').id).node.text==='Item 10');
  assert.equal(service.view('s1',g.observation,{mode:'overview',nodeBudget:12}).hwm,result.hwm);
 });
 test('focus retains card context and external relation endpoints; full expand uses saved heading range',async t=>{
@@ -46,4 +46,39 @@ test('text folding counts Unicode code points and never splits a surrogate pair'
 test('focus retains rendered dialog declarations without calling them proven occluders',async t=>{
  const p=await fixture(t,'<main><input aria-label="Place"></main><div role="dialog" aria-label="Sign in"><button>Close</button></div><div role="dialog" hidden aria-label="Hidden dialog">Hidden</div>');const g=(await captureSnapshot(p,{context:true,waitMs:0})).contextGraph,service=new ObservationService();service.remember('s1',g);
  const v=parseHwm(service.view('s1',g.observation,{mode:'focus',focus:g.nodes.find(n=>n.tag==='input').actionRef}).hwm);assert.ok(v.entries.some(e=>e.primary?.value==='Sign in'));assert.ok(v.entries.some(e=>e.primary?.value==='Close'));assert.ok(!v.entries.some(e=>e.primary?.value==='Hidden dialog'));assert.ok(!v.entries.some(e=>e.type==='node'&&e.relations.some(r=>r.rel==='covered-by')));
+});
+
+function dietGraph(){
+ const nodes=[{id:'n1',kind:'document',parent:null,order:0,attrs:{}},{id:'g1',kind:'list',parent:'n1',order:0,attrs:{}}];
+ for(let i=0;i<72;i++)nodes.push({id:'item'+i,kind:'item',parent:'g1',order:i,attrs:{}},
+  {id:'text'+i,kind:'text',parent:'item'+i,order:0,text:'Product '+i+' $'+i,textSource:'dom-text',attrs:{}},
+  {id:'link'+i,kind:'link',parent:'item'+i,order:1,actionRef:'e'+(100+i),name:'Details',nameSource:'contents',attrs:{href:i<12?'/shared':'/item/'+i}});
+ return {version:'0.2',observation:'pDiet',document:'d1',capturedAt:'2026-10-15T00:00:00Z',url:'https://example.test/',scan:{scope:'fixture',complete:false},nodes,edges:[],gaps:[{id:'gapUnknown',kind:'unobserved',reason:'frame-not-scanned',parent:'n1'}],matches:[]};
+}
+test('large destination indexes fold with exact observed counts and expand independently without merging targets',()=>{
+ const g=dietGraph(),service=new ObservationService();service.remember('s',g);
+ const v=parseHwm(service.view('s',g.observation,{mode:'overview',nodeBudget:12}).hwm);
+ const index=v.entries.find(e=>e.tag==='links'),gap=v.entries.find(e=>e.tag==='gap'&&e.attrs.scope==='links');
+ assert.ok(gap,'large link index must have a retrievable folded record');assert.equal(gap.attrs.kind,'folded');assert.equal(index.attrs['index-complete'],false);assert.equal(index.attrs.complete,false);
+ assert.equal(index.items.find(i=>i.ref==='https://example.test/shared').attrs.refs.length,12);
+ const expanded=parseHwm(service.expand('s',g.observation,gap.id).hwm),full=expanded.entries.find(e=>e.tag==='links');
+ assert.equal(full.items.length,61);assert.equal(full.attrs['index-complete'],true);assert.equal(full.attrs.complete,false);
+ assert.deepEqual(full.items.find(i=>i.ref==='https://example.test/shared').attrs.refs,Array.from({length:12},(_,i)=>'e'+(100+i)));
+ assert.ok(full.items.some(i=>i.ref==='https://example.test/item/71'));assert.equal(expanded.observation,g.observation);
+ assert.throws(()=>service.expand('other',g.observation,gap.id),e=>e.code==='observation_scope_mismatch');
+ service.clearSession('s');assert.throws(()=>service.expand('s',g.observation,gap.id),e=>e.code==='observation_expired');
+});
+test('compact projections retain page facts and recover folded order detail while diagnostics stay in full',()=>{
+ const g=dietGraph(),service=new ObservationService();service.remember('s',g,{'collection-timing':{documentChanged:true,startDocument:'d0',endDocument:'d1',phases:{scanMs:10},references:{active:72}}});
+ const v=parseHwm(service.view('s',g.observation,{mode:'overview',nodeBudget:12}).hwm);
+ assert.equal(v.header['collection-timing'].documentChanged,true);assert.equal(v.header['collection-timing'].phases,undefined);
+ const gap=v.entries.find(e=>e.tag==='gap'&&e.attrs.scope==='nodes'&&e.attrs.items.min>8);assert.ok(gap);assert.equal(gap.attrs.range.roots,undefined,'long root lists belong in stored detail');
+ assert.equal(gap.attrs.items.exact,true);assert.ok(gap.attrs.range['order-bounds']);
+ const expanded=parseHwm(service.expand('s',g.observation,gap.id).hwm);assert.ok(expanded.entries.some(e=>e.primary?.value==='Product 71 $71'));
+ assert.ok(v.entries.some(e=>e.id==='gapUnknown'&&e.attrs.kind==='unobserved'));
+ const full=parseHwm(service.view('s',g.observation,{mode:'full'}).hwm);
+ assert.equal(full.header['collection-timing'].phases.scanMs,10);assert.equal(full.header['collection-timing'].references.active,72);
+ assert.ok(full.entries.some(e=>e.attrs['repeated-shapes']?.groups.some(group=>group.shape)));
+ assert.ok(v.entries.filter(e=>e.type==='node').every(e=>!e.attrs['repeated-shapes']?.groups.some(group=>group.shape)));
+ for(const line of v.entries.filter(e=>e.type==='node')){const original=full.entries.find(e=>e.id===line.id);assert.deepEqual(line.primary,original.primary);assert.deepEqual(line.relations,original.relations);if(line.kind==='link')assert.equal(line.attrs.href,original.attrs.href);}
 });

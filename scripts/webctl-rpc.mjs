@@ -61,8 +61,11 @@ function parseLocator(flags, boolFlags) {
 
 function mapCommandToRpcBase(positionals, flags, boolFlags) {
   const [a, b, c] = positionals;
+  if(['read','explain'].includes(a)&&flags.session)return {method:'page.'+a,params:{sessionId:flags.session,map:flags.map,panel:flags.panel,want:flags.want,query:flags.query,item:flags.item,target:flags.target,offset:flags.offset,limit:flags.limit,textLimit:flags['text-limit'],byteBudget:flags['byte-budget'],since:flags.since,consumer:flags.consumer,repeat:boolFlags.has('repeat')}};
   if(['view','expand','inspect','changes'].includes(a)&&flags.session)return {method:'observation.'+a,params:{sessionId:flags.session,observation:flags.observation,comparison:flags.comparison,target:flags.target,format:flags.format,mode:flags.mode,focus:flags.focus,nodeBudget:flags['node-budget'],textBudget:flags['text-budget'],changeBudget:flags['change-budget']}};
   if(a==='verify'&&flags.session){const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):{checks:[]};return {method:'page.verify',params:{sessionId:flags.session,input}};}
+  if(a==='close'&&boolFlags.has('all'))return {method:'session.closeAll',params:{}};
+  if(a==='close'&&flags.session)return {method:'session.close',params:{sessionId:flags.session}};
   if (a === 'request' && b === 'status' && flags.id) return { method: 'request.status', params: { requestId: flags.id } };
 
   if (a === "health") return { method: "health", params: {} };
@@ -269,7 +272,7 @@ export function mapCommandToRpc(positionals, flags, boolFlags) {
     if (['role','testid','text','label','placeholder','css','nth','within'].some(k=>flags[k]!==undefined) || boolFlags.has('all')) throw new Error('Use --ref alone; references cannot be indexed, scoped, or extracted with --all');
     rpc.params.ref = flags.ref.replace(/^@(?=e\d+$)/, ''); rpc.params.locator = undefined;
   }
-  if(rpc)rpc.params.format=outputFormat(positionals[0],flags.format);
+  if(rpc){rpc.params.format=outputFormat(positionals[0],flags.format);Object.assign(rpc.params,{since:flags.since,consumer:flags.consumer,repeat:boolFlags.has('repeat')});if(!['page.read','page.explain'].includes(rpc.method))Object.assign(rpc.params,{map:flags.map,panel:flags.panel,offset:flags.offset});}
   return rpc;
 }
 
@@ -286,7 +289,7 @@ async function main() {
   const response = await postRpc({endpoint:`http://127.0.0.1:${creds.port}`,token:creds.token,...rpc});
   if (response.fallbackAllowed && rpc.method !== 'request.status') process.exit(FALLBACK_CODE);
   if(rpc.params.format==='hwm'&&typeof response.result?.hwm==='string')process.stdout.write(response.result.hwm);
-  else process.stdout.write(JSON.stringify(response.result,null,2)+'\n');
+  else process.stdout.write(JSON.stringify(response.result,null,rpc.params.format==='hb'?undefined:2)+'\n');
   process.exit(!response.rpcOk || response.result?.ok === false ? 1 : 0);
 }
 

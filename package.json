@@ -17,7 +17,7 @@
     "test:learning": "node --import tsx --test tests/learning-policy.mjs tests/asset-recovery.mjs tests/learning-assets.mjs tests/learning-cli.mjs tests/learning-status.mjs",
     "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs tests/headed-fallback.mjs tests/improvements.mjs tests/input-pacing.mjs",
     "test:discovery": "node --import tsx tests/discovery-lessons.mjs",
-    "test:hwm": "node --import tsx --test tests/hwm.mjs tests/hwm-references.mjs tests/hwm-observation.mjs tests/hwm-cli.mjs tests/hwm-renderer.mjs tests/hwm-state.mjs tests/hwm-changes.mjs tests/hwm-store.mjs tests/hwm-projection.mjs tests/hwm-stage4-daemon.mjs tests/hwm-live-regressions.mjs tests/hwm-integration.mjs",
+    "test:hwm": "node --import tsx --test tests/hwm.mjs tests/hwm-references.mjs tests/hwm-observation.mjs tests/hwm-cli.mjs tests/hwm-renderer.mjs tests/hwm-state.mjs tests/hwm-changes.mjs tests/hwm-store.mjs tests/hwm-projection.mjs tests/hwm-stage4-daemon.mjs tests/hwm-live-regressions.mjs tests/hwm-integration.mjs tests/demand-observation.mjs tests/demand-cli.mjs",
     "test": "npm run typecheck && npm run test:hwm && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery"
   },
   "dependencies": {

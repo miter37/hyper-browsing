@@ -17,7 +17,7 @@ import {outputFormat} from '../../scripts/hwm-policy.mjs';
 
 const config = getConfig();
 const nativeClient = new BrowserdClient(config);
-const client={call:(method:string,params:any={})=>nativeClient.call(method,{...params,format:outputFormat(argv[0],flag('format'))})};
+const client={call:(method:string,params:any={})=>nativeClient.call(method,{...params,format:outputFormat(argv[0],flag('format')),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel')})};
 const argv = process.argv.slice(2);
 
 function flag(name: string): string | undefined {
@@ -71,7 +71,7 @@ async function actionInput(): Promise<Record<string, unknown>> {
 function print(value: unknown) {
   if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
   if(outputFormat(argv[0],flag('format'))==='hwm'&&value&&typeof value==='object'&&'hwm' in value&&typeof value.hwm==='string') {process.stdout.write(value.hwm);return;}
-  process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+  process.stdout.write(JSON.stringify(value, null, outputFormat(argv[0],flag('format'))==='hb'?undefined:2) + "\n");
   if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
 }
 
@@ -88,11 +88,16 @@ Daemon/session:
   webctl browser hide                 # go back to headless (the default)
   webctl session open [--url URL] [--viewport 1440x900] [--locale en-US]
   webctl session list
-  webctl session close --session ID
+  webctl session close --session ID | close --session ID
+  webctl close --all                   # alias for session close --all
   webctl session close --all           # close every open tab (cleanup sweep)
 
 Discovery primitives (same browser session):
-  webctl snapshot --session ID [--save] [--query TEXT] [--limit N] [--context] [--context-limit N] [--format json|hwm]
+  webctl snapshot --session ID        # lightweight panel map (default hb)
+  webctl read --session ID --map MAP --panel P --want controls,content,state [--since DELIVERY]
+  webctl read --session ID --map MAP --panel P [--query TEXT | --item N | --target NODE] [--offset N] [--limit N]
+  webctl explain --session ID --map MAP --panel P   # scoped HWM detail
+  webctl snapshot --session ID [--save] [--query TEXT] [--limit N] [--context] [--context-limit N] [--format hb|json|hwm]
   webctl snapshot --session ID --format hwm [--mode full|overview|focus] [--focus REF] [--node-budget N] [--text-budget N]
   webctl view --session ID --observation OBS --format hwm [--mode overview|focus|full] [--focus REF]
   webctl expand --session ID --observation OBS --target NODE_OR_GAP --format hwm
@@ -118,6 +123,9 @@ Discovery primitives (same browser session):
   webctl diff --session ID --before SNAPSHOT_FILE_OR_JSON
   webctl api-sniff --session ID [--duration-ms MS]
   webctl wait-idle --session ID [--timeout-ms MS]
+  webctl wait-for --session ID [--css SELECTOR] [--text TEXT] [--state visible|hidden|attached|detached] [--timeout-ms MS]
+  webctl scroll --session ID [--direction down|up|left|right] [--distance PX] [--times N] [--selector CSS] [--delay-ms MS]
+  webctl eval --session ID --expr "JS expression"   # expression-scoped result
 
 Knowledge/known mode:
   webctl identify --session ID
@@ -138,7 +146,7 @@ Knowledge/known mode:
   webctl metrics summary
   webctl baseline record --task NAME --duration-ms N --success true|false [--site SITE] [--llm-calls N] [--browser-actions N] [--notes TEXT]
   webctl baseline summary
-  webctl batch --session ID --input-file commands.json
+  webctl batch --session ID --input-file commands.json   # fill / select in one round trip
   webctl request status --id REQUEST_ID [--verbose]
   webctl test snapshot --site SITE_ID --file SNAPSHOT_JSON
 
@@ -188,7 +196,10 @@ async function main() {
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
 
   if(['view','expand','inspect','changes'].includes(a))return print(await client.call('observation.'+a,{sessionId:required('session'),observation:flag('observation'),comparison:flag('comparison'),target:flag('target'),...observationFlags()}));
-  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit"), contextLimit: flag("context-limit"), ...observationFlags() }));
+  if(a==='close'&&boolFlag('all'))return print(await client.call('session.closeAll'));
+  if(a==='close')return print(await client.call('session.close',{sessionId:required('session')}));
+  if(['read','explain'].includes(a))return print(await client.call('page.'+a,{sessionId:required('session'),map:required('map'),panel:required('panel'),want:flag('want'),query:flag('query'),item:flag('item'),target:flag('target'),offset:flag('offset'),limit:flag('limit'),textLimit:flag('text-limit'),byteBudget:flag('byte-budget')}));
+  if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit"),offset:flag('offset'), contextLimit: flag("context-limit"), ...observationFlags() }));
   if (a === 'verify') return print(await client.call('page.verify',{sessionId:required('session'),input:flag('input')||flag('input-file')?await actionInput():{checks:[]}}));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));
   if (a === "network" && b === "start") return print(await client.call("network.start", { sessionId: required("session") }));

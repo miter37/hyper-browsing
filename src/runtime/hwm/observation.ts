@@ -6,7 +6,7 @@ export interface ObservationNode {
   id: string; kind: string; parent: string | null; order: number;
   tag?: string; role?: string; text?: string; textSource?: string;
   name?: string; nameSource?: string; actionRef?: string;
-  tracking?: { id: string; semantic: string | null; source: 'dom-weakmap-v1'; semanticEncoding?: 'sha256' };
+  tracking?: { id: string; semantic: string | null; source: 'dom-weakmap-v1'; semanticEncoding?: 'sha256'; readTarget?: string };
   attrs: Record<string, Json>;
 }
 export interface ObservationGraph {
@@ -26,6 +26,13 @@ export interface ObservationGraph {
   };
 }
 
+/** Structural identity boundary, not mutable content/value equality. Used at issue and resolve. */
+export const OBSERVATION_SEMANTIC_GUARD = `dom=>{
+  const chain=[];let el=dom.nodeType===1?dom:dom.parentElement;
+  for(let depth=0;el&&depth<64;depth++,el=el.parentElement||el.getRootNode().host)
+    chain.push([el.localName,...['id','data-key','data-id','href','role','type'].map(k=>el.getAttribute(k))]);
+  return el?null:JSON.stringify(chain);
+}`;
 /** Called inside the existing snapshot evaluation, before the page can change between captures. */
 export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
   const nodes=[{id:'n1',kind:'document',parent:null,order:0,attrs:{}}], edges=[], gaps=[], matches=[];
@@ -33,15 +40,27 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
   const limit=opts.contextLimit, textLimit=120000; let textCount=0, visits=0, complete=true;
   const required=new Set();for(const {el}of picked)for(let p=el;p&&p!==document.documentElement;p=p.parentElement||p.getRootNode().host)required.add(p);
   for(const {el}of picked){const local=[el,...[el.previousSibling,el.nextSibling].filter(Boolean)],owner=el.closest('li,p,tr,fieldset,[role=dialog],dialog');if(owner)local.push(owner);let count=0;while(local.length&&count++<32){const node=local.pop();required.add(node);if(node.childNodes)for(const child of Array.from(node.childNodes).reverse())local.push(child);}}
-  for(const dom of queryNodes){required.add(dom);for(let p=dom.parentElement;p&&p!==document.documentElement;p=p.parentElement||p.getRootNode().host)required.add(p);const owner=dom.parentElement?.closest('p,li,tr,article,section')||dom.parentElement;const local=owner?[owner]:[];let count=0;while(local.length&&count++<64){const n=local.pop();required.add(n);for(const child of Array.from(n.childNodes||[]).reverse())local.push(child);}}
+  for(const dom of queryNodes){required.add(dom);for(let p=dom.parentElement;p&&p!==document.documentElement;p=p.parentElement||p.getRootNode().host)required.add(p);
+    let owner=dom.parentElement?.closest('p,li,tr,dt,dd');
+    if(!owner)for(let p=dom.parentElement;p&&p!==document.body;p=p.parentElement){const length=(p.textContent||'').length;if(p.childNodes.length>1&&length<=1000&&length>(dom.textContent||'').length+8){owner=p;break;}}
+    owner||=dom.parentElement?.closest('article,section')||dom.parentElement;
+    const local=owner?[owner]:[];if(owner?.localName==='dt')for(let d=owner.nextElementSibling;d?.localName==='dd';d=d.nextElementSibling)local.push(d);let count=0;while(local.length&&count++<64){const n=local.pop();required.add(n);for(const child of Array.from(n.childNodes||[]).reverse())local.push(child);}}
   const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();
+  const semanticGuard=${OBSERVATION_SEMANTIC_GUARD};
   const track=dom=>{
     if(!opts.refs?.observedIds)return undefined;
     let id=opts.refs.observedIds.get(dom);if(!id){id=opts.refs.observedNext++;opts.refs.observedIds.set(dom,id);}
-    const chain=[];let el=dom.nodeType===1?dom:dom.parentElement;for(let depth=0;el&&depth<64;depth++,el=el.parentElement||el.getRootNode().host){
-      chain.push([el.localName,...['id','data-key','data-id','href','role','type'].map(k=>el.getAttribute(k))]);
+    const semantic=semanticGuard(dom);let read;
+    if(opts.refs.observedReadIds&&opts.refs.observedTargets){
+      read=opts.refs.observedReadIds.get(dom);
+      if(!read||read.guard!==semantic||!opts.refs.observedTargets.has(read.id)){
+        if(read)opts.refs.observedTargets.delete(read.id);
+        read={id:opts.refs.observedReadNext++,guard:semantic};opts.refs.observedReadIds.set(dom,read);
+        opts.refs.observedTargets.set(read.id,{node:new WeakRef(dom),guard:semantic});
+        while(opts.refs.observedTargets.size>6000)opts.refs.observedTargets.delete(opts.refs.observedTargets.keys().next().value);
+      }
     }
-    return {id:opts.document+':'+id,semantic:el?null:JSON.stringify(chain),source:'dom-weakmap-v1'};
+    return {id:opts.document+':'+id,semantic,source:'dom-weakmap-v1',...(read?{readTarget:'N'+read.id}:{})};
   };
   nodes[0].tracking={id:opts.document+':document',semantic:'document',source:'dom-weakmap-v1'};
   const gap=(parent,reason,kind='unobserved',field)=>{gaps.push({id:'gap'+(gaps.length+1),kind,reason,parent,...(field?{field}:{})});if(kind!=='redacted')complete=false;};
@@ -53,8 +72,9 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
     return ({p:'paragraph',ul:'list',ol:'list',li:'item',table:'table',tr:'row',td:'cell',th:'cell',form:'form',fieldset:'fieldset',dialog:'dialog',img:'image',figure:'figure',iframe:'frame',main:'region',section:'region',article:'region',nav:'region',header:'region',footer:'region',aside:'region'})[tag]||'group';
   };
   const add=(data,parent)=>{const order=orders.get(parent)||0;orders.set(parent,order+1);const node={id:'n'+(nodes.length+1),parent,order,...data};nodes.push(node);return node;};
-  const stack=document.body?[{dom:document.body,parent:'n1',pre:false}]:[];
-  if(!document.body)gap('n1','document-not-available','unavailable');
+  const start=opts.root||document.body;
+  const stack=start?[{dom:start,parent:'n1',pre:false}]:[];
+  if(!start)gap('n1','document-not-available','unavailable');
   while(stack.length){
     const work=stack.pop(),dom=work.dom;
     if(nodes.length>=6000){gap(work.parent,'context-capacity','unavailable');break;}
@@ -73,7 +93,7 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
       const el=dom,tag=el.localName;if(/^(script|style|noscript|template)$/.test(tag))continue;
       const style=styleOf(el);
       const role=el.getAttribute('role')||implicitRole(el,tag);
-      const significant=/^(body|main|section|article|nav|header|footer|aside|h[1-6]|p|ul|ol|li|table|thead|tbody|tr|td|th|form|fieldset|legend|label|dialog|input|button|select|option|textarea|a|summary|details|img|iframe|slot|pre|code)$/.test(tag)||role||required.has(el)||el.attributes.length||el.childElementCount>1||style.overflowX!=='visible'||style.overflowY!=='visible';
+      const significant=/^(body|main|section|article|nav|header|footer|aside|h[1-6]|p|ul|ol|li|dl|dt|dd|table|thead|tbody|tr|td|th|form|fieldset|legend|label|dialog|input|button|select|option|textarea|a|summary|details|img|iframe|slot|pre|code)$/.test(tag)||role||required.has(el)||el.attributes.length||el.childElementCount>1||style.overflowX!=='visible'||style.overflowY!=='visible';
       if(!significant&&style.display!=='none'&&style.visibility!=='hidden'&&!el.hidden&&!el.shadowRoot){for(const child of Array.from(el.childNodes).reverse())stack.push({dom:child,parent:work.parent,pre:work.pre,via:[...(work.via??[]),tag]});continue;}
       if(style.display==='none'||style.visibility==='hidden'||el.hidden){
         const attrs={hidden:Boolean(el.hidden),rendering:{display:style.display,visibility:style.visibility,source:'dom-cssom-v1'},...(work.via?.length?{'via-dom':work.via}:{})};
@@ -171,7 +191,7 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
     if(typeof n.attrs.display==='string'&&n.attrs.display.toLowerCase().includes(query))matches.push({node:n.id,field:'display',transform:'snapshot-name-v1'});
     if(typeof n.attrs.href==='string'&&n.attrs.href.includes('?')){const params=new URLSearchParams(n.attrs.href.split('?')[1].split('#')[0]);if([...params].some(([k,v])=>k.toLowerCase().includes(query)||v.toLowerCase().includes(query)))matches.push({node:n.id,field:'href.query',transform:'url-search-params-v1'});}
   }
-  return {version:'0.2',observation:opts.observation,document:opts.document,capturedAt:new Date().toISOString(),url:location.href,scan:{scope:'main-document-and-open-shadow',complete},nodes,edges,gaps,...(opts.query?{query:opts.query}:{}),matches,
+  return {version:'0.2',observation:opts.observation,document:opts.document,capturedAt:new Date().toISOString(),url:location.href,scan:{scope:opts.scope||'main-document-and-open-shadow',complete},nodes,edges,gaps,...(opts.query?{query:opts.query}:{}),matches,
     facts:{title:document.title,lang:document.documentElement?.lang||'',readyState:document.readyState,viewport:{width:innerWidth,height:innerHeight},scroll:[scrollX,scrollY]},
     discovery:{controls:picked.filter(m=>!ids.has(m.el)).map(m=>Object.fromEntries(Object.entries(m.entry).filter(([key])=>!key.startsWith('_'))))},
     state:{params:Array.from(new URLSearchParams(location.search)),fields,groups,status,complete:complete&&groups.every(g=>g.complete)}};
@@ -183,7 +203,8 @@ export function sanitizeObservation(graph: ObservationGraph): ObservationGraph {
   const sanitized: ObservationGraph = { ...graph, url: redactUrl(graph.url), query: graph.query === undefined ? undefined : redactContent(graph.query), nodes: graph.nodes.map(n => ({ ...n,
     ...(n.tracking?{tracking:{...n.tracking,semanticEncoding:'sha256',semantic:n.tracking.semantic===null?null:n.tracking.semanticEncoding==='sha256'&&/^[a-f0-9]{64}$/.test(n.tracking.semantic)?n.tracking.semantic:createHash('sha256').update(n.tracking.semantic).digest('hex')}}:{}),
     ...(n.text === undefined ? {} : { text: redactContent(n.text) }), ...(n.name === undefined ? {} : { name: redactContent(n.name) }),
-    attrs: Object.fromEntries(Object.entries(n.attrs).map(([k,v])=>[k,['href','action'].includes(k)&&typeof v==='string'?redactUrl(v):['placeholder','value','display','hint','context','label','popup','selectedText','testId','aria-label','aria-labelledby','aria-describedby','aria-controls','aria-owns','id'].includes(k)?clean(v):v])),
+    attrs: {...Object.fromEntries(Object.entries(n.attrs).map(([k,v])=>[k,['href','action'].includes(k)&&typeof v==='string'?redactUrl(v):['placeholder','value','display','hint','context','label','popup','selectedText','testId','aria-label','aria-labelledby','aria-describedby','aria-controls','aria-owns','id'].includes(k)?clean(v):v])),
+      ...(['href','action'].some(k=>typeof n.attrs[k]==='string'&&redactUrl(n.attrs[k] as string)!==n.attrs[k])?{redactedFields:[...new Set([...(Array.isArray(n.attrs.redactedFields)?n.attrs.redactedFields:[]),...['href','action'].filter(k=>typeof n.attrs[k]==='string'&&redactUrl(n.attrs[k] as string)!==n.attrs[k])])]}:{})},
   })),
     ...(graph.facts?{facts:{...graph.facts,title:redactContent(graph.facts.title)}}:{}),
     ...(graph.discovery?{discovery:clean(graph.discovery) as Record<string,Json>}:{}),

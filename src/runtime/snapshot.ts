@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { Page } from "playwright";
+import type { Page, ElementHandle } from "playwright";
 import type { AppConfig } from "../config";
 import { redactText, redactUrl } from "../utils/strings";
 import { DEEP_WALK_JS, detectBlock, inspectPageState, type BlockInfo, type PageStateInfo } from "../engine/page-state";
@@ -21,6 +21,8 @@ export interface SnapshotElement {
   placeholder?: string;
   label?: string;
   href?: string;
+  redacted?: string[];
+  viewportBox?: number[];
   // Short text just before a control that names its purpose ("Sort by:"), when the control's own name is its value.
   hint?: string;
   // Current text of a non-secret text field.
@@ -89,6 +91,7 @@ export interface PageSnapshot {
   diagnostics?: { shadowRoots: number; iframes: number; bodyTextLength: number; readyState: string };
   blocked?: BlockInfo;
   scanMs?: number;
+  controlPage?:{offset:number;total:number;shown:number;complete:boolean};
 }
 
 export const DEFAULT_SNAPSHOT_LIMIT = 160;
@@ -103,6 +106,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   function styleOf(el){let value=styles.get(el);if(!value){value=getComputedStyle(el);styles.set(el,value);}return value;}
   function rectOf(el){let value=rects.get(el);if(!value){value=el.getBoundingClientRect();rects.set(el,value);}return value;}
   ${DEEP_WALK_JS}
+  function scopedWalk(cb,max){return deepWalk(cb,max||opts.maxVisits,opts.root);}
 
   const CAND = "a, button, input, select, textarea, label, summary, [role], [data-testid], [tabindex]:not([tabindex='-1']), [contenteditable=true]";
   const INTERACTIVE_DESC = "a[href], button, input, select, textarea, [role=button], [role=link], [role=checkbox], [role=radio], [role=option], [role=tab], [role=menuitem], [role=switch]";
@@ -319,7 +323,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   let order = 0;
   let section = "(top)";
 
-  deepWalk((el) => {
+  scopedWalk((el) => {
     const tagU = el.tagName;
     if (tagU === "SCRIPT" || tagU === "STYLE" || tagU === "TEMPLATE" || tagU === "NOSCRIPT") return false;
     if (el.shadowRoot) shadowRoots++;
@@ -420,12 +424,14 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   });
 
   if (query) matched.sort((a, b) => b.s - a.s || a.order - b.order);
-  const picked = matched.slice(0, limit);
+  const controlOffset=opts.controlOffset||0;
+  const picked = matched.slice(controlOffset, controlOffset+limit);
   const omittedBy = {};
   for (const m of matched.slice(limit)) omittedBy[m.section] = (omittedBy[m.section] || 0) + 1;
   for (const m of picked) {
     const c = clipState(m.el);
     if (c) m.entry.clipped = c;
+    if (!m.entry.name) { const r=m.el.getBoundingClientRect();m.entry.viewportBox=[r.x,r.y,r.width,r.height].map(v=>Math.round(v)); }
   }
 
   // Repeated role+name: add each one's own heading; a heading shared inside the group says nothing, so drop it.
@@ -450,8 +456,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   if (query) {
     const listed = new Set(picked.map((m) => m.el));
     const seenParents = new Set();
-    const roots = [document];
-    deepWalk((el) => { if (el.shadowRoot) roots.push(el.shadowRoot); });
+    const roots = [opts.root||document];
+    scopedWalk((el) => { if (el.shadowRoot) roots.push(el.shadowRoot); });
     for (const root of roots) {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       for (let t = walker.nextNode(); t && textHits.length < 8; t = walker.nextNode()) {
@@ -478,7 +484,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   // Nothing matched: closed disclosures (<details>, aria-expanded=false toggles) may hold it, rendered only once open.
   const collapsed = [];
   if (query && !picked.length) {
-    deepWalk((el) => {
+    scopedWalk((el) => {
       if (collapsed.length >= 8) return false;
       const isSummary = el.tagName === "SUMMARY" && el.parentElement && el.parentElement.tagName === "DETAILS" && !el.parentElement.open;
       const isToggle = el.getAttribute && el.getAttribute("aria-expanded") === "false";
@@ -490,9 +496,10 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   }
 
   const top = Object.entries(omittedBy).sort((a, b) => b[1] - a[1]).slice(0, 12);
-  const omittedCount = Math.max(0, matched.length - picked.length);
+  const omittedCount = Math.max(0, matched.length - controlOffset - picked.length);
   return {
     observation: walkDiagnostics,
+    ...(opts.controlOffset===undefined?{}:{controlPage:{offset:controlOffset,total:matched.length,shown:picked.length,complete:walkDiagnostics.complete}}),
     url: location.href,
     title,
     viewport: { width: innerWidth, height: innerHeight },
@@ -508,7 +515,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     diagnostics: picked.length ? undefined : {
       shadowRoots,
       iframes: document.querySelectorAll("iframe").length,
-      bodyTextLength: ((document.body && document.body.innerText) || "").length,
+      bodyTextLength: opts.lightweight ? undefined : (((opts.root||document.body) && (opts.root||document.body).innerText) || "").length,
       readyState: document.readyState,
     },
     scanMs: Math.round(performance.now() - started),
@@ -517,22 +524,22 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number } = {}
+  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
-  const opts = { query: options.query || "", limit, context: true,
+  const opts = { query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,
     contextLimit: Math.max(1, Math.min(Number(options.contextLimit) || 2000, 6000)), observation: 'p' + randomUUID().replace(/-/g,'') };
   const references = options.references ?? referencesFor(page);
   let collectionTiming: PageSnapshot['collectionTiming'];
   const capture = async (): Promise<any> => {
-    if (!references) return page.evaluate(`(${SNAPSHOT_SCRIPT})(${JSON.stringify(opts)})`);
+    if (!references) return page.evaluate(({script,opts,root})=>eval(`(${script})`)({...opts,root}),{script:SNAPSHOT_SCRIPT,opts,root:options.root});
     const referenceStarted=performance.now();
     const state = await references.snapshotState();
     const phases:NonNullable<NonNullable<PageSnapshot['collectionTiming']>['phases']>={referenceStateMs:performance.now()-referenceStarted};
     collectionTiming = { startedAt: new Date().toISOString(), finishedAt:'',document:references.documentIdentity(),documentChanged:false,phases };
     const evaluationStarted=performance.now();
-    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts, document:collectionTiming.document, refs: state.state } });
+    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts,root:options.root, document:collectionTiming.document, refs: state.state } });
     phases.pageEvaluationMs=performance.now()-evaluationStarted;
     try {
       const transferStarted=performance.now();
@@ -565,14 +572,15 @@ export async function captureSnapshot(
     name: e.name ? redactText(e.name) : undefined,
     text: e.text ? redactText(e.text) : undefined,
     href: e.href ? redactUrl(e.href) : undefined,
+    ...(e.href&&redactUrl(e.href)!==e.href?{redacted:['href']}:{}),
     value: e.value ? redactText(e.value) : undefined,
     selectedText: e.selectedText ? redactText(e.selectedText) : undefined,
     context: e.context ? redactText(e.context) : undefined,
   }));
 
   const stateStart = new Date().toISOString(), stateDocument = references?.documentIdentity();
-  const pageState = await inspectPageState(page, data.observation, options.waitMs ?? (options.query ? 0 : 3000));
-  const blocked = await detectBlock(page);
+  const pageState = options.lightweight?undefined:await inspectPageState(page, data.observation, options.waitMs ?? (options.query ? 0 : 3000));
+  const blocked = options.lightweight?undefined:await detectBlock(page);
   const stateObservation = stateDocument ? { startedAt:stateStart,finishedAt:new Date().toISOString(),document:stateDocument,documentChanged:stateDocument!==references?.documentIdentity(),simultaneousWithGraph:false as const } : undefined;
   if (collectionTiming && (collectionTiming.documentChanged || collectionTiming.document!==references?.documentIdentity())) {
     collectionTiming.documentChanged=true;
@@ -581,6 +589,7 @@ export async function captureSnapshot(
   }
   const snapshot:PageSnapshot={
     collectionTiming,stateObservation,
+    ...(data.controlPage?{controlPage:data.controlPage}:{}),
     ...(data.contextGraph ? { contextGraph: sanitizeObservation({...data.contextGraph,discovery:{...data.contextGraph.discovery,hidden:data.hidden,textHits:data.textHits,collapsed:data.collapsed,omitted:data.omitted,truncated:Boolean(data.truncated),diagnostics:data.diagnostics,open:data.open,headings:data.headings,observation:data.observation}}) } : {}),
     capturedAt: new Date().toISOString(),
     observation: data.observation,

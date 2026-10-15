@@ -7,6 +7,7 @@ import { resolveElement, LocatorResolutionError } from "./locators";
 import type { ElementDefinition } from "../schema/site";
 import { watchPopups } from './popups';
 import { waitBeforeInput } from './input-pacing';
+import { redactContent } from '../utils/strings';
 
 /** Agent-driven actions fail fast instead of Playwright's 30 s default; `--timeout-ms` overrides. */
 export const DEFAULT_ACTION_TIMEOUT_MS = 5000;
@@ -313,8 +314,15 @@ export async function actOn<T>(
         const hit = document.elementFromPoint(x, y);
         if (!hit || hit === el || el.contains(hit)) return null;
         const b = hit.getBoundingClientRect();
-        return { area: (b.width * b.height) / (innerWidth * innerHeight), tag: hit.tagName.toLowerCase(), cls: String(hit.className || "").slice(0, 60) };
+        // Avoid tsx's inferred-name helper inside a callback serialized into the page.
+        const describe = [(node:Element) => ({tag:node.tagName.toLowerCase(),...(node.getAttribute('role')?{role:node.getAttribute('role')}:{}),...(node.getAttribute('aria-label')?{name:node.getAttribute('aria-label')!.slice(0,120)}:{}),display:String((node as HTMLElement).innerText||'').replace(/\s+/g,' ').trim().slice(0,120)})][0];
+        let container=hit.closest('dialog,[role=dialog],[role=alertdialog],[aria-modal=true],[popover]');
+        if(!container)for(let n:Element|null=hit;n&&n!==document.body;n=n.parentElement){const style=getComputedStyle(n);if(style.position==='fixed'||style.position==='sticky'||style.position==='absolute'&&Number(style.zIndex)>0){container=n;break;}}
+        container??=hit;
+        const controls=[...container.querySelectorAll('button,[role=button],input[type=button],input[type=submit]')].filter(node=>{const r=node.getBoundingClientRect(),s=getComputedStyle(node);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';});
+        return { area: (b.width * b.height) / (innerWidth * innerHeight), tag: hit.tagName.toLowerCase(), cls: String(hit.className || "").slice(0, 60),obstruction:{test:'target-center',hit:describe(hit),container:describe(container),controls:controls.slice(0,4).map(describe),'controls-complete':controls.length<=4} };
       }).catch(() => null);
+      if(cover)failure.obstruction=JSON.parse(redactContent(JSON.stringify(cover.obstruction)));
       if (cover && cover.area > 0.4) {
         const probe = await probePage(page);
         failure.reason = "blocked_by_overlay";

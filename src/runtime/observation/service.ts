@@ -1,0 +1,150 @@
+import type {Page,JSHandle,ElementHandle} from 'playwright';
+import {randomBytes} from 'node:crypto';
+import {captureSnapshot,type SnapshotElement} from '../snapshot';
+import {referencesFor,normalizeReference} from '../references';
+import {captureMap,panelRoot,type Panel} from './map';
+import {DeliveryLedger,observationError,type DeliveryOptions,type Unit} from './delivery';
+import {ObservationService} from '../hwm/service';
+import {OBSERVATION_SEMANTIC_GUARD,type ObservationGraph} from '../hwm/observation';
+import {cleanStoredJson,ObservationStore} from '../hwm/store';
+import {redactUrl} from '../../utils/strings';
+
+interface Scope {session:string;document:string;page:Page;roots:JSHandle;panels:Panel[];expires:number}
+export interface ReadOptions extends DeliveryOptions {map:string;panel:string;want?:string;query?:string;item?:number;target?:string;offset?:number;limit?:number;textLimit?:number;byteBudget?:number}
+const number=(value:unknown,fallback:number,max:number)=>{if(value===undefined)return fallback;const n=Number(value);if(!Number.isSafeInteger(n)||n<0||n>max)throw observationError('invalid_read_budget');return n;};
+const publicId=(n:ObservationGraph['nodes'][number])=>n.actionRef??n.tracking?.readTarget??'N'+(n.tracking?.id.split(':').at(-1)??n.id);
+const controlCollected=['role','tag','name','nameTruncated','label','placeholder','href','redacted','value','valuePreview','checked','selected','expanded','pressed','disabled','popup','clipped','context','hint','hintSource','viewportBox'];
+const compactControl=(e:SnapshotElement)=>{const value=Object.fromEntries(Object.entries(e).filter(([k,v])=>v!==undefined&&['ref','role','tag','name','nameTruncated','label','placeholder','href','redacted','value','checked','selected','expanded','pressed','disabled','popup','clipped','context','hint','viewportBox'].includes(k)));if(e.hint)value.hintSource='snapshot-nearby-text-v1';if(typeof e.value==='string'&&e.value.length===60)value.valuePreview=true;return value;};
+const passiveMapRoles=new Set(['dialog','alertdialog','region','main','banner','contentinfo','navigation','group','list','listitem','table','row','cell','heading','status','form','search']);
+const mapControl=(e:SnapshotElement)=>['input','button','select','textarea','a','label','summary'].includes(e.tag)||!passiveMapRoles.has(e.role??'');
+const mapPriority=(e:SnapshotElement)=>['searchbox','textbox','combobox'].includes(e.role??'')?0:e.role==='button'?1:2;
+/** Live selective reads plus scoped, explicit delivery receipts; no learning dependency. */
+export class DemandObservationService {
+ private scopes=new Map<string,Scope>();private ledger:DeliveryLedger;private ttl:number;private clock:()=>number;
+ readonly detailed:ObservationService;
+ constructor(options:{clock?:()=>number;ttlMs?:number;detailed?:ObservationService}={}){
+  this.clock=options.clock??Date.now;this.ttl=options.ttlMs??300000;this.ledger=new DeliveryLedger(this.ttl,this.clock);
+  this.detailed=options.detailed??new ObservationService(new ObservationStore({maxBytes:14*1024*1024}));
+ }
+ private async prune(){for(const [id,s]of this.scopes)if(s.expires<=this.clock()||s.page.isClosed()){this.scopes.delete(id);await s.roots.dispose().catch(()=>{});}}
+ private async scope(page:Page,session:string,map:string){await this.prune();const s=this.scopes.get(map);if(!s)throw observationError('scope_expired');if(s.session!==session||s.page!==page)throw observationError('scope_mismatch');if(s.document!==referencesFor(page).documentIdentity())throw observationError('scope_stale');return s;}
+ async map(page:Page,session:string,options:DeliveryOptions&{offset?:number}={}){
+  await this.prune();const document=referencesFor(page).documentIdentity(),captured=await captureMap(page,number(options.offset,0,10000));
+  if(document!==referencesFor(page).documentIdentity()){await captured.roots.dispose();throw observationError('scope_stale');}
+  while(this.scopes.size>=16){const key=this.scopes.keys().next().value!;await this.scopes.get(key)!.roots.dispose().catch(()=>{});this.scopes.delete(key);}
+  const same=[...this.scopes].find(([,s])=>s.page===page&&s.session===session&&s.document===document&&JSON.stringify(s.panels.map(p=>[p.id,p.identity,p.role]))===JSON.stringify(captured.panels.map((p:Panel)=>[p.id,p.identity,p.role])));
+  const map=same?.[0]??'M'+randomBytes(6).toString('hex');if(same)await same[1].roots.dispose().catch(()=>{});this.scopes.set(map,{page,session,document,roots:captured.roots,panels:captured.panels,expires:this.clock()+this.ttl});
+  try{
+   const panels:any[]=[],units:Unit[]=[],seenRefs=new Set<string>();let remaining=12;
+   for(const p of captured.panels){const root=await panelRoot(captured.roots,p.id);try{
+    const snap=await captureSnapshot(page,{root,context:false,lightweight:true,maxVisits:160,limit:12,waitMs:0});
+    const controls=remaining>0?snap.elements.filter(e=>mapControl(e)&&!seenRefs.has(e.ref!)).sort((a,b)=>mapPriority(a)-mapPriority(b)).slice(0,Math.min(2,remaining)).map(compactControl):[];for(const c of controls)seenRefs.add(c.ref as string);remaining-=controls.length;
+    const {identity,...panel}=p;panels.push({...panel,...(controls.length?{controls}:{}),more:'read'});
+    units.push({key:map+'/'+p.id,data:{id:p.id,...panel,more:'read'},collected:['name','boundary']});
+    for(const control of controls)units.push({key:document+'/'+control.ref,data:{id:control.ref,kind:'control',...control,parent:p.id},collected:controlCollected});
+   }finally{await root.dispose();}}
+   const url=new URL(page.url()),rawUrl=url.origin==='null'?url.href:url.origin+url.pathname,safeUrl=redactUrl(rawUrl),pageFacts={id:'PAGE',title:captured.title,url:safeUrl,queryAvailable:Boolean(url.search),...(safeUrl!==rawUrl?{redacted:['url']}:{})};
+   units.push({key:map+'/PAGE',data:pageFacts,collected:['redacted']});const delivered=this.receipt(session,document,units,options);
+   const changed=delivered.data,outputPanels=panels.flatMap(p=>{const patch=changed.find(d=>d.id===p.id),controls=(p.controls??[]).flatMap((c:any)=>{const d=changed.find(d=>d.id===c.ref);return d?[d]:[];});if(!patch&&!controls.length)return [];return [{id:p.id,...patch,...(controls.length?{controls}:{} )}];});
+   const facts=changed.find(d=>d.id==='PAGE');const {data,...receipt}=delivered;
+   return {ok:true,kind:'map',map,source:'live',document,...(facts?Object.fromEntries(Object.entries(facts).filter(([k])=>k!=='id')):{}),coverage:captured.coverage,panels:outputPanels,...receipt,...(!options.since?{next:['read: controls|content|state','explain: scoped HWM']}:{})};
+  }catch(e){await captured.roots.dispose().catch(()=>{});this.scopes.delete(map);throw e;}
+ }
+ private receipt(session:string,document:string,units:Unit[],options:DeliveryOptions){return this.ledger.publish(session,document,units,options);}
+ private async root(page:Page,session:string,options:ReadOptions){
+  const scope=await this.scope(page,session,options.map);if(!scope.panels.some(p=>p.id===options.panel))throw observationError('panel_not_found');
+  const root=await panelRoot(scope.roots,options.panel);
+  if(options.item!==undefined||options.target){try{
+   let selected:ElementHandle|null=null;
+   if(options.target){const target=normalizeReference(options.target),actionRef=/^e\d+$/.test(target);if(!actionRef&&!/^N\d+$/.test(target))throw observationError('invalid_read_target');
+    const references=referencesFor(page);if(actionRef){const resolved=await references.resolve(target);if(!('locator' in resolved))throw observationError('stale_ref');}const state=await references.snapshotState();
+    const h=await state.state.evaluateHandle((s:any,{target,actionRef,root,guard})=>{const entry=actionRef?null:s.observedTargets?.get(Number(target.slice(1))),n=actionRef?s.targets?.get(target)?.deref():entry?.node.deref();if(!actionRef&&(!n||entry.guard===null||entry.guard!==eval(`(${guard})`)(n)))return null;const el=n?.nodeType===3?(n.parentElement||n.getRootNode().host):n;if(!el?.isConnected)return null;for(let p=el;p;p=p.parentElement||p.getRootNode().host)if(p===root)return el;return null;},{target,actionRef,root,guard:OBSERVATION_SEMANTIC_GUARD});selected=h.asElement();if(!selected)await h.dispose();
+   }else{const item=number(options.item,1,10000);if(item<1)throw observationError('invalid_item');
+    const h=await root.evaluateHandle((el,item)=>{const selector='li,[role=listitem],article,tr,[role=row]';const all=[...(el as Element).querySelectorAll(selector)];return all.filter(n=>{const ancestor=n.parentElement?.closest(selector);return !ancestor||!el.contains(ancestor);})[item-1]??null;},item);selected=h.asElement();if(!selected)await h.dispose();
+   }
+   if(!selected)throw observationError('read_target_not_found');await root.dispose();return {root:selected,scope};
+  }catch(e){await root.dispose();throw e;}}
+  return {root,scope};
+ }
+ async read(page:Page,session:string,options:ReadOptions){
+  const want=(options.want??'controls').split(',');if(want.some(w=>!['controls','content','state'].includes(w)))throw observationError('invalid_read_fields');
+  const limit=number(options.limit,60,2000),offset=number(options.offset,0,10000);if(!limit)throw observationError('invalid_read_budget');
+  const {root,scope}=await this.root(page,session,options);
+  try{
+   const graphNeeded=want.includes('content')||want.includes('state');
+   const snapshot=await captureSnapshot(page,{root,context:graphNeeded,lightweight:true,limit:Math.min(600,graphNeeded?limit+offset:limit),...(graphNeeded?{}:{controlOffset:offset}),contextLimit:Math.min(6000,Math.max(300,(limit+offset)*4)),scope:options.map+'/'+options.panel,query:options.query,waitMs:0});
+   if(scope.document!==referencesFor(page).documentIdentity()||!await root.evaluate(el=>el.isConnected))throw observationError('scope_stale');
+   let units:Unit[]=[];let complete=snapshot.observation?.complete!==false&&!snapshot.truncated;
+   if(snapshot.contextGraph){const g=snapshot.contextGraph;this.detailed.remember(session,g);complete=complete&&g.scan.complete;units=this.units(g,want,Boolean(options.query));
+    if(options.query){const byId=new Map(g.nodes.map(n=>[n.id,n])),children=new Map<string,typeof g.nodes>(),textCounts=new Map<string,number>(),textLengths=new Map<string,number>();
+     for(const n of g.nodes)if(n.parent){const list=children.get(n.parent)??[];list.push(n);children.set(n.parent,list);}
+     for(const n of [...g.nodes].reverse()){const count=(textCounts.get(n.id)??0)+(n.text?1:0),length=(textLengths.get(n.id)??0)+(n.text?.length??0);textCounts.set(n.id,count);textLengths.set(n.id,length);if(n.parent){textCounts.set(n.parent,(textCounts.get(n.parent)??0)+count);textLengths.set(n.parent,(textLengths.get(n.parent)??0)+length);}}
+     const matches=new Set(g.matches.map(m=>m.node)),keep=new Set<string>(),expanded=new Set<string>();for(const n of g.nodes)if(matches.has(n.id)){
+     let owner=n;for(let p=byId.get(n.parent??'');p;p=byId.get(p.parent??''))if(['heading','item','row','paragraph','fieldset'].includes(p.kind)||p.tag==='dt'||p.tag==='dd'){owner=p;break;}
+     if(owner===n)for(let p=byId.get(n.parent??'');p&&p.kind!=='document'&&p.kind!=='region';p=byId.get(p.parent??'')){const length=textLengths.get(p.id)??0;if(p.kind==='group'&&(textCounts.get(p.id)??0)>=2&&length<=1000&&length>(n.text?.length??options.query.length)+8){owner=p;break;}}
+     if(owner.kind==='heading'){const start=g.nodes.indexOf(owner),level=Number(owner.attrs.level);let end=g.nodes.findIndex((m,i)=>i>start&&m.kind==='heading'&&Number(m.attrs.level)<=level);if(end<0)end=g.nodes.length;g.nodes.slice(start,end).forEach(m=>keep.add(m.id));}
+     else {const roots=new Set([owner.id]);if(owner.tag==='dt'){const siblings=children.get(owner.parent??'')??[];for(let i=siblings.findIndex(m=>m.id===owner.id)+1;i<siblings.length&&siblings[i].tag==='dd';i++)roots.add(siblings[i].id);}
+      const stack=[...roots];while(stack.length){const id=stack.pop()!;if(expanded.has(id))continue;expanded.add(id);keep.add(id);for(const child of children.get(id)??[])stack.push(child.id);}}
+     let cur:typeof n|undefined=n;while(cur){keep.add(cur.id);cur=byId.get(cur.parent??'');}}
+     const matchedKeys=new Set(g.nodes.filter(n=>keep.has(n.id)).map(publicId));units=units.filter(u=>matchedKeys.has(u.data.id)||u.data.ref&&snapshot.elements.some(e=>e.ref===u.data.ref));
+     const matchFields=new Map<string,{field:string;transform?:string}[]>();for(const {node,field,transform} of g.matches){const n=byId.get(node);if(n){const id=publicId(n),list=matchFields.get(id)??[];list.push({field,...(transform?{transform}:{})});matchFields.set(id,list);}}
+     for(const unit of units){const matches=matchFields.get(unit.data.id);unit.collected=[...new Set([...(unit.collected??[]),'match'])];if(matches?.length)unit.data.match=matches;}
+    }
+   }else units=snapshot.elements.map(e=>({key:scope.document+'/'+e.ref,data:{id:e.ref,kind:'control',...compactControl(e)},collected:controlCollected}));
+   const textLimit=number(options.textLimit,1200,120000),byteBudget=number(options.byteBudget,12000,200000);if(textLimit<1||byteBudget<1500)throw observationError('invalid_read_budget');
+   const total=graphNeeded?units.length:snapshot.controlPage?.total??units.length,shown:Unit[]=[];let used=1000,textTruncated=false,requiredByteBudget=0;
+   for(const raw of units.slice(graphNeeded?offset:0,(graphNeeded?offset:0)+limit)){const unit=structuredClone(raw);for(const field of ['text','name','display','value'])if(typeof unit.data[field]==='string'){
+     const chars=Array.from(unit.data[field]);if(chars.length>1200){unit.data[field+'Truncated']=chars.length>textLimit;if(chars.length>textLimit){unit.data[field]=chars.slice(0,textLimit).join('');unit.data[field+'Length']=chars.length;textTruncated=true;}}
+    }const cost=Buffer.byteLength(JSON.stringify(unit.data));if(used+cost>byteBudget){if(!shown.length)requiredByteBudget=1000+cost;break;}used+=cost;shown.push(unit);
+   }
+   const coverage={complete:complete&&!textTruncated&&offset===0&&total<=shown.length,observed:total,shown:shown.length,...(textTruncated?{textTruncated:true,detail:'read target with larger textLimit/byteBudget'}:{}),...(requiredByteBudget?{requiredByteBudget,target:units[graphNeeded?offset:0]?.data.id,detail:'increase byteBudget or reduce textLimit'}:total>offset+shown.length?{nextOffset:offset+shown.length}:{})};
+   const delivered=this.receipt(session,scope.document,shown,options);
+   return {ok:true,kind:'read',map:options.map,panel:options.panel,source:'live',...(options.query?{query:options.query}:{}),capturedAt:snapshot.capturedAt,coverage,...delivered,...(snapshot.hidden?.length?{hidden:snapshot.hidden}:{}),...(snapshot.collapsed?.length?{collapsed:snapshot.collapsed}:{}),...(delivered.known?{comparison:'same-delivered-fields-read-now'}:{})};
+  }finally{await root.dispose();}
+ }
+ private units(g:ObservationGraph,want:string[],groups=false):Unit[]{
+  const content=want.includes('content'),controls=want.includes('controls'),state=want.includes('state'),kept=new Map<string,string>(),units:Unit[]=[];
+  const byId=new Map(g.nodes.map(n=>[n.id,n])),childCounts=new Map<string,number>();for(const n of g.nodes)if(n.parent)childCounts.set(n.parent,(childCounts.get(n.parent)??0)+1);
+  for(const n of g.nodes){if(n.kind==='document')continue;let parent=n.parent;while(parent&&!kept.has(parent))parent=byId.get(parent)?.parent??null;
+   const stateKeys=['value','checked','selected','selected-complete','expanded','pressed','disabled','busy','open','aria-hidden'];
+   const isState=state&&stateKeys.some(k=>k in n.attrs),isControl=(controls||state)&&['control','link'].includes(n.kind),isContent=content&&(['region','heading','paragraph','text','list','item','table','row','cell','form','fieldset','dialog','link','image'].includes(n.kind)||['dl','dt','dd'].includes(n.tag??''));
+   if(!isState&&!isControl&&!isContent&&!(content&&('aria-hidden' in n.attrs||n.attrs.rendering))&&!(content&&groups&&n.kind==='group'&&((childCounts.get(n.id)??0)>1||n.role||n.attrs['layout-boundary'])))continue;
+   const id=publicId(n),data:Record<string,any>={id,kind:n.kind,parent:parent?kept.get(parent):'panel'};
+   if(n.role)data.role=n.role;if(n.name!==undefined)data.name=n.name;else if(typeof n.attrs.display==='string')data.display=n.attrs.display;
+   if(content&&'aria-hidden' in n.attrs)data['aria-hidden']=n.attrs['aria-hidden'];if(content&&n.attrs.rendering)data.rendering=n.attrs.rendering;
+   if(isControl&&!data.name&&!data.display&&Array.isArray(n.attrs.box))data.viewportBox=n.attrs.box.map(v=>typeof v==='number'?Math.round(v):v);
+   if(['dl','dt','dd'].includes(n.tag??''))data.tag=n.tag;
+   if(content&&n.text!==undefined)data.text=n.text;if(n.actionRef)data.ref=n.actionRef;
+   if(n.kind==='heading')data.level=n.attrs.level;
+   if((content||controls)&&typeof n.attrs.href==='string')data.href=n.attrs.href;
+   if(controls||state)for(const k of stateKeys)if(k in n.attrs)data[k]=k==='selected'&&Array.isArray(n.attrs[k])?(n.attrs[k] as string[]).map(id=>{const member=g.nodes.find(m=>m.id===id);return member?publicId(member):id;}):n.attrs[k];
+   if(n.attrs.redactedFields)data.redacted=n.attrs.redactedFields;
+   if(n.attrs.view)data.view=n.attrs.view;
+   const collected=['role','name','display','ref','redacted','view','viewportBox',...(content?['text','tag','level','href','aria-hidden','rendering']:[]),...(controls||state?[...stateKeys,'valuePreview']:[])];
+   kept.set(n.id,id);units.push({key:n.actionRef?g.document+'/'+n.actionRef:g.scan.scope+'/'+n.tracking?.id+'/'+n.tracking?.semantic+'/'+id,data,collected});
+  }
+  if(state&&g.state){units.push({key:g.document+'/url',data:{id:'URL',kind:'url',params:g.state.params}});for(const status of g.state.status){const n=g.nodes.find(n=>n.id===status.node);if(n)units.push({key:g.document+'/status/'+n.tracking?.id,data:{id:publicId(n),kind:'status',text:status.display??'','text-complete':status.complete}});}}
+  return units;
+ }
+ async explain(page:Page,session:string,options:ReadOptions){const {root,scope}=await this.root(page,session,options);try{
+  const snapshot=await captureSnapshot(page,{root,context:true,lightweight:true,scope:options.map+'/'+options.panel,query:options.query,limit:24,contextLimit:800,waitMs:0});
+  if(scope.document!==referencesFor(page).documentIdentity())throw observationError('scope_stale');if(!snapshot.contextGraph)throw observationError('capture_failed');
+  const remembered=this.detailed.remember(session,snapshot.contextGraph);if(!remembered.ok)throw observationError(remembered.reason);
+  const requested=number(options.limit,60,2000),byteBudget=number(options.byteBudget,16000,200000);let rendered=this.detailed.view(session,snapshot.contextGraph.observation,{mode:'overview',nodeBudget:requested}),detailBytes=Buffer.byteLength(rendered.hwm),fitted=rendered,selected=requested;
+  if(detailBytes>byteBudget){let low=1,high=Math.max(0,requested-1),found=false;while(low<=high){const mid=Math.floor((low+high)/2),candidate=this.detailed.view(session,snapshot.contextGraph.observation,{mode:'overview',nodeBudget:mid});if(Buffer.byteLength(candidate.hwm)<=byteBudget){fitted=candidate;selected=mid;found=true;low=mid+1;}else high=mid-1;}
+   if(!found)return {ok:false,execution:'completed',kind:'explain',reason:'detail_budget_exceeded',map:options.map,panel:options.panel,observation:rendered.observation,detailBytes,byteBudget,hint:'Narrow --item/--target, or explicitly raise --byte-budget. The observation is stored; nothing was executed again.'};
+  }
+  return {kind:'explain',map:options.map,panel:options.panel,...fitted,...(selected<requested?{byteLimited:true,nodeBudget:selected}:{})};
+ }finally{await root.dispose();}}
+ result(page:Page,session:string,result:any,options:DeliveryOptions&{ref?:string;map?:string}={}){
+  const output:any=cleanStoredJson(JSON.parse(JSON.stringify(result)));for(const field of ['snapshot','hwm','changes','log','stack'])delete output[field];
+  const units:Unit[]=[];if(options.ref&&output.execution!=='not_started'){
+   const data:Record<string,any>={id:options.ref};for(const [field,change]of Object.entries(output.effect?.targetChanged??{}))if(change&&typeof change==='object'&&'after' in change)data[field]=(change as any).after;
+   if(Object.keys(data).length>1)units.push({key:referencesFor(page).documentIdentity()+'/'+options.ref,data});
+  }
+  let receipt:any={};try{const {data,...meta}=this.receipt(session,referencesFor(page).documentIdentity(),units,options);receipt=meta;}catch(e:any){receipt={deliveryReset:e.code??'delivery_unavailable'};}
+  return {kind:'result',...output,...receipt,scope:'reported-effects',...(output.reason==='ambiguous'?{next:'read candidates or explain the target panel'}:{})};
+ }
+ async clearSession(session:string){for(const [id,s]of this.scopes)if(s.session===session){this.scopes.delete(id);await s.roots.dispose().catch(()=>{});}this.ledger.clearSession(session);this.detailed.clearSession(session);}
+ async close(){for(const s of this.scopes.values())await s.roots.dispose().catch(()=>{});this.scopes.clear();this.ledger.clear();}
+}

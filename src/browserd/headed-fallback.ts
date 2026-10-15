@@ -1,6 +1,6 @@
 /** Display recovery is separate from replay: changing mode invalidates live refs. */
 const SUPPORTED = new Set(['session.open', 'page.goto', 'page.snapshot', 'page.list', 'page.forms', 'page.extract', 'page.screenshot', 'page.waitFor', 'page.hover', 'page.click', 'page.fill', 'page.select', 'page.press', 'batch.run', 'action.run']);
-const NO_SWITCH = new Set(['ambiguous', 'stale_ref', 'invalid_target', 'value_mismatch', 'disabled', 'clipped', 'revision_changed', 'site_mismatch', 'fingerprint_mismatch']);
+const NO_SWITCH = new Set(['ambiguous', 'stale_ref', 'invalid_target', 'value_mismatch', 'disabled', 'clipped', 'revision_changed', 'site_mismatch', 'fingerprint_mismatch','scope_required','scope_stale','scope_expired','scope_mismatch','panel_not_found','delivery_expired','delivery_scope_mismatch']);
 const LOCATOR_FAILURE = new Set(['no_match','wrong_element','hidden_only','not_visible','outside_viewport','blocked_by_overlay']);
 const READS = new Set(['page.snapshot', 'page.list', 'page.forms', 'page.extract', 'page.screenshot', 'page.waitFor']);
 
