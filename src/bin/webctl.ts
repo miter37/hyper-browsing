@@ -17,7 +17,7 @@ import {outputFormat} from '../../scripts/hwm-policy.mjs';
 
 const config = getConfig();
 const nativeClient = new BrowserdClient(config);
-const client={call:(method:string,params:any={})=>nativeClient.call(method,{...params,format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children')})};
+const client={call:async(method:string,params:any={})=>nativeClient.call(method,{...params,...(flag('then-file')?{then:JSON.parse(await fs.readFile(flag('then-file')!,'utf8'))}:{}),...(boolFlag('headless-only')?{allowHeadedFallback:false}:{}),format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children')})};
 const argv = process.argv.slice(2);
 
 function flag(name: string): string | undefined {
@@ -88,6 +88,10 @@ Daemon/session:
   webctl browser hide                 # go back to headless (the default)
   webctl session open [--url URL] [--viewport 1440x900] [--locale en-US]
   webctl session list
+  webctl find --session ID --query TEXT [--scope active|document] [--role ROLE]
+  webctl find --session ID --input-file goal.json
+  webctl run --session ID --input-file task.json
+  webctl click/fill/press/select/hover ... --then-file next.json
   webctl session close --session ID | close --session ID
   webctl close --all                   # alias for session close --all
   webctl session close --all           # close every open tab (cleanup sweep)
@@ -173,6 +177,7 @@ async function main() {
   if (!a || a === "help" || a === "--help" || a === "-h") return help();
 
   if (a === "health") return print(await client.call("health"));
+  if(['find','run'].includes(a))return print(await client.call('task.'+a,{sessionId:required('session'),input:flag('input-file')||flag('input')?await actionInput():a==='find'?{terms:[required('query')],...(flag('role')?{roles:[flag('role')]}:{}),...(flag('fields')?{fields:flag('fields')!.split(',')}:{}),...(flag('scope')?{scope:flag('scope')}:{}),...(flag('scope-ref')?{scope:{ref:flag('scope-ref')}}:{}),...(boolFlag('exact')?{exact:true}:{}),...(boolFlag('content')?{actionableOnly:false}:{}),...(flag('limit')?{limit:Number(flag('limit'))}:{})}:{}}));
   if (a === "browser" && b === "status") return print(await client.call("browser.status"));
   if (a === "browser" && b === "repair") return print(await client.call("browser.repair"));
   if (a === "browser" && b === "reveal") return print(await client.call("browser.reveal"));

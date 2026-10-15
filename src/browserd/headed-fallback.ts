@@ -5,6 +5,7 @@ const LOCATOR_FAILURE = new Set(['no_match','wrong_element','hidden_only','not_v
 const READS = new Set(['page.snapshot', 'page.list', 'page.forms', 'page.extract', 'page.screenshot', 'page.waitFor']);
 
 export function needsHeadedFallback(method: string, result: any): boolean {
+  if(method==='task.find'||method==='task.run')return Boolean(result&&!result.steps?.some((s:any)=>s.action?.confirmationRequired)&&['blocked','navigation_error'].includes(result.pageState?.state));
   if (!SUPPORTED.has(method) || !result || result.confirmationRequired || NO_SWITCH.has(result.reason) || result.verification?.outcome === 'APPLIED') return false;
   if (result.failureClass && ['confirmation', 'auth'].includes(result.failureClass)) return false;
   const state = result.pageState?.state || result.snapshot?.pageState?.state || result.effect?.pageState?.state;
@@ -14,6 +15,8 @@ export function needsHeadedFallback(method: string, result: any): boolean {
     ([403,429,503].includes(result.status) && result.interstitial !== 'passed') || result.ok === false);
 }
 export function safeHeadedRetry(method: string, params: any): boolean {
+  if(method==='task.run')return false;
+  if(method==='task.find')return typeof params.input?.scope!=='object';
   // Only known read operations and an explicitly requested navigation are replayable.
   // Raw evaluation, saved implementations, writes and batches are never inferred safe.
   return !params.ref && (READS.has(method) || method === 'page.goto');

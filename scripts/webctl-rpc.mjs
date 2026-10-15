@@ -61,6 +61,10 @@ function parseLocator(flags, boolFlags) {
 
 function mapCommandToRpcBase(positionals, flags, boolFlags) {
   const [a, b, c] = positionals;
+  if(['find','run'].includes(a)&&flags.session){
+    const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):a==='find'?{terms:[flags.query],...(flags.role?{roles:[flags.role]}:{}),...(flags.fields?{fields:flags.fields.split(',')}:{}),...(flags.scope?{scope:flags.scope}:{}),...(flags['scope-ref']?{scope:{ref:flags['scope-ref']}}:{}),...(boolFlags.has('exact')?{exact:true}:{}),...(boolFlags.has('content')?{actionableOnly:false}:{}),...(flags.limit?{limit:Number(flags.limit)}:{})}:{};
+    return {method:'task.'+a,params:{sessionId:flags.session,input}};
+  }
   if(['read','explain'].includes(a)&&flags.session)return {method:'page.'+a,params:{sessionId:flags.session,map:flags.map,panel:flags.panel,want:flags.want,query:flags.query,item:flags.item,target:flags.target,offset:flags.offset,limit:flags.limit,textLimit:flags['text-limit'],byteBudget:flags['byte-budget'],since:flags.since,consumer:flags.consumer,repeat:boolFlags.has('repeat')}};
   if(['view','expand','inspect','changes'].includes(a)&&flags.session)return {method:'observation.'+a,params:{sessionId:flags.session,observation:flags.observation,comparison:flags.comparison,target:flags.target,format:flags.format,mode:flags.mode,focus:flags.focus,nodeBudget:flags['node-budget'],textBudget:flags['text-budget'],changeBudget:flags['change-budget']}};
   if(a==='verify'&&flags.session){const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):{checks:[]};return {method:'page.verify',params:{sessionId:flags.session,input}};}
@@ -265,6 +269,8 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
 export function mapCommandToRpc(positionals, flags, boolFlags) {
   if (boolFlags.has('ref')) throw new Error('Missing --ref value. Use --ref e27, or quote the legacy value: --ref \'@e27\' (PowerShell treats bare @e27 as splatting).');
   const rpc = mapCommandToRpcBase(positionals, flags, boolFlags);
+  if(rpc&&flags['then-file'])rpc.params.then=JSON.parse(fs.readFileSync(flags['then-file'],'utf8'));
+  if(rpc&&boolFlags.has('headless-only'))rpc.params.allowHeadedFallback=false;
   if(rpc&&['page.snapshot','page.diff','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(rpc.method))Object.assign(rpc.params,{mode:flags.mode,focus:flags.focus,nodeBudget:flags['node-budget'],textBudget:flags['text-budget'],changeBudget:flags['change-budget']});
   if(rpc&&['page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(rpc.method)){rpc.params.context=boolFlags.has('context');rpc.params.format=flags.format;}
   if (rpc && flags.ref) {

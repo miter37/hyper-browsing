@@ -2,5 +2,5 @@ const commands=new Set(['snapshot','list','forms','click','hover','fill','select
 export function outputFormat(command,explicit,environment=process.env.WEBAGENT_OUTPUT_FORMAT){
  const chosen=explicit??environment;if(chosen!==undefined){if(!['hb','json','hwm'].includes(chosen))throw new Error('format must be hb, json or hwm');return chosen;}
  if(command==='explain'||['view','expand','changes','diff'].includes(command))return 'hwm';
- return commands.has(command)||command==='read'?'hb':'json';
+ return commands.has(command)||['read','find','run'].includes(command)?'hb':'json';
 }

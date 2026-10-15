@@ -263,3 +263,51 @@ eval은 기본 hb에서 식의 원래 결과를 compact JSON으로 반환한다.
 @gap scope=nodes에는 원래 roots/order 범위와 누락한 노드/항목 개수가, scope=field에는 필드·잘린 code point 개수가 나온다. 큰 roots 목록은 overview/focus에서 order-bounds(원래 형제 인덱스의 최소/최대, 연속 범위 보장 아님)와 roots-detail="expand"로 접는다. expand는 정확한 노드/소속/순서를 같은 관찰에서 복구하는 gap ID다. scope=changes에는 보유 변화 목록의 완결성과 이전/이후 관찰 완결성을 따로 표시하며, 원래 비교의 변화 ID 범위를 보관한다. 부분 관찰의 누락을 실제 삭제로 바꾸지 않는다. 만료·퇴출 후에는 옛 관찰을 새 화면으로 대체하지 않는다.
 
 overview/focus의 전역 @links 색인은 최대 12개 목적지/항목 JSON 4096 bytes의 안내 예산으로 투영하며 중복 목적지를 먼저 예약한다. 각 노드 href와 개별 실행 ref는 유지한다. index-complete=false는 저장 관찰의 색인 중 일부만 출력했다는 뜻이고, complete는 원래 수집 범위의 완결성이므로 별개다. 접힌 scope=links gap은 생략한 색인 항목/참조 수와 expand를 제공한다. 펼치면 같은 관찰의 전체 색인을 반환한다(추가 출력 비용 있음). full은 색인을 접지 않는다. repeated-shapes의 상세 구조 해시/단일 항목 그룹과 성능 phases/references는 기본 출력에서 상세 축약하며 detail-sections에 경로를 표시한다. 수집 시 문서 교체/시점 불일치 근거, 본문·소속·상태·위치 경계는 유지한다.
+## 목표 중심 코어
+
+`find`/`run`은 기본 작은 HB JSON을 반환한다. 프로젝트 경로의 webctl을 사용한다. 조회·계획은 사이트 학습 자산을 만들지 않는다.
+
+```text
+webctl find --session ID --query TEXT [--role ROLE] [--fields name,text] [--exact] [--scope active|document] [--scope-ref REF] [--content] [--limit 5]
+webctl find --session ID --input-file goal.json [--since DELIVERY --consumer CONSUMER] [--repeat]
+webctl run --session ID --input-file task.json
+webctl fill --session ID --ref REF --value VALUE --then-file next.json
+```
+
+`--headless-only`은 요청의 자동 headed 폴백을 막는다. 기본 정책은 그대로다. 실패한 계획은 모드를 전환해도 자동 재실행하지 않는다. 실행 예산은 새 동작의 시작을 제한하며 이미 시작된 동작을 취소·롤백했다고 주장하지 않는다.
+
+목표 파일: terms(최대8개), fields(name/text/label/placeholder/value/href), roles(선택), exact, scope(active/document 또는 {ref}), states(value/checked/selected/expanded/pressed/disabled), actionableOnly(기본true), limit(기본5/최대12), byteBudget(근거 기본4000/최대16000), maxVisits(기본12000/최대20000). `--content`는 actionableOnly=false다. 후보 접힘과 부분 수집은 다르다. 반환 status와 coverage를 함께 읽는다. 전송 receipt 등 작은 메타데이터는 근거 예산에 추가된다.
+
+`task.json` 예시(이름은 현재 페이지에서 관찰한 값으로 작성):
+
+```json
+{
+  "steps": [
+    {
+      "id": "type-place",
+      "target": {"terms": ["Destination"], "fields": ["name"], "exact": true},
+      "action": {"op": "fill", "value": "Seoul"},
+      "expect": {
+        "fields": {"value": "Seoul"},
+        "introduced": {"terms": ["Seoul"], "roles": ["option"], "exact": true}
+      }
+    },
+    {
+      "id": "choose-place",
+      "target": {"terms": ["Seoul"], "roles": ["option"], "exact": true},
+      "action": {"op": "click"},
+      "expect": {"goal": {"terms": ["Dates"], "roles": ["dialog"], "actionableOnly": false}}
+    }
+  ],
+  "waitMs": 3000,
+  "timeoutMs": 20000
+}
+```
+
+선언한 조건은 AND다. action은 click/fill/press/select/hover이며 필요한 value/key/option을 명시한다. target은 목표 또는 {ref}다. 조회가 유일해도 부분 수집이면 자동 실행하지 않는다. 중간 expect 누락, 모호함, 확인 필요, 결과 불명, 새 세션은 다음 단계를 중지한다. 마지막 단계에서 expect를 생략하면 동작 완료까지만 보고한다.
+
+expect.goal은 현재 존재를 확인하며 갱신 증거가 아니다. introduced는 실제 DOM 동일성을 사용해 이전 일치 대상과 다른 후보인지 확인한다. 조상 변화로 ref 문자열만 바뀐 것은 새 대상이라고 간주하지 않는다. changed={ref}는 같은 지정 DOM 영역의 내용·상태 변화와 aria-busy를 검사하며 분리/교체됐으면 미확인이다. 이 영역의 변경 자체가 업무 성공이라는 뜻은 아니다. fields는 현재 target의 value/checked/selected/expanded/pressed/disabled를 확인한다. url={pathname,includes}는 명시한 항목 모두를 검사한다.
+
+`next.json`은 {expect?,follow?,waitMs?}이며 expect/follow 중 하나는 필요하다. 기존 단일 명령의 `--then-file`에도 같은 조건을 사용한다. 후속 관찰 오류가 원래 실행 결과를 바꾸지 않는다. fields는 ref 대상으로만 지원한다.
+
+RPC: `task.find`는 {sessionId,input:goal,since?,consumer?,repeat?}, `task.run`은 {sessionId,input:task}, 기존 page.click/fill/press/select/hover는 {then:{expect?,follow?,waitMs?}}를 받는다. 요청별 allowHeadedFallback=false는 CLI의 --headless-only와 같다. 실행 중에는 원래 requestId로 request.status를 조회하며 계획을 재전송하지 않는다.

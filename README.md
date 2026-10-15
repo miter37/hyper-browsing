@@ -1,5 +1,7 @@
 # Hyper-Browsing
 
+Use `find` to request evidence for the current goal, `--then-file` to verify an action and locate the next target, or `run --input-file` for up to four conditional actions. These paths share ordinary HB references and execution guards, stop when a new decision is needed, and avoid whole-page probes between planned steps. Scoped reads and HWM remain available for exceptions. See [goal-core commands](docs/COMMANDS.md#목표-중심-코어). End-to-end performance gains still require matched task measurements.
+
 Browser commands default to lightweight `hb` responses: a panel map, requested scoped content/controls/state, and action effects. Continue with the `at` handle actually returned in the response. Opened small menus include their item refs directly; use `read --at HANDLE --panel PANEL --want outline` to locate a section, then read only that section. Nested panels are excluded unless `--include-children` is requested. Ask for scoped HWM with `explain` only when relationships remain unclear. The explicit map/panel/since path remains available. Explicit `--format json` and `--format hwm` preserve compatibility/detail paths. See [the demand-driven design](docs/plans/HB-demand-driven-observation-design.md) and [the detailed HWM contract](docs/HWM-0.2-consent.md). Global task-cost improvements remain subject to measurement.
 
 <p align="right">

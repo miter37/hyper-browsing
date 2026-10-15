@@ -13,13 +13,40 @@ metadata:
 
 사용자의 로컬 Chrome으로 현재 요청을 수행한다. Playwright와 기존 데몬을 사용하며, 실행 도중 필요한 내용만 읽는다.
 
+## 기본 실행: 목표 → 확정 가능한 작은 구간 → 예외 판단
+
+현재 단계에서 찾을 대상과 행동 뒤 확인할 사실을 도구에 함께 전달한다. 확정할 수 있는 2~4개 행동은 `run`으로 묶어 중간 모델 왕복을 줄인다. 새로운 의미 판단이 필요하면 계획이 멈추고 관련 후보를 돌려준다. 작업 중에는 불필요한 설명 발화보다 도구 실행에 집중한다.
+
+1. 이미 대상 ref를 받았으면 바로 사용한다. 아직 모르면 `find --query`로 현재 목표만 찾는다. 첫 동작 전 전체 snapshot·본문·HWM을 의무적으로 요청하지 않는다. 목표가 넓어 구조가 필요할 때 작은 패널 지도를 사용한다.
+2. `find`의 기본 scope는 현재 열린 dialog/menu/listbox이며 없으면 문서다. 조회 범위는 main document와 열린 shadow이고 전체 프레임이 아니다. 0건은 그 범위에서의 결과다. 범위가 잘못됐다는 근거가 있으면 `--scope document`나 관찰한 `--scope-ref`로 한 번 조정한다.
+3. `status=unique`, `coverage.complete=true`와 실제 후보 ref를 확인한다. `ambiguous`는 소속·목적지·상태를 보고 선택하고, `incomplete`는 유일성을 확정하지 않는다. 검색 순위나 같은 href를 이유로 첫 후보를 누르지 않는다. 반환된 역할을 쓰며 button/link/combobox를 미리 단정하지 않는다.
+4. `match`는 실제 일치 필드와 검색어다. name, 보이는 text, placeholder, value, href는 서로 다르다. `nameSource=placeholder-fallback`은 기존 수집기의 대체 이름이며 브라우저가 계산한 접근 가능한 이름이라는 보장이 아니다. text만 있는 이름 없는 컨트롤도 발급된 ref로 실행할 수 있다. `owner`는 실제 DOM 조상이며 의미 추론이 아니다.
+5. 기존 click/fill/press/select/hover에는 `--then-file`로 검증과 다음 목표를 붙일 수 있다. 입력 후 자동완성, 메뉴 열기 후 선택지 같은 정보를 한 응답에서 받는다. `finding`이나 `focus`에 이미 답이 있으면 다시 묻지 않는다.
+6. `run`은 최대 4개 행동, 기본/상한20초 예산이다. 중간 단계에는 `expect`가 필요하며 없으면 다음 행동 전에 `verification_required`로 멈춘다. 각 단계는 새로 찾은 유일 후보 또는 명시한 ref를 공통 실행기로 조작한다. 전체 계획에 confirmed를 붙이지 않는다. 필요한 승인은 해당 단계 action에만 한정한다.
+7. 검증은 직접 관찰할 사실로 선언한다. `fields`는 해당 ref의 현재 값/선택 상태, `goal`은 현재 유일 후보 존재, `introduced`는 이전에 일치하던 DOM 대상과 다른 새 후보, `changed.ref`는 지정 영역의 관찰 내용 변화, `url`은 URL 조건이다. 여러 조건은 모두 충족해야 한다. 목록이 갱신돼야 한다면 `goal` 존재만으로 진행하지 말고 `introduced` 또는 관련 범위 `changed`를 함께 쓴다. 실제 업무 성공 판단은 LLM이 한다.
+8. 멈추면 reason·steps·remaining·finding을 읽고 필요한 부분만 보완한다. completed는 실행 완료, verification은 선언 조건 확인이며 사용자 과업 성공이 아니다. partial은 이미 실행한 단계를 되풀이하지 않는다. outcome_unknown은 request status로 적용 여부부터 확인한다. 새 탭이면 자동 선택하지 않고 실제 세션을 확인한다.
+9. 전달 기준이 있는 추가 `find`에는 실제 `delivery`/`consumer`를 `--since`/`--consumer`로 넘긴다. `known`이면 이미 전달된 동일 필드이며 candidates가 비어도 전체 0건이 아니다. 필요할 때만 `--repeat`한다. at은 기존 read 범위 핸들이고 find/run의 목표 scope와 혼용하지 않는다.
+
+```text
+webctl find --session SESSION --query "관찰할 대상"
+webctl find --session SESSION --input-file goal.json
+webctl click --session SESSION --ref OBSERVED_REF --then-file next.json
+webctl run --session SESSION --input-file task.json
+```
+
+`goal.json` 예: `{"terms":["검색","Search"],"fields":["name","text"],"scope":"active"}`. 동의어는 현재 과업에 맞게 LLM이 명시한다. 엔진은 의미를 추측하지 않는다. 후보는 기본5개/근거 약4KB 예산이며 전체 일치 수와 접힘을 남긴다. 더 많이 필요하면 좁은 범위나 명시적 limit/byteBudget을 사용한다.
+
+`next.json` 예: `{"expect":{"fields":{"value":"Seoul"}},"follow":{"terms":["Seoul"],"roles":["option"]}}`. fields 검증은 발급된 ref에만 사용할 수 있다. expect가 없고 follow만 있으면 즉시 후속 관찰이며 로딩 완료를 보장하지 않는다. 늦게 나타나는 후보를 기다릴 때 expect.goal/introduced를 쓴다.
+
+작은 계획의 실제 파일 구조와 검증 조건은 [COMMANDS.md](docs/COMMANDS.md)의 목표 코어 항목을 따른다. 막히면 관련 패널 read → 필요한 경우 그 범위 explain 순으로 확대한다. 기존 세부 관찰 기능은 다음과 같다.
+
 ## 기본 관찰: 받은 정보로 행동 → 모자란 부분만 조회
 
 일반 응답은 작은 `hb` JSON이다. 첫 `snapshot`은 패널 지도와 소수 주요 컨트롤만 보여준다. 전체 본문이나 HWM을 준비 단계로 요청하지 않는다. 필요한 경우에만 `read`로 특정 패널·섹션·항목을 읽고, 관계가 여전히 모호할 때 `explain`으로 그 범위의 HWM을 받는다.
 
 1. **이미 응답에 답이 있으면 바로 다음 행동을 한다.** `focus.items`에 메뉴 선택지와 ref가 있으면 다시 snapshot하거나 메뉴 목록을 묻지 않는다. 목록의 실제 role과 ref를 사용한다. 이름만 보고 link/button을 추측하지 않는다.
 2. 첫 지도나 페이지 이동 후 새 지도를 받으면 주요 패널과 컨트롤을 확인한다. 목적이 명확하고 실행 ref가 있으면 바로 조작한다. 필요한 설정·본문 구역이 보이지 않을 때 해당 패널의 `--want outline`을 요청한다. 메뉴·대화상자를 열었다는 이유만으로 전체 지도를 다시 요청하지 않는다.
-3. **다음 호출에는 실제 받은 최신 응답의 `at`을 쓴다.** 이 핸들은 조회 범위와 그 응답까지 전달된 정보의 기준을 함께 담는다. 루트 지도 핸들에는 `--panel`로 패널을 고르고, `focus.at`이나 개요 항목의 `at`은 이미 해당 범위에 묶여 있으므로 그대로 사용한다. 페이지에 암묵적인 '최신 응답'이 있다고 가정하지 않는다.
+3. **기존 범위 read/explain을 이어갈 때는 실제 받은 응답의 `at`을 쓴다.** 이 핸들은 조회 범위와 그 응답까지 전달된 정보의 기준을 함께 담는다. 루트 지도 핸들에는 `--panel`로 패널을 고르고, `focus.at`이나 개요 항목의 `at`은 이미 해당 범위에 묶여 있으므로 그대로 사용한다. find/run에는 목표의 scope를 사용한다. 페이지에 암묵적인 '최신 응답'이 있다고 가정하지 않는다.
 4. 필요한 필드만 `--want controls`, `content`, `state`로 읽고, 같은 판단에 함께 필요하면 쉼표로 묶는다. `outline`은 별도로 요청한다. 본문·가격·배송·링크는 같은 항목의 주변 원문과 소속으로 짝짓는다. 앱이 가격·광고·안전성을 대신 판정한다고 가정하지 않는다.
 5. `read`는 기본적으로 선택한 패널의 자체 내용만 읽고 별도 하위 패널을 제외한다. `outline`에서 하위 패널과 제목 구역을 보고 원하는 항목의 `at`으로 이동한다. 정말 필요한 경우에만 `--include-children`으로 하위 패널까지 포함한다. 설정 화면을 처음부터 끝까지 offset으로 훑기 전에 개요에서 필요한 구역을 찾는다.
 6. 조작 후 `effect`, `focus`, `execution`을 먼저 읽는다. 작은 메뉴는 선택지들을 직접 반환하고, 큰 팝업은 일부 컨트롤과 로컬 조회 핸들을 준다. 같은 대화상자 안에서 계속 조작하면 그 범위의 내용·상태 변화를 전달한다. 범위 내 관찰 완료와 사용자 과업 성공은 따로 판단한다.
@@ -132,7 +159,7 @@ view/expand/inspect는 저장된 관찰 조회다. 그동안 페이지가 바뀌
 
 1. session open으로 작업 세션을 만든다. 새 탭이 열리면 effect.newSessions의 URL·제목을 확인하고 해당 sessionId를 명시적으로 사용한다. 여러 새 탭 중 하나를 임의로 고르지 않는다.
 2. 기존 자산을 재사용할 필요가 있을 때만 identify와 관련 capability 본문을 확인한다. 학습 비활성/금지 작업에서는 learning notes/finish 등 학습 절차를 건너뛴다.
-3. 첫 snapshot의 패널 지도를 읽고 받은 at으로 필요한 범위만 이어간다. 열린 메뉴의 항목은 응답에서 바로 선택하고, 긴 본문에서 구역을 찾을 때는 outline을 먼저 읽는다. 이미 받은 유효한 지도/내용은 반복 조회하지 않는다. 기존 dismiss-annoyances, forms, list, extract, eval, screenshot은 필요한 경우 사용할 수 있다.
+3. 목표가 넓어 지도가 필요한 경우 snapshot의 패널 지도를 읽고 받은 at으로 필요한 범위만 이어간다. 열린 메뉴의 항목은 응답에서 바로 선택하고, 긴 본문에서 구역을 찾을 때는 outline을 먼저 읽는다. 이미 받은 유효한 지도/내용은 반복 조회하지 않는다. 기존 dismiss-annoyances, forms, list, extract, eval, screenshot은 필요한 경우 사용할 수 있다.
 4. 적용 조건이 맞는 검증된 액션을 우선 사용한다. 직접 조작은 방금 본 --ref 또는 역할·이름·맥락을 사용한다. 관찰하지 않은 대상·URL·절차를 추측하지 않는다.
 5. 이미 확인한 여러 입력·선택만 묶을 때 batch를 사용한다. 제출·페이지 이동·중간 판단은 분리한다. 자동완성 선택이 필요한 combobox에서는 fill과 후보 선택/Enter를 나누고, 중간 선택이 없는 폼에만 fill --submit을 사용한다. 배치는 영구 자산을 만들지 않는다.
 6. effect·pageState와 실제 요청 결과를 읽어 성공을 검증한다. 검색 지역·날짜·인원·필터처럼 기대값이 있는 과업은 verify --input-file로 조건과 가격 기준을 확인한다. 정상 0개 결과도 조건이 맞으면 유효하다. 명령 completed나 페이지 ready만으로 성공을 선언하지 않는다.

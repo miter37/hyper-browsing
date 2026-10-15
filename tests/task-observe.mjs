@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+import {browserOptions} from './browser-options.mjs';
+import {findGoal} from '../src/runtime/task/observe.ts';
+import {executePrimitive} from '../src/engine/execute.ts';
+
+async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
+
+test('goal lookup preserves visible text separately from name and returns a directly executable ref',async t=>{
+ const page=await fixture(t,'<div role="menu" aria-label="Rating"><div role="menuitemradio" aria-checked="false" onclick="this.setAttribute(\'aria-checked\',\'true\')"><span aria-hidden="true">4.5</span></div></div>');
+ const found=await findGoal(page,{terms:['4.5'],fields:['text'],roles:['menuitemradio']});
+ assert.equal(found.status,'unique');assert.equal(found.candidates[0].name,undefined);assert.equal(found.candidates[0].text,'4.5');
+ assert.deepEqual(found.candidates[0].match,[{field:'text',term:'4.5'}]);assert.equal(found.scope.role,'menu');
+ const result=await executePrimitive(page,'click',{ref:found.candidates[0].ref});assert.equal(result.ok,true);
+ assert.equal(await page.locator('[role=menuitemradio]').getAttribute('aria-checked'),'true');
+});
+test('active dialog excludes matching background controls; explicit document scope retains ambiguity',async t=>{
+ const page=await fixture(t,'<button>Save choices</button><div role="dialog" aria-label="Preferences"><button>Save choices</button></div>');
+ const local=await findGoal(page,{terms:['Save choices'],exact:true});assert.equal(local.status,'unique');assert.equal(local.candidates[0].owner.role,'dialog');
+ const all=await findGoal(page,{terms:['Save choices'],exact:true,scope:'document'});assert.equal(all.status,'ambiguous');assert.equal(all.coverage.matched,2);
+});
+test('shared names exclude hidden duplicate words, traverse open shadow and match before output limits',async t=>{
+ const page=await fixture(t,'<main><button>Seoul<span aria-hidden="true">Seoul</span></button><div id="host"></div></main>');
+ await page.locator('#host').evaluate(el=>{el.attachShadow({mode:'open'}).innerHTML='<button>Needle</button>';});
+ const city=await findGoal(page,{terms:['Seoul'],fields:['name'],exact:true});assert.equal(city.status,'unique');assert.equal(city.candidates[0].name,'Seoul');
+ const needle=await findGoal(page,{terms:['Needle'],exact:true,limit:1});assert.equal(needle.status,'unique');assert.ok(needle.candidates[0].ref);
+});
+test('goals distinguish placeholder and value matches, preserve false state and mask public evidence',async t=>{
+ const page=await fixture(t,'<input aria-label="Location" placeholder="Where" value="Seoul"><input type="checkbox" aria-label="Filter"><button>person@example.com</button><input type="password" aria-label="Password" value="private-value">');
+ const place=await findGoal(page,{terms:['Where'],fields:['placeholder']});assert.equal(place.candidates[0].match[0].field,'placeholder');assert.equal(place.candidates[0].name,'Location');
+ const box=await findGoal(page,{terms:['Filter'],states:{checked:false}});assert.equal(box.status,'unique');
+ const email=await findGoal(page,{terms:['person@example.com']});assert.ok(!JSON.stringify(email).includes('person@example.com'));
+ const secret=await findGoal(page,{terms:['private-value'],fields:['value']});assert.equal(secret.status,'not_found');
+});
+test('partial collection or folded candidates cannot establish unique execution',async t=>{
+ const page=await fixture(t,'<main><button>Match</button>'+Array.from({length:20},()=>'<button>Match</button>').join('')+'</main>');
+ const partial=await findGoal(page,{terms:['Match'],maxVisits:3});assert.equal(partial.status,'incomplete');assert.equal(partial.coverage.complete,false);
+ const folded=await findGoal(page,{terms:['Match'],limit:1});assert.equal(folded.status,'ambiguous');assert.equal(folded.coverage.matched,21);assert.equal(folded.candidates.length,1);assert.equal(folded.coverage.shown,1);
+});
+test('scope refs are checked and old references are never rebound to replacement elements',async t=>{
+ const page=await fixture(t,'<button aria-label="Group">Scope</button>');
+ const original=await findGoal(page,{terms:['Group'],exact:true});const ref=original.candidates[0].ref;
+ await page.locator('button').evaluate(el=>{el.outerHTML='<button aria-label="Group">New</button>';});
+ const stale=await findGoal(page,{terms:['Group'],scope:{ref}});assert.equal(stale.ok,false);assert.equal(stale.reason,'stale_ref');
+});
+test('goal output respects a byte budget while preserving exact matched counts and folding evidence',async t=>{
+ const page=await fixture(t,Array.from({length:10},(_,i)=>`<button aria-label="Match ${i}">${'Description '.repeat(70)}</button>`).join(''));
+ const result=await findGoal(page,{terms:['Match'],fields:['name'],limit:10,byteBudget:1600});
+ assert.equal(result.coverage.matched,10);assert.equal(result.coverage.truncated,true);assert.ok(result.candidates.length<10);assert.ok(Buffer.byteLength(JSON.stringify(result))<=1600);
+});
+test('active scope follows an explicit aria-controls portal from within a modal',async t=>{
+ const page=await fixture(t,'<div role="dialog" aria-modal="true" aria-label="Search"><input aria-label="Destination" aria-controls="suggestions"></div><div id="suggestions" role="listbox"><button role="option">Seoul</button></div>');
+ const result=await findGoal(page,{terms:['Seoul'],roles:['option'],exact:true});assert.equal(result.status,'unique');assert.equal(result.scope.role,'listbox');
+});
+test('a long scope name cannot escape the goal response budget',async t=>{
+ const page=await fixture(t,`<div role="dialog" aria-label="${'scope '.repeat(500)}"><button>Hit</button></div>`);
+ const result=await findGoal(page,{terms:['Hit'],byteBudget:1000});assert.ok(Buffer.byteLength(JSON.stringify(result))<=1000);assert.ok(result.scope.name.length<=120);assert.equal(result.scope.nameTruncated,true);
+});

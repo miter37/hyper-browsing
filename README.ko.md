@@ -1,5 +1,7 @@
 # Hyper-Browsing
 
+현재 목표의 근거는 `find`, 조작 후 검증·다음 목표 조회는 `--then-file`, 최대4개 조건부 행동은 `run --input-file`을 사용합니다. 기존 HB와 같은 실행 ref·가드를 공유하며, 계획 중에는 전체 페이지 탐색 대신 대상과 요청한 조건을 확인합니다. 새로운 판단이 필요하면 멈추고 작은 근거를 반환합니다. 예외 탐색에는 기존 범위 read와 HWM을 사용합니다. [목표 코어 명령](docs/COMMANDS.md#목표-중심-코어)을 참고하세요. 전체 과업 성능 향상 폭은 동일 조건 측정이 더 필요합니다.
+
 일반 브라우징 명령은 작은 `hb` 응답을 기본으로 전달합니다. 첫 화면은 패널 지도, 이후에는 실제 받은 응답의 `at` 핸들로 필요한 범위만 이어 읽습니다. 작은 메뉴는 선택지와 실행 ref를 바로 주며, 긴 화면은 `read --at HANDLE --panel PANEL --want outline`에서 구역을 골라 읽습니다. 하위 패널은 기본 제외하고 `--include-children`에서만 포함합니다. 조작 후에는 로컬 변화부터 확인하고 이미 전달한 유효한 정보는 반복하지 않습니다. 기존 map/panel/since 경로도 지원합니다. HWM은 필요한 범위의 `explain` 상세로 사용하며, 명시적인 `--format json`과 `--format hwm`은 호환·상세 경로로 유지합니다. [요청 중심 설계](docs/plans/HB-demand-driven-observation-design.md)와 [HWM 상세 계약](docs/HWM-0.2-consent.md)을 참고하세요. 전체 과업 비용의 우월성은 추가 측정 대상입니다.
 
 <p align="right">

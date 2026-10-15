@@ -15,6 +15,7 @@ export const DEFAULT_ACTION_TIMEOUT_MS = 5000;
 export type ActionKind = "click" | "hover" | "fill" | "press" | "extract" | "select";
 
 export interface TargetState {
+  disabled?:boolean;
   url: string;
   attached: boolean;
   checked?: boolean | "mixed";
@@ -29,7 +30,7 @@ export interface TargetState {
 // Page-side look at the target (no named inner functions: tsx would wrap them in `__name`, absent in the page).
 // clipped: laid out but cut to zero area by an overflow ancestor (collapsed sub-menu, closed accordion), unless a
 // hit-test at its centre reaches it (a hover-opened menu is reachable even when the geometry says otherwise).
-const inspectTarget = (el: Element) => {
+const inspectTarget = (el: Element, expected?:Record<string,unknown>) => {
   const r = el.getBoundingClientRect();
   let left = r.left, top = r.top, right = r.right, bottom = r.bottom;
   let clipped = r.width <= 0 || r.height <= 0;
@@ -71,7 +72,8 @@ const inspectTarget = (el: Element) => {
     });
   const isBox = s.tagName === "INPUT" && (s.type === "checkbox" || s.type === "radio");
   const secret = s.type === "password" || /^cc-|one-time-code/.test(String(s.getAttribute("autocomplete") || ""));
-  return {
+  const state = {
+    disabled: s.disabled===true||s.getAttribute('aria-disabled')==='true',
     clipped,
     scrollClipped,
     checked: isBox ? (s.indeterminate ? "mixed" as const : s.checked) : ariaChecked,
@@ -81,15 +83,17 @@ const inspectTarget = (el: Element) => {
     value: s.tagName === "SELECT"
       ? Array.from((s as unknown as HTMLSelectElement).selectedOptions).map((o) => (o.textContent || "").trim()).join(", ")
       : (s.tagName === "INPUT" && !isBox) || s.tagName === "TEXTAREA"
-        ? (secret ? (s.value ? `[HIDDEN:${s.value.length}]` : "") : String(s.value ?? "").slice(0, 120))
-        : s.isContentEditable ? String(s.innerText || "").slice(0, 120) : undefined,
+        ? (secret ? (s.value ? `[HIDDEN:${s.value.length}]` : "") : String(s.value ?? ""))
+        : s.isContentEditable ? String(s.innerText || "") : undefined,
   };
+  const matchesExpected=expected?Object.entries(expected).every(([key,value])=>(state as any)[key]===value):undefined;
+  return {...state,value:state.value?.slice(0,120),...(expected?{matchesExpected}:{})};
 };
 
-async function readTarget(page: Page, locator: ActionTarget): Promise<TargetState> {
+export async function readTarget(page: Page, locator: ActionTarget,expected?:Record<string,unknown>): Promise<TargetState&{matchesExpected?:boolean}> {
   const url = page.url();
   if ((await locator.count().catch(() => 0)) === 0) return { url, attached: false };
-  const info = await locator.evaluate(inspectTarget, undefined, { timeout: 1000 }).catch(() => null);
+  const info = await locator.evaluate(inspectTarget, expected, { timeout: 1000 }).catch(() => null);
   if (!info) return { url, attached: false };
   return { url, attached: true, ...info };
 }
@@ -186,6 +190,10 @@ export function unresolvedResult(target: Exclude<UniqueResolution, { locator: Lo
 }
 
 export interface ActParams {
+  /** Internal task runtime: observe the target here; requested goals replace global probes/settling. */
+  goalDriven?:boolean;
+  deadline?:number;
+  targetStates?:Partial<Pick<TargetState,'value'|'checked'|'selected'|'expanded'|'pressed'|'disabled'>>;
   locator?: LocatorStrategy;
   ref?: string;
   element?: ElementDefinition;
@@ -227,6 +235,7 @@ export async function actOn<T>(
   pinnedTarget?: ActionTarget,
 ): Promise<Record<string, any>> {
   if (kind !== 'extract') await waitBeforeInput();
+  if(params.deadline!==undefined&&Date.now()>=params.deadline)return {ok:false,execution:'not_started',reason:'task_budget'};
   const timeoutMs = Number(params.timeoutMs) > 0 ? Number(params.timeoutMs) : DEFAULT_ACTION_TIMEOUT_MS;
   let target: { locator: ActionTarget; resolvedBy?: string; equivalentMatches?: number };
   if (pinnedTarget) { target = { locator: pinnedTarget }; } else if (params.element) {
@@ -298,11 +307,13 @@ export async function actOn<T>(
     };
   }
 
-  const probeBefore = kind === "extract" ? null : await probePage(page);
+  const probeBefore = kind === "extract" || params.goalDriven ? null : await probePage(page);
+  if(params.targetStates){const current=await readTarget(page,target.locator,params.targetStates);if(!current.attached||!current.matchesExpected)return {ok:false,execution:'not_started',reason:'precondition_mismatch',...resolved};}
+  if(params.deadline!==undefined&&Date.now()>=params.deadline)return {ok:false,execution:'not_started',reason:'task_budget'};
   const nav = watchNavigation(page);
   let value: T;
   try {
-    value = await act(target.locator, timeoutMs);
+    value = await act(target.locator, params.deadline===undefined?timeoutMs:Math.max(1,Math.min(timeoutMs,params.deadline-Date.now())));
   } catch (error) {
     nav.stop();
     const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: "outcome_unknown" };
@@ -335,11 +346,11 @@ export async function actOn<T>(
   }
   if (kind === "extract") { nav.stop(); return { ok: true, value, ...resolved, execution: "completed" }; }
 
-  await settle(page, { quietMs: 300, maxMs: 1500 });
+  if(!params.goalDriven)await settle(page, { quietMs: 300, maxMs: 1500 });
   if (page.url() !== before.url) await page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => {});
   nav.stop();
   const after = await readTarget(page, target.locator);
-  const probeAfter = await probePage(page);
+  const probeAfter = params.goalDriven?null:await probePage(page);
 
   const changes: Record<string, { before: unknown; after: unknown }> = {};
   for (const k of STATE_KEYS) if (before[k] !== after[k] && after.attached) changes[k] = { before: before[k], after: after[k] };
@@ -347,6 +358,7 @@ export async function actOn<T>(
   const targetGone = before.attached && !after.attached;
   const pageChange = urlChanged ? undefined : diffProbe(probeBefore, probeAfter);
   const effect: Record<string, any> = {
+    ...(params.goalDriven?{scope:'target-and-requested-goals'}:{}),
     urlChanged,
     url: after.url,
     targetChanged: Object.keys(changes).length ? changes : undefined,
@@ -360,7 +372,7 @@ export async function actOn<T>(
     effect.blocked = await detectBlock(page);
   }
   effect.observed = urlChanged || targetGone || Object.keys(changes).length > 0 || Boolean(pageChange);
-  effect.pageState = await inspectPageState(page,undefined,3000);
+  effect.pageState = await inspectPageState(page,undefined,params.goalDriven?0:3000);
   const newSessions=await popups.finish(Boolean(expectsPopup));
   if(newSessions.length){effect.newSessions=newSessions;effect.observed=true;}
   if (effect.pageState.blocked) effect.blocked = effect.pageState.blocked;

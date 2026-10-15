@@ -41,6 +41,8 @@ import crypto from "node:crypto";
 import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from "./headed-fallback";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
+import {runTask,executeWithFollow} from '../runtime/task/run';
+import {parseFollow} from '../runtime/task/schema';
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
 async function readJson(req: http.IncomingMessage): Promise<any> {
@@ -294,6 +296,11 @@ export class BrowserDaemon {
     }
     if (method === "session.list") return this.store().list();
     const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
+    if(['task.find','task.run'].includes(method)){
+      if(!page)throw Object.assign(new Error('sessionId required'),{execution:'not_started'});
+      if(params.at)throw Object.assign(new Error('task_scope_requires_explicit_goal_scope'),{execution:'not_started'});
+      return method==='task.find'?this.demand.find(page,params.sessionId,params.input,params):this.demand.goalResult(page,params.sessionId,await runTask(page,params.input,{requestId:params.observationRequestId}),params);
+    }
     if(params.at&&(!['page.read','page.explain','page.snapshot','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(method)||!['page.read','page.explain'].includes(method)&&params.format!=='hb'))throw Object.assign(new Error('continuation_requires_supported_hb_command'),{code:'continuation_requires_supported_hb_command',execution:'not_started'});
     if(['page.read','page.explain'].includes(method)){
       if(!page)throw Object.assign(new Error('sessionId required'),{execution:'not_started'});
@@ -316,7 +323,9 @@ export class BrowserDaemon {
       this.projection(params);
       const kind = method.slice(5) as "click" | "hover" | "fill" | "select" | "press";
       const context=params.context===true||params.format==='hwm';
-      const result:any = context?await observeExecution(page,params.sessionId,()=>executePrimitive(page,kind,params),params.observationRequestId,params.format==='hwm'?'hwm':'json',data=>this.publish(params,data),{lightweight:params.context!==true,before:this.observations.latest(params.sessionId),query:params.query??(params.ref?referencesFor(page).metadata(params.ref)?.name:params.locator?.name??params.locator?.label??params.locator?.placeholder)}) : await executePrimitive(page, kind, params);
+      if(params.then!==undefined)parseFollow(params.then);
+      const perform=()=>params.then!==undefined?executeWithFollow(page,params,params.then,()=>executePrimitive(page,kind,{...params,goalDriven:true})):executePrimitive(page,kind,params);
+      const result:any = context?await observeExecution(page,params.sessionId,perform,params.observationRequestId,params.format==='hwm'?'hwm':'json',data=>this.publish(params,data),{lightweight:params.context!==true,before:this.observations.latest(params.sessionId),query:params.query??(params.ref?referencesFor(page).metadata(params.ref)?.name:params.locator?.name??params.locator?.label??params.locator?.placeholder)}) : await perform();
       if (result.ok && kind !== "hover") await recordLearningEvent(this.config, page, params.sessionId, kind === "select" ? "fill" : kind, {
         locator: params.locator ? { ...params.locator, ...(params.within ? { within: params.within } : {}) } : referencesFor(page).semanticLocator(params.ref),
         valuePresent: Boolean(params.value || params.option), key: params.key,
@@ -324,7 +333,7 @@ export class BrowserDaemon {
       if (params.observe&&!context) result.snapshot = await captureSnapshot(page, { references: referencesFor(page), query: params.query });
       if (kind === "click") result.clicked = result.ok;
       if (kind === "hover") result.hovered = result.ok;
-      return params.format==='hb'?this.demand.afterAction(page,params.sessionId,result,params):{ ...result, learning_pending: false };
+      return params.format==='hb'?(params.then!==undefined?this.demand.goalResult(page,params.sessionId,result,params):this.demand.afterAction(page,params.sessionId,result,params)):{ ...result, learning_pending: false };
     }
     if(method==='page.verify'){
       if(!page)throw new Error('sessionId required');

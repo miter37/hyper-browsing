@@ -12,6 +12,7 @@ import {Continuations} from './continuation';
 import {captureOutline} from './outline';
 import {REGION_GUARD,SCOPING_JS} from './scoping';
 import {DEEP_WALK_JS} from '../../engine/page-state';
+import {findGoal,type GoalFinding} from '../task/observe';
 
 interface Scope {session:string;document:string;page:Page;roots:JSHandle;panels:Panel[];expires:number}
 export interface ReadOptions extends DeliveryOptions {at?:string;map?:string;panel?:string;want?:string;query?:string;item?:number;target?:string;offset?:number;limit?:number;textLimit?:number;byteBudget?:number;includeChildren?:boolean}
@@ -27,6 +28,27 @@ const mapPriority=(e:SnapshotElement)=>e.current&&e.current!=='false'?-1:['searc
 export class DemandObservationService {
  private scopes=new Map<string,Scope>();private ledger:DeliveryLedger;private continuations:Continuations;private ttl:number;private clock:()=>number;
  readonly detailed:ObservationService;
+ async find(page:Page,session:string,input:unknown,options:DeliveryOptions={}){
+  this.ledger.validate(session,referencesFor(page).documentIdentity(),options);
+  const found=await findGoal(page,input);if(!found.ok)return found;
+  return this.deliverGoal(session,found,options);
+ }
+ private deliverGoal(session:string,found:GoalFinding,options:DeliveryOptions={}){
+  const units=found.candidates.map(c=>({key:found.document+'/'+c.ref,data:{id:c.ref!,...c},collected:[...controlCollected,'text','textTruncated','nameSource','owner','match','actionable']}));
+  const {data,...receipt}=this.receipt(session,found.document!,units,options);
+  return {...found,...receipt,candidates:data.map(({id,...c})=>({ref:id,...c}))};
+ }
+ goalResult(page:Page,session:string,result:any,options:any={}){
+  const output=this.result(page,session,result,options);
+  if(result.finding?.ok&&result.finding.document===referencesFor(page).documentIdentity()){
+   try{
+   const finding=this.deliverGoal(session,result.finding,{since:output.delivery,consumer:output.consumer});
+   const {delivery,consumer,...evidence}=finding;output.finding=evidence;output.delivery=delivery;output.consumer=consumer;
+   if(options.map&&output.at)output.at=this.at(page,session,{map:options.map,panel:options.panel,delivery,consumer});
+   }catch{output.observationError='goal_delivery_unavailable';}
+  }
+  return output;
+ }
  constructor(options:{clock?:()=>number;ttlMs?:number;detailed?:ObservationService}={}){
   this.clock=options.clock??Date.now;this.ttl=options.ttlMs??300000;this.ledger=new DeliveryLedger(this.ttl,this.clock);
   this.continuations=new Continuations(this.clock,this.ttl);

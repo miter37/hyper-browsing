@@ -9,8 +9,13 @@ import { REFERENCE_GUARD, referencesFor, type ElementReferences } from "./refere
 import { randomUUID } from 'node:crypto';
 import { CONTEXT_COLLECTOR, sanitizeObservation, type ObservationGraph } from './hwm/observation';
 import { PRIVATE_FIELD_SCRIPT } from './private-fields';
+import type {Goal} from './task/schema';
 
 export interface SnapshotElement {
+  match?:Array<{field:string;term:string}>;
+  nameSource?:string;
+  owner?:{role:string;name?:string;basis:string};
+  actionable?:boolean;
   ref?: string;
   tag: string;
   // Explicit role, or the implicit one from the tag/type (input type=search -> searchbox), usable with --role.
@@ -65,6 +70,7 @@ export interface TextHit {
 }
 
 export interface PageSnapshot {
+  goalScope?:{kind:string;role?:string;name?:string};
   collectionTiming?: { startedAt: string; finishedAt: string; document: string; documentChanged: boolean;
     phases?: { referenceStateMs?:number; pageEvaluationMs?:number; resultTransferMs?:number; referenceBindingMs?:number; cleanupMs?:number; retainedReferences?:number };
     references?:ReturnType<ElementReferences['diagnostics']> };
@@ -288,6 +294,24 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     if (svgTitle && cleanStr(svgTitle.textContent)) return cleanStr(svgTitle.textContent);
     return cleanStr(el.getAttribute("title"));
   }
+  function nameSourceOf(el,tag,container){
+    if(cleanStr(el.getAttribute('aria-label')))return 'aria-label';
+    if(byIds(el,'aria-labelledby'))return 'aria-labelledby';
+    if(/^(input|select|textarea)$/.test(tag)){
+      if(el.labels?.[0]&&labelText(el.labels[0]))return 'native-label';
+      if(cleanStr(el.getAttribute('placeholder')))return 'placeholder-fallback';
+      if(cleanStr(el.getAttribute('title')))return 'title';
+      return 'value-fallback';
+    }
+    if(!container&&textOf(el))return 'contents';
+    return el.querySelector('img[alt]')?'alt':'title';
+  }
+  function goalOwner(el){
+    for(let p=el.parentElement||el.getRootNode().host;p;p=p.parentElement||p.getRootNode().host){
+      const role=p.getAttribute('role')||({FORM:'form',NAV:'navigation',MAIN:'main',DIALOG:'dialog',LI:'listitem',ARTICLE:'article',FIELDSET:'group',TR:'row'})[p.tagName];
+      if(role&&/^(form|navigation|main|dialog|alertdialog|listitem|article|group|row|menu|listbox|radiogroup)$/.test(role))return {role,name:cleanStr(p.getAttribute('aria-label'))||byIds(p,'aria-labelledby')||(p.tagName==='FIELDSET'?cleanStr(p.querySelector(':scope > legend')?.textContent):undefined),basis:'dom-ancestor'};
+    }
+  }
   function ownHeading(el) {
     let node = el.parentElement;
     for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
@@ -326,6 +350,20 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   let order = 0;
   let section = "(top)";
 
+  let goalScope;
+  if(opts.goal){
+    if(!opts.root&&opts.goal.scope==='active'){
+      const regions=[];deepWalk(el=>{if(/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT)$/.test(el.tagName))return false;if(el.matches(OPEN)&&rendered(el))regions.push(el);},opts.maxVisits);
+      const modal=regions.filter(e=>e.getAttribute('aria-modal')==='true'||e.matches('dialog[open]')).at(-1);
+      const linked=new Set();
+      if(modal)deepWalk(controller=>{for(const id of (controller.getAttribute('aria-controls')||'').split(/\\s+/).filter(Boolean)){const root=controller.getRootNode(),target=root.getElementById?.(id);if(target)linked.add(target);}},opts.maxVisits,modal);
+      const portals=regions.filter(e=>Array.from(linked).some(root=>scopeContains(root,e)));
+      opts.root=portals.at(-1)||regions.filter(e=>!modal||scopeContains(modal,e)).at(-1)||modal;
+    }
+    const scopeName=opts.root?(cleanStr(opts.root.getAttribute('aria-label'))||byIds(opts.root,'aria-labelledby')):undefined;
+    goalScope={kind:opts.root?'region':'document',role:opts.root?.getAttribute('role')||opts.root?.localName,name:scopeName?.slice(0,120),...(scopeName?.length>120?{nameTruncated:true}:{})};
+  }
+
   scopedWalk((el) => {
     const tagU = el.tagName;
     if (tagU === "SCRIPT" || tagU === "STYLE" || tagU === "TEMPLATE" || tagU === "NOSCRIPT") return false;
@@ -342,7 +380,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       const n = cleanStr(el.getAttribute("aria-label")) || byIds(el, "aria-labelledby") || cleanStr((el.querySelector("h1, h2, h3, [role=heading]") || {}).innerText);
       open.push((el.getAttribute("role") || tagU.toLowerCase()) + (n ? " " + n.slice(0, 60) : ""));
     }
-    if (!el.matches(CAND)) return;
+    const readable=opts.goal&&!opts.goal.actionableOnly&&el.matches('h1,h2,h3,h4,h5,h6,p,[role=status]');
+    if (!el.matches(CAND)&&!readable) return;
     const tag = tagU.toLowerCase();
     if (!rendered(el)) {
       // A matching control that exists but is hidden: tell the agent it is there and what may reveal it.
@@ -371,13 +410,13 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     const explicitRole = cleanStr(el.getAttribute("role"));
     if (explicitRole && (explicitRole === "generic" || explicitRole === "presentation" || explicitRole === "none")) return;
     // Structural roles (main, list, region...) are not actions; keep them only when they carry their own name.
-    if (explicitRole && STRUCTURAL.test(explicitRole) && !cleanStr(el.getAttribute("aria-label")) && !el.hasAttribute("aria-labelledby") && !el.hasAttribute("data-testid")) return;
+    if (!readable&&explicitRole && STRUCTURAL.test(explicitRole) && !cleanStr(el.getAttribute("aria-label")) && !el.hasAttribute("aria-labelledby") && !el.hasAttribute("data-testid")) return;
     // A tabindex-only element counts when it looks clickable and is not just a wrapper of other controls.
-    if (!CONTROL_TAGS[tagU] && tagU !== "LABEL" && tagU !== "SUMMARY" && !explicitRole && !el.hasAttribute("data-testid") && !el.isContentEditable) {
+    if (!readable&&!CONTROL_TAGS[tagU] && tagU !== "LABEL" && tagU !== "SUMMARY" && !explicitRole && !el.hasAttribute("data-testid") && !el.isContentEditable) {
       if (styleOf(el).cursor !== "pointer" || el.querySelector(INTERACTIVE_DESC)) return;
     }
     const container = !CONTROL_TAGS[tagU] && Boolean(el.querySelector(INTERACTIVE_DESC));
-    const role = explicitRole || implicitRole(el, tag);
+    const role = explicitRole || implicitRole(el, tag) || (readable&&/^H[1-6]$/.test(tagU)?'heading':undefined);
     const fullName = nameOf(el, tag, container);
     const name = fullName ? fullName.slice(0, 120) : undefined;
     const inner = container ? undefined : textOf(el);
@@ -398,6 +437,21 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       current: el.getAttribute('aria-current')??undefined,
       ...(hiddenControl ? stateOf(hiddenControl, "input") : stateOf(el, tag)),
     };
+    if(opts.goal){
+      const actionable=!readable&&!STRUCTURAL.test(role||'')&&!/^(heading|dialog|alertdialog|menu|menubar|listbox|radiogroup|tablist|tree)$/.test(role||'');
+      if(opts.goal.actionableOnly&&!actionable)return;
+      if(opts.goal.roles&&!opts.goal.roles.includes(role))return;
+      entry.actionable=actionable;entry.nameSource=fullName?nameSourceOf(el,tag,container):undefined;
+      const visual=secret(el)?undefined:cleanStr(el.innerText);
+      const value=!secret(el)&&('value' in el)&&!['checkbox','radio','button','submit'].includes(el.type)?String(el.value):undefined;
+      const fields={name:fullName,text:visual,placeholder:entry.placeholder,label:label,value,href:entry.href};
+      const matches=[];
+      for(const field of opts.goal.fields)for(const term of opts.goal.terms){const text=fields[field]?.toLowerCase(),needle=term.toLowerCase();if(text&&(opts.goal.exact?text===needle:text.includes(needle)))matches.push({field,term});}
+      if(!matches.length)return;
+      for(const [key,wanted]of Object.entries(opts.goal.states||{}))if((key==='value'?value:entry[key]??(key==='disabled'?false:undefined))!==wanted)return;
+      entry.match=matches;entry.owner=goalOwner(el);entry.text=visual?.slice(0,600);entry.value=value?.slice(0,240);
+      if(visual?.length>600)entry.textTruncated=true;
+    }
     if (opts.refs) {
       const guard = (${REFERENCE_GUARD})(el);
       let saved = opts.refs.ids.get(el);
@@ -417,7 +471,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       const h = hintOf(el);
       if (h && h !== entry.name) entry.hint = h;
     }
-    let s = score(entry);
+    let s = opts.goal?1:score(entry);
     // A repeated short link/button ("Repository", "Select") also matches through its card heading.
     if (query && !s && (role === "link" || role === "button") && entry.name && entry.name.length <= 30) {
       const h = ownHeading(el);
@@ -505,6 +559,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   const top = Object.entries(omittedBy).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const omittedCount = Math.max(0, matched.length - controlOffset - picked.length);
   return {
+    goalScope,
     observation: walkDiagnostics,
     ...(opts.controlOffset===undefined?{}:{controlPage:{offset:controlOffset,total:matched.length,shown:picked.length,complete:walkDiagnostics.complete}}),
     url: location.href,
@@ -531,11 +586,11 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
+  options: { goal?:Goal;query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
-  const opts = { query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,
+  const opts = { goal:options.goal,query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,
     contextLimit: Math.max(1, Math.min(Number(options.contextLimit) || 2000, 6000)), observation: 'p' + randomUUID().replace(/-/g,'') };
   const references = options.references ?? referencesFor(page);
   let collectionTiming: PageSnapshot['collectionTiming'];
@@ -569,7 +624,7 @@ export async function captureSnapshot(
       observation: { complete: false, errors: ['capture_failed'], skippedNodes: 0 } };
   }
   // Nothing yet right after a navigation: give the page a moment to render once.
-  if (data.observation?.complete !== false && !data.elements?.length && !options.query && data.diagnostics?.readyState !== "complete") {
+  if (!options.goal&&data.observation?.complete !== false && !data.elements?.length && !options.query && data.diagnostics?.readyState !== "complete") {
     await page.waitForLoadState("load", { timeout: 3000 }).catch(() => {});
     try { data = await capture(); } catch { data.observation = { complete: false, errors: ['capture_failed'], skippedNodes: 0 }; }
   }
@@ -595,6 +650,7 @@ export async function captureSnapshot(
     if(data.contextGraph){data.contextGraph.scan.complete=false;data.contextGraph.gaps.push({id:'gapDocumentChange',kind:'unavailable',reason:'document-changed',parent:'n1'});}
   }
   const snapshot:PageSnapshot={
+    goalScope:data.goalScope,
     collectionTiming,stateObservation,
     ...(data.controlPage?{controlPage:data.controlPage}:{}),
     ...(data.contextGraph ? { contextGraph: sanitizeObservation({...data.contextGraph,discovery:{...data.contextGraph.discovery,hidden:data.hidden,textHits:data.textHits,collapsed:data.collapsed,omitted:data.omitted,truncated:Boolean(data.truncated),diagnostics:data.diagnostics,open:data.open,headings:data.headings,observation:data.observation}}) } : {}),

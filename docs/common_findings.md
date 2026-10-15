@@ -883,3 +883,13 @@ Airbnb는 종로구자동완성/10월25~27일/최고요금300000입력후적용U
 Airbnb임시검색은자동완성이름의하위문구를중복시켜no_match, 기존HB read의이름으로복구. Maps4.5는보이는aria-hidden하위문구여서accessible-name이비었음. 메뉴내텍스트/상자를실행ref에연결해복구. 필터직후옛Respirer후보클릭은목록교체로실패, 새목록Corcovado선택성공. 즉시매치발견을새목록완료로간주하면안됨. Airbnb전역요금검색35건→dialog내필드4건. 가격URL반영과모든카드가격충족, Maps평점선택과광고포함전체표시평점충족은구분한다. 필터적용link의risk오탐은목적지확인후confirmed로진행했으며사이트예외코드추가없음.
 
 정식통합조건은공유관찰·실제ref·현재영역scope·전환완료기대조건이다. 임시DOM이름검색기의제품화는불가. 상세수치와B플랜보완은 docs/GOAL-PLAN-VALIDATION-2026-10-15.md 추가절에누적했다. 이번추가테스트제품코드수정없음.
+
+## 2026-10-15 16:57 +09:00 — GPT-6 Codex: 목표 중심 코어 첫 구현
+
+새 feat/goal-driven-core 브랜치에서 기존 snapshot 수집/이름/상태/ref를 공유하는 task.find·task.run과 find/run CLI, 단일 조작 --then-file을 구현했다. 별도의 임시 DOM 검색기를 제품화하지 않았다. 기본 목표 조회는 열린 영역을 우선하며 실제 aria-controls로 연결된 모달 밖 포털도 포함한다. text/name/placeholder/value/href와 일치근거/실제조상을 구분하고, 근거예산·수집완결성·접힘·실제전달receipt를 남긴다. 이미 전달한 유효한 후보를 다시 보내지 않는다.
+
+계획은 최대4행동·20초 시작예산·3초 조건관찰이다. 입력pacing/승인/모호함/ref수명/결과불명중복실행금지는 유지한다. targeted 실행은 기존 전역probe/settle 대신 대상과 명시조건을 확인한다. introduced는 ref문자열이 아니라 브라우저 WeakSet의 실제DOM동일성을 비교하며, 실행직전 target.states도 재확인한다. 완료단계와 미실행단계를 구분하고 결과불명·확인필요·새세션·검증미확인에서중단한다. 읽기/receipt 오류가 이미 확인한 동작결과를 바꾸지 않는다.
+
+독립리뷰의 재현3건(모달밖연결포털누락,긴scope이름예산초과,120자preview로긴실제값검증실패)을 RED→GREEN으로 수정했다. 입력대기중예산소진·옛DOM의guard변경·전달실패후원결과보존도 회귀로고정했다. 스킬사용성3상황에서 선택지ref즉시사용/옛결과로진행금지/known재사용을확인했고, 무조건snapshot/at을요구하던기존문구를필요한read경로에한정했다.
+
+최종 npm test exit0: 타입검사 및 task31+HWM106+학습35+실행63+브라우저시나리오15+발견46=총296개통과. 실제데몬새소스재시작후 같은Chrome headless유지, 로컬data페이지의fast/nativeCLI find와run 입력/검증/후속조회smoke확인. run994ms/최종약1545B는한로컬smoke의값이지실전전체비용개선율이아니다. 이번개발중신규외부사이트실험·학습자산화·사이트맞춤예외추가없음. 설계와한계는 docs/GOAL-DRIVEN-CORE-DESIGN.md 및 docs/plans/HB-goal-driven-core-implementation.md.
