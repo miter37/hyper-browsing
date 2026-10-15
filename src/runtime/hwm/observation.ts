@@ -86,7 +86,7 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
     if(nodes.length>=limit&&!required.has(dom)){if(!gaps.some(g=>g.reason==='budget'&&g.parent===work.parent))gap(work.parent,'budget');continue;}
     try{
       if(dom.nodeType===3){
-        let text=work.pre?dom.data:dom.data.replace(/\\s+/g,' ');if(!text.trim())continue;
+        let text=work.pre?dom.data:dom.data.replace(/\\s+/g,' ');if(!text.length||!work.pre&&!text.trim())continue;
         if(textCount+text.length>textLimit){gap(work.parent,'text-budget');break;}textCount+=text.length;
         add({kind:'text',text,textSource:'dom-text',tracking:track(dom),attrs:work.via?.length?{'via-dom':work.via}:{}},work.parent);continue;
       }

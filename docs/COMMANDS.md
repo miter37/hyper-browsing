@@ -310,6 +310,8 @@ expect.goal은 현재 유일 후보를 확인하며 갱신 증거가 아니다. 
 
 `next.json`은 {expect?,follow?,waitMs?}이며 expect/follow 중 하나는 필요하다. 기존 단일 명령의 `--then-file`에도 같은 조건을 사용한다. 후속 관찰 오류가 원래 실행 결과를 바꾸지 않는다. fields는 ref 대상으로만 지원한다.
 
+기본 `read --want content`는 완결된 정본에서 조작·명시 관계·독립 상태가 없는 `<pre>`를 `kind="code", tag="pre", source="pre-text-v1"` 항목으로 투영한다. 텍스트 조각을 순서대로 연결하며 빈 줄·들여쓰기를 보존한다. 정본/inspect의 조각과 관계는 유지한다. 코드 id는 원래 pre의 조회 ID이므로 `read --target ID`로 범위를 다시 읽을 수 있다. 일부 수집 또는 내부 경계가 있으면 합치지 않는다. query가 적용된 코드의 match.source는 실제 일치 원문 노드의 ID다. 기본 textLimit/byteBudget을 그대로 적용하고 textTruncated/textLength를 남긴다. 작은 명시적 textLimit도 적용하며, 더 큰 한도로 재조회하면 이전 잘림 필드는 unavailableFields로 철회한다.
+
 메뉴가 늦게 뜬다면 `{"expect":{"exists":{"terms":["관찰할 선택지"]}},"follow":{"terms":["관찰할 선택지"]}}`로 조건을 기다린 뒤 조회한다. follow만 지정하면 즉시 읽기다. 마지막 follow의 ambiguous/not_found/incomplete는 조회 결과로 반환하며 완료한 실행을 partial로 낮추지 않는다. 중간 follow의 모호함/불완전성은 다음 행동 전에 중단한다. 검증 finding은 follow가 없을 때도 최상위 finding으로 한 번만 전달한다.
 
 `find --role combobox` 또는 `{"roles":["combobox"]}`는 이름 없는 입력을 포함해 역할로 조회한다. terms와 roles가 모두 없는 목표는 거부한다. 역할만 일치한 match는 field="role"로 표시한다. `find --text-limit N`/goal.textLimit는 기본500자, 상한4000자이며 byteBudget과 함께 적용한다. textTruncated/valueTruncated는 미리보기 잘림이다. 목록 항목·행·article의 owner.text는 최대160자의 같은 조상 원문이며 textTruncated가 있으면 일부다. `run ACTION --session ID`는 기존 저장 액션 실행, `run --input-file task.json --session ID`는 목표 계획 실행으로 구분한다.

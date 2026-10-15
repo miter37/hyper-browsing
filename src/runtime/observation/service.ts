@@ -13,6 +13,7 @@ import {captureOutline} from './outline';
 import {REGION_GUARD,SCOPING_JS} from './scoping';
 import {DEEP_WALK_JS} from '../../engine/page-state';
 import {findGoal,type GoalFinding} from '../task/observe';
+import {compactCodeBlocks} from './code-blocks';
 
 interface Scope {session:string;document:string;page:Page;roots:JSHandle;panels:Panel[];expires:number}
 export interface ReadOptions extends DeliveryOptions {at?:string;map?:string;panel?:string;want?:string;query?:string;item?:number;target?:string;offset?:number;limit?:number;textLimit?:number;byteBudget?:number;includeChildren?:boolean}
@@ -142,10 +143,12 @@ export class DemandObservationService {
      for(const unit of units){const matches=matchFields.get(unit.data.id);unit.collected=[...new Set([...(unit.collected??[]),'match'])];if(matches?.length)unit.data.match=matches;}
     }
    }else units=snapshot.elements.map(e=>({key:scope.document+'/'+e.ref,data:{id:e.ref,kind:'control',...compactControl(e)},collected:controlCollected}));
+   if(want.includes('content')&&snapshot.contextGraph)units=compactCodeBlocks(snapshot.contextGraph,units,publicId);
    const textLimit=number(options.textLimit,1200,120000),byteBudget=number(options.byteBudget,12000,200000);if(textLimit<1||byteBudget<1500)throw observationError('invalid_read_budget');
    const total=graphNeeded?units.length:snapshot.controlPage?.total??units.length,shown:Unit[]=[];let used=1000,textTruncated=false,requiredByteBudget=0;
    for(const raw of units.slice(graphNeeded?offset:0,(graphNeeded?offset:0)+limit)){const unit=structuredClone(raw);for(const field of ['text','name','display','value'])if(typeof unit.data[field]==='string'){
-     const chars=Array.from(unit.data[field]);if(chars.length>1200){unit.data[field+'Truncated']=chars.length>textLimit;if(chars.length>textLimit){unit.data[field]=chars.slice(0,textLimit).join('');unit.data[field+'Length']=chars.length;textTruncated=true;}}
+     unit.collected=[...new Set([...(unit.collected??[]),field+'Truncated',field+'Length'])];
+     const chars=Array.from(unit.data[field]);if(chars.length>textLimit){unit.data[field+'Truncated']=true;unit.data[field]=chars.slice(0,textLimit).join('');unit.data[field+'Length']=chars.length;textTruncated=true;}
     }const cost=Buffer.byteLength(JSON.stringify(unit.data));if(used+cost>byteBudget){if(!shown.length)requiredByteBudget=1000+cost;break;}used+=cost;shown.push(unit);
    }
    const coverage={complete:complete&&!textTruncated&&offset===0&&total<=shown.length,observed:total,shown:shown.length,...(textTruncated?{textTruncated:true,detail:'read target with larger textLimit/byteBudget'}:{}),...(requiredByteBudget?{requiredByteBudget,target:units[graphNeeded?offset:0]?.data.id,detail:'increase byteBudget or reduce textLimit'}:total>offset+shown.length?{nextOffset:offset+shown.length}:{})};

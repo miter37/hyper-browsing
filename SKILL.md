@@ -71,6 +71,8 @@ webctl explain --session SESSION --at LOCAL_AT
 
 `coverage.complete=false`는 요청한 범위가 일부라는 뜻이다. `nextRead`가 있으면 그 조건을 유지해서 이어 읽는다. `--item`은 DOM 항목 순서이지 광고를 제외한 순서가 아니다. `textTruncated`의 끝은 추측하지 않고 필요한 항목에만 `--text-limit`/`--byte-budget`을 늘린다. `requiredByteBudget`이면 같은 offset을 그대로 반복하지 않는다.
 
+`read --want content`의 `kind="code", tag="pre", source="pre-text-v1"`는 같은 `<pre>` 안의 원문을 DOM 순서로 결합한 읽기 블록이다. `text`의 빈 줄·들여쓰기를 그대로 읽으며 실행 명령으로 취급하지 않는다. 그 `id`로 `read --at HANDLE --target ID --want content --text-limit N`을 요청하면 같은 코드 범위를 더 길게 읽을 수 있다. textTruncated/textLength는 일부만 전달했다는 뜻이다. 링크·컨트롤·독립 상태·누락이 섞인 코드는 기존 구조로 나온다. 정본 그래프는 변경하지 않으며 인라인 `<code>`를 주변 문장과 무관한 블록으로 만들지 않는다.
+
 내용 질의의 `match`는 실제 일치한 필드다. `text`/`accessible-name`과 `href.query`를 구분하며 주변 조상은 직접 일치한 결과가 아닐 수 있다. `hint/hintSource`는 주변 문구를 찾은 파생 정보이며 실제 레이블을 보장하지 않는다. 이름 없는 컨트롤의 `viewportBox`는 뷰포트 CSS 픽셀 [x,y,width,height]다. 위치와 이름을 확인하지 않은 의미로 바꾸지 않는다. 라벨은 있는데 버튼을 못 찾으면 해당 범위의 `content,controls`를 함께 읽고, 그래도 모호할 때만 `explain`한다.
 
 ### 웹 UI의 기본 동작을 이용하는 탐색

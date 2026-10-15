@@ -5,6 +5,38 @@ import {browserOptions} from './browser-options.mjs';
 import {captureSnapshot} from '../src/runtime/snapshot.ts';
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 
+test('highlighted pre becomes one exact code block and can be read again with a larger text limit',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const expected='const numbers = [1, 4, 9];\n\n  const roots = numbers.map(Math.sqrt);\n';
+ const page=await fixture(t,'<main><h1>Example</h1><pre><code><span class="token">const</span> numbers = [1, 4, 9];\n\n  <span class="token">const</span> roots = numbers.map(Math.sqrt);\n</code></pre><p>After example</p></main>');
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s');const args={map:map.map,panel:map.panels[0].id,want:'content'};
+ const read=await service.read(page,'s',args);const code=read.data.find(d=>d.kind==='code');assert.ok(code,JSON.stringify(read));assert.equal(code.text,expected);assert.equal(code.tag,'pre');assert.ok(read.data.length<10);assert.ok(read.data.some(d=>d.text==='After example'));
+ const short=await service.read(page,'s',{...args,target:code.id,textLimit:20});assert.ok(short.data.some(d=>d.textTruncated===true));assert.equal(short.coverage.complete,false);
+ const full=await service.read(page,'s',{...args,target:code.id,textLimit:1000,since:short.delivery});assert.ok(full.data.some(d=>d.text===expected));assert.ok(full.data.some(d=>d.unavailableFields?.includes('textTruncated')));
+});
+
+test('pre projection preserves embedded interactions and partial collection is never emitted as a complete block',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const page=await fixture(t,'<main><pre><code>before <a href="/reference">Reference</a> after</code></pre><pre><code>'+Array.from({length:400},()=>'<span class="token">word </span>').join('')+'</code></pre></main>');
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s');const read=await service.read(page,'s',{map:map.map,panel:map.panels[0].id,want:'content,controls'});
+ assert.ok(read.data.some(d=>d.href==='/reference'));assert.equal(read.data.filter(d=>d.kind==='code').length,0);assert.equal(read.coverage.complete,false);
+});
+
+test('code whitespace survives collection and grouping never consumes inline links or independent state',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const page=await fixture(t,'<main><pre><code><span class="t">one</span>\n\n  <span class="t">two</span>\n</code></pre><pre><code><span aria-busy="true">pending</span></code></pre><p>Inline <code>x</code> with <a href="/x">link</a>.</p></main>');
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s');const read=await service.read(page,'s',{map:map.map,panel:map.panels[0].id,want:'content,controls,state'});
+ assert.equal(read.data.find(d=>d.kind==='code')?.text,'one\n\n  two\n');assert.equal(read.data.filter(d=>d.kind==='code').length,1);
+ assert.ok(read.data.some(d=>d.busy===true));assert.ok(read.data.some(d=>d.href==='/x'));assert.ok(read.data.some(d=>d.text==='x'));
+});
+
+test('code query retains match provenance after block projection',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const page=await fixture(t,'<main><pre><code>needle in code</code></pre></main>');const service=new DemandObservationService();t.after(()=>service.close());
+ const map=await service.map(page,'s');const read=await service.read(page,'s',{map:map.map,panel:map.panels[0].id,want:'content',query:'needle'});
+ const block=read.data.find(d=>d.kind==='code');assert.ok(block);assert.ok(block.match?.some(m=>m.field==='text'&&m.source));
+});
+
 test('expired panel read is a scope error, not uncertain execution',async t=>{
  const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
  const page=await fixture(t,'<main><p>Ready</p></main>');const service=new DemandObservationService();t.after(()=>service.close());
