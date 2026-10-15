@@ -1,6 +1,6 @@
 # Hyper-Browsing
 
-일반 브라우징 명령은 작은 `hb` 응답을 기본으로 전달합니다. 첫 화면은 패널 지도, 이후에는 `read --map MAP --panel PANEL --want content,controls,state`로 요청한 범위만 읽고 조작 후에는 변화만 확인합니다. 마지막으로 받은 `delivery`를 `--since`에 넘기면 이미 받은 필드를 반복하지 않습니다. HWM은 필요한 범위의 `explain` 상세로 사용하며, 명시적인 `--format json`과 `--format hwm`은 호환·상세 경로로 유지합니다. [요청 중심 설계](docs/plans/HB-demand-driven-observation-design.md)와 [HWM 상세 계약](docs/HWM-0.2-consent.md)을 참고하세요. 전체 과업 비용의 우월성은 추가 측정 대상입니다.
+일반 브라우징 명령은 작은 `hb` 응답을 기본으로 전달합니다. 첫 화면은 패널 지도, 이후에는 실제 받은 응답의 `at` 핸들로 필요한 범위만 이어 읽습니다. 작은 메뉴는 선택지와 실행 ref를 바로 주며, 긴 화면은 `read --at HANDLE --panel PANEL --want outline`에서 구역을 골라 읽습니다. 하위 패널은 기본 제외하고 `--include-children`에서만 포함합니다. 조작 후에는 로컬 변화부터 확인하고 이미 전달한 유효한 정보는 반복하지 않습니다. 기존 map/panel/since 경로도 지원합니다. HWM은 필요한 범위의 `explain` 상세로 사용하며, 명시적인 `--format json`과 `--format hwm`은 호환·상세 경로로 유지합니다. [요청 중심 설계](docs/plans/HB-demand-driven-observation-design.md)와 [HWM 상세 계약](docs/HWM-0.2-consent.md)을 참고하세요. 전체 과업 비용의 우월성은 추가 측정 대상입니다.
 
 <p align="right">
   <a href="./README.md">English</a> · <strong>한국어</strong>

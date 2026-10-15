@@ -1,4 +1,6 @@
 import type { Page } from "playwright";
+import {referencesFor} from '../runtime/references';
+import {REGION_GUARD} from '../runtime/observation/scoping';
 
 /*
  * Page-side helpers shared by snapshot, actions and diffs.
@@ -87,10 +89,11 @@ export interface PageProbe {
   interactive: number;
   // Names of visible buttons/links/tabs (first 300), to report controls that appeared, disappeared or were renamed.
   names: string[];
+  regions?: Array<{id:number;role:string}>;
 }
 
 // One cheap pass over the page: form values, ARIA states, open dialogs/menus, count of visible controls.
-const PROBE_SCRIPT = `(() => {
+const PROBE_SCRIPT = `(state => {
   ${DEEP_WALK_JS}
   const CONTROL = "a[href], button, input, select, textarea, summary, [role=button], [role=link], [role=checkbox], [role=radio], [role=tab], [role=option], [role=menuitem], [role=switch], [role=combobox], [contenteditable=true]";
   const OPEN = "dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [role=menu], [role=listbox]";
@@ -116,6 +119,7 @@ const PROBE_SCRIPT = `(() => {
   const states = {};
   const seenKeys = {};
   const open = [];
+  const regions=[];
   let interactive = 0;
   const names = [];
   let h1;
@@ -126,6 +130,9 @@ const PROBE_SCRIPT = `(() => {
     if (el.matches(OPEN) && shown(el) && open.length < 6) {
       const name = clean(el.getAttribute("aria-label")) || clean((el.querySelector("h1, h2, h3, [role=heading]") || {}).innerText) || "";
       open.push((el.getAttribute("role") || tag.toLowerCase()) + (name ? " " + name.slice(0, 60) : ""));
+      if(state){let id=state.observedIds.get(el);if(!id){id=state.observedNext++;state.observedIds.set(el,id);}
+       state.regionTargets.set(id,{ref:new WeakRef(el),guard:(${REGION_GUARD})(el)});while(state.regionTargets.size>64)state.regionTargets.delete(state.regionTargets.keys().next().value);
+       regions.push({id,role:el.getAttribute('role')||tag.toLowerCase()});}
     }
     if (el.matches(CONTROL) && shown(el)) {
       interactive++;
@@ -157,11 +164,11 @@ const PROBE_SCRIPT = `(() => {
       }
     }
   });
-  return { url: location.href, title: document.title, h1, fields, states, open, interactive, names };
-})()`;
+  return { url: location.href, title: document.title, h1, fields, states, open, interactive, names,regions };
+})`;
 
 export async function probePage(page: Page): Promise<PageProbe | null> {
-  return (await page.evaluate(PROBE_SCRIPT).catch(() => null)) as PageProbe | null;
+  try{const state=await referencesFor(page).snapshotState();return await page.evaluate(({script,state})=>eval(script)(state),{script:PROBE_SCRIPT,state:state.state});}catch{return null;}
 }
 
 export interface PageChange {
@@ -173,6 +180,7 @@ export interface PageChange {
   // Visible button/link names that appeared or disappeared (a renamed control shows in both).
   appeared?: string[];
   disappeared?: string[];
+  regions?: Array<{id:number;role:string}>;
 }
 
 /** What changed on the page between two probes (bounded, for action responses). */
@@ -202,6 +210,7 @@ export function diffProbe(before: PageProbe | null, after: PageProbe | null): Pa
   if (disappeared.length && disappeared.length <= 20) out.disappeared = disappeared.slice(0, 6);
   const delta = after.interactive - before.interactive;
   if (Math.abs(delta) >= 3) out.interactiveDelta = delta;
+  if(Object.keys(out).length&&after.regions?.length){const previous=new Set(before.regions?.map(r=>r.id));const newly=after.regions.filter(r=>!previous.has(r.id));out.regions=newly.length?newly:after.regions;}
   return Object.keys(out).length ? out : undefined;
 }
 

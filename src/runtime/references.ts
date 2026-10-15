@@ -65,7 +65,7 @@ export class ElementReferences {
     if (!this.state) {
       const base = nextBlock; nextBlock += 1_000_000;
       if (!Number.isSafeInteger(base + 999999)) throw new Error('Reference block capacity reached');
-      const state = await this.page.evaluateHandle(({ base, epoch }) => ({ ids: new WeakMap(), targets:new Map(), next: base, max: base + 999999, epoch, observedIds: new WeakMap(), observedTargets:new Map(), observedNext: 1, observedReadIds:new WeakMap(), observedReadNext:1 }), { base, epoch: referenceEpoch });
+      const state = await this.page.evaluateHandle(({ base, epoch }) => ({ ids: new WeakMap(), targets:new Map(), next: base, max: base + 999999, epoch, observedIds: new WeakMap(), observedTargets:new Map(), observedNext: 1, observedReadIds:new WeakMap(), observedReadNext:1,regionTargets:new Map() }), { base, epoch: referenceEpoch });
       if (generation !== this.generation) { await this.dispose(state); throw new Error("Snapshot document changed; observe again"); }
       this.state = state;
     }

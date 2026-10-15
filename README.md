@@ -1,6 +1,6 @@
 # Hyper-Browsing
 
-Browser commands default to lightweight `hb` responses: a panel map, requested scoped content/controls/state, and action effects. Pass the last received `delivery` as `--since` to avoid repeating known fields. Use `read --map MAP --panel PANEL --want content,controls,state`; request scoped HWM only when needed with `explain`. Explicit `--format json` and `--format hwm` preserve compatibility/detail paths. See [the demand-driven design](docs/plans/HB-demand-driven-observation-design.md) and [the detailed HWM contract](docs/HWM-0.2-consent.md). Global task-cost improvements remain subject to measurement.
+Browser commands default to lightweight `hb` responses: a panel map, requested scoped content/controls/state, and action effects. Continue with the `at` handle actually returned in the response. Opened small menus include their item refs directly; use `read --at HANDLE --panel PANEL --want outline` to locate a section, then read only that section. Nested panels are excluded unless `--include-children` is requested. Ask for scoped HWM with `explain` only when relationships remain unclear. The explicit map/panel/since path remains available. Explicit `--format json` and `--format hwm` preserve compatibility/detail paths. See [the demand-driven design](docs/plans/HB-demand-driven-observation-design.md) and [the detailed HWM contract](docs/HWM-0.2-consent.md). Global task-cost improvements remain subject to measurement.
 
 <p align="right">
   <strong>English</strong> · <a href="./README.ko.md">한국어</a>

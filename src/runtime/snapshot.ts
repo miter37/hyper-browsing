@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { Page, ElementHandle } from "playwright";
+import type { Page, ElementHandle, JSHandle } from "playwright";
+import {SCOPING_JS} from './observation/scoping';
 import type { AppConfig } from "../config";
 import { redactText, redactUrl } from "../utils/strings";
 import { DEEP_WALK_JS, detectBlock, inspectPageState, type BlockInfo, type PageStateInfo } from "../engine/page-state";
@@ -33,6 +34,7 @@ export interface SnapshotElement {
   // (custom-styled controls) carries that control's state, since the label is what the agent can click.
   checked?: boolean | "mixed";
   selected?: boolean;
+  current?: string;
   selectedText?: string;
   expanded?: boolean;
   pressed?: boolean | "mixed";
@@ -106,7 +108,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   function styleOf(el){let value=styles.get(el);if(!value){value=getComputedStyle(el);styles.set(el,value);}return value;}
   function rectOf(el){let value=rects.get(el);if(!value){value=el.getBoundingClientRect();rects.set(el,value);}return value;}
   ${DEEP_WALK_JS}
-  function scopedWalk(cb,max){return deepWalk(cb,max||opts.maxVisits,opts.root);}
+  ${SCOPING_JS}
+  function scopedWalk(cb,max){return deepWalk(el=>scopeAllows(el)?cb(el):false,max||opts.maxVisits,opts.root);}
 
   const CAND = "a, button, input, select, textarea, label, summary, [role], [data-testid], [tabindex]:not([tabindex='-1']), [contenteditable=true]";
   const INTERACTIVE_DESC = "a[href], button, input, select, textarea, [role=button], [role=link], [role=checkbox], [role=radio], [role=option], [role=tab], [role=menuitem], [role=switch]";
@@ -326,6 +329,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   scopedWalk((el) => {
     const tagU = el.tagName;
     if (tagU === "SCRIPT" || tagU === "STYLE" || tagU === "TEMPLATE" || tagU === "NOSCRIPT") return false;
+    if (!scopeSelected(el)) return;
     if (el.shadowRoot) shadowRoots++;
     if (el.matches(SECTION) && isVisible(el)) {
       const t = cleanStr(el.innerText);
@@ -391,6 +395,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       placeholder: cleanStr(el.getAttribute("placeholder")),
       label: label && label !== name ? label : undefined,
       href: cleanStr(el.getAttribute("href")),
+      current: el.getAttribute('aria-current')??undefined,
       ...(hiddenControl ? stateOf(hiddenControl, "input") : stateOf(el, tag)),
     };
     if (opts.refs) {
@@ -461,6 +466,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     for (const root of roots) {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       for (let t = walker.nextNode(); t && textHits.length < 8; t = walker.nextNode()) {
+        if (!scopeAllows(t)) continue;
         if (!t.textContent || !t.textContent.toLowerCase().includes(query)) continue;
         const p = t.parentElement;
         if (!p || seenParents.has(p) || /^(SCRIPT|STYLE|NOSCRIPT|TITLE|OPTION)$/.test(p.tagName) || !isVisible(p)) continue;
@@ -486,6 +492,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   if (query && !picked.length) {
     scopedWalk((el) => {
       if (collapsed.length >= 8) return false;
+      if (!scopeSelected(el)) return;
       const isSummary = el.tagName === "SUMMARY" && el.parentElement && el.parentElement.tagName === "DETAILS" && !el.parentElement.open;
       const isToggle = el.getAttribute && el.getAttribute("aria-expanded") === "false";
       if (!(isSummary || isToggle) || !isVisible(el)) return;
@@ -524,7 +531,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number } = {}
+  options: { query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
@@ -539,7 +546,7 @@ export async function captureSnapshot(
     const phases:NonNullable<NonNullable<PageSnapshot['collectionTiming']>['phases']>={referenceStateMs:performance.now()-referenceStarted};
     collectionTiming = { startedAt: new Date().toISOString(), finishedAt:'',document:references.documentIdentity(),documentChanged:false,phases };
     const evaluationStarted=performance.now();
-    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts,root:options.root, document:collectionTiming.document, refs: state.state } });
+    const result = await page.evaluateHandle(({ script, options }) => eval(`(${script})`)(options), { script: SNAPSHOT_SCRIPT, options: { ...opts,root:options.root,boundaries:options.boundaries,section:options.section,includeChildren:options.includeChildren, document:collectionTiming.document, refs: state.state } });
     phases.pageEvaluationMs=performance.now()-evaluationStarted;
     try {
       const transferStarted=performance.now();

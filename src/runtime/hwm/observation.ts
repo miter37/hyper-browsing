@@ -77,6 +77,7 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
   if(!start)gap('n1','document-not-available','unavailable');
   while(stack.length){
     const work=stack.pop(),dom=work.dom;
+    if(typeof scopeAllows==='function'&&!scopeAllows(dom))continue;
     if(nodes.length>=6000){gap(work.parent,'context-capacity','unavailable');break;}
     if(seen.has(dom))continue;seen.add(dom);
     if(++visits>60000){gap(work.parent,'budget');break;}
@@ -91,6 +92,12 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
       }
       if(dom.nodeType!==1)continue;
       const el=dom,tag=el.localName;if(/^(script|style|noscript|template)$/.test(tag))continue;
+      if(typeof scopeSelected==='function'&&!scopeSelected(el)){
+        const node=add({kind:'group',tag,tracking:track(el),attrs:{}},work.parent);
+        const children=el.shadowRoot?Array.from(el.shadowRoot.childNodes):tag==='slot'?(el.assignedNodes({flatten:true}).length?el.assignedNodes({flatten:true}):Array.from(el.childNodes)):Array.from(el.childNodes);
+        for(let i=children.length-1;i>=0;i--)stack.push({dom:children[i],parent:node.id,pre:work.pre});
+        continue;
+      }
       const style=styleOf(el);
       const role=el.getAttribute('role')||implicitRole(el,tag);
       const significant=/^(body|main|section|article|nav|header|footer|aside|h[1-6]|p|ul|ol|li|dl|dt|dd|table|thead|tbody|tr|td|th|form|fieldset|legend|label|dialog|input|button|select|option|textarea|a|summary|details|img|iframe|slot|pre|code)$/.test(tag)||role||required.has(el)||el.attributes.length||el.childElementCount>1||style.overflowX!=='visible'||style.overflowY!=='visible';
@@ -104,6 +111,7 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
       }
       const kind=kindFor(el), attrs=work.via?.length?{'via-dom':work.via}:{};
       for(const k of ['id','href','target','placeholder','type','aria-hidden','aria-live','aria-controls','aria-labelledby','aria-describedby','aria-owns']){const v=el.getAttribute(k);if(v!==null)attrs[k]=v;}
+      if(el.hasAttribute('aria-current'))attrs.current=el.getAttribute('aria-current');
       if(style.overflowX!=='visible'||style.overflowY!=='visible'||el.scrollLeft!==0||el.scrollTop!==0)attrs['layout-boundary']={overflow:[style.overflowX,style.overflowY],client:[el.clientWidth,el.clientHeight],extent:[el.scrollWidth,el.scrollHeight],offset:[el.scrollLeft,el.scrollTop],source:'dom-cssom-v1'};
       if(kind==='heading')attrs.level=/^h[1-6]$/.test(tag)?Number(tag.slice(1)):Number(el.getAttribute('aria-level'))||null;
       const rect=rectOf(el);attrs.box=[rect.x,rect.y,rect.width,rect.height];attrs.space='n1';

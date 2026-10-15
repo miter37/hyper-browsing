@@ -152,7 +152,7 @@ export class BrowserDaemon {
         try { original.pageState = await inspectPageState(this.store().get(probeSession),undefined,3000); } catch { /* Preserve the original execution outcome. */ }
       }
     }
-    if (!needsHeadedFallback(method, original) || this.chrome.getState()?.headless !== true) return original;
+    if (params.allowHeadedFallback === false || !needsHeadedFallback(method, original) || this.chrome.getState()?.headless !== true) return original;
     const fallback: any = { attempted: true, from: "headless", to: "headed", retried: false, observationRequired: true,
       reason: original.reason || original.blocked || original.navigationError || "headless_failure" };
     try {
@@ -294,21 +294,24 @@ export class BrowserDaemon {
     }
     if (method === "session.list") return this.store().list();
     const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
+    if(params.at&&(!['page.read','page.explain','page.snapshot','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(method)||!['page.read','page.explain'].includes(method)&&params.format!=='hb'))throw Object.assign(new Error('continuation_requires_supported_hb_command'),{code:'continuation_requires_supported_hb_command',execution:'not_started'});
     if(['page.read','page.explain'].includes(method)){
       if(!page)throw Object.assign(new Error('sessionId required'),{execution:'not_started'});
       return method==='page.read'?this.demand.read(page,params.sessionId,params):this.demand.explain(page,params.sessionId,params);
     }
     if (method === "batch.run") {
       if (!page) throw new Error("sessionId required");
+      if(params.format==='hb')params=this.demand.prepare(page,params.sessionId,params);
       if(params.format&&!['hb','json','hwm'].includes(params.format))throw new Error('format must be hb, json or hwm');
       this.projection(params);
       const execute=()=>runBatch(page, params.input, async (command, result) => {
         if (result.ok) await recordLearningEvent(this.config, page, params.sessionId, "fill", { locator: command.locator || referencesFor(page).semanticLocator(command.ref), valuePresent: Boolean(command.value || command.option), batch: true });
       });
-      if(params.format==='hb')return this.demand.result(page,params.sessionId,await execute(),params);
+      if(params.format==='hb')return this.demand.afterAction(page,params.sessionId,await execute(),params);
       return params.context===true||params.format==='hwm'?observeExecution(page,params.sessionId,execute,params.observationRequestId,params.format==='hwm'?'hwm':'json',data=>this.publish(params,data),{lightweight:params.context!==true,query:params.query,before:this.observations.latest(params.sessionId)}):execute();
     }
     if (page && ["page.click", "page.hover", "page.fill", "page.select", "page.press"].includes(method)) {
+      if(params.format==='hb')params=this.demand.prepare(page,params.sessionId,params);
       if(params.format&&!['hb','json','hwm'].includes(params.format))throw new Error('format must be hb, json or hwm');
       this.projection(params);
       const kind = method.slice(5) as "click" | "hover" | "fill" | "select" | "press";
@@ -321,7 +324,7 @@ export class BrowserDaemon {
       if (params.observe&&!context) result.snapshot = await captureSnapshot(page, { references: referencesFor(page), query: params.query });
       if (kind === "click") result.clicked = result.ok;
       if (kind === "hover") result.hovered = result.ok;
-      return params.format==='hb'?this.demand.result(page,params.sessionId,result,params):{ ...result, learning_pending: false };
+      return params.format==='hb'?this.demand.afterAction(page,params.sessionId,result,params):{ ...result, learning_pending: false };
     }
     if(method==='page.verify'){
       if(!page)throw new Error('sessionId required');
@@ -373,8 +376,8 @@ export class BrowserDaemon {
       if (!page) throw new Error("sessionId required");
       if (params.format !== undefined && !['hb','json','hwm'].includes(params.format)) throw new Error('Unsupported snapshot format; use hb, json or hwm');
       if(params.format==='hb'){
-        if(params.query&&!params.map)return {ok:false,execution:'not_started',reason:'scope_required',hint:'Use snapshot for the map, then read --map M --panel P --query TEXT; or explicit --format json for legacy discovery.'};
-        if(params.map)return this.demand.read(page,params.sessionId,{...params,want:params.want??'controls'});
+        if(params.query&&!params.map&&!params.at)return {ok:false,execution:'not_started',reason:'scope_required',hint:'Use snapshot for the map, then read --at HANDLE --panel PANEL --want content --query TEXT; or explicit --format json for legacy discovery.'};
+        if(params.map||params.at&&params.query)return this.demand.read(page,params.sessionId,{...params,want:params.want??'controls'});
         const map=await this.demand.map(page,params.sessionId,params);return {...map,pageState:await inspectPageState(page,undefined,0),blocked:await detectBlock(page)};
       }
       const projection=this.projection(params);

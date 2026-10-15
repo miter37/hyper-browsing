@@ -174,9 +174,21 @@ webctl verify --session ID --input-file checks.json
 ```
 
 최대 20개 명시 조건, 전체 기본 5초. 조건별 기대값·관찰값과 APPLIED/NOT_APPLIED/UNKNOWN을 반환한다. 실행이나 자산 저장은 하지 않는다. 입력 형식과 예시는 [VERIFICATION.md](VERIFICATION.md). 기존 @e27 참조를 PowerShell에 직접 전달할 때는 `--ref '@e27'`처럼 감싼다.
-## HWM 0.2 관찰 그래프 (단계 1A)
+## 요청 중심 관찰과 HWM 상세
 
-`webctl snapshot --session ID`의 기본 출력은 가벼운 패널 지도(hb, compact JSON)다. 전체 본문 그래프를 만들지 않는다. `read --map MAP --panel PANEL --want controls|content|state`로 필요한 범위만 새로 읽으며 want는 쉼표로 묶을 수 있다. `--query TEXT`, `--item N`, `--target N…또는발급된e…`, `--offset N`, `--limit N`, `--text-limit N`, `--byte-budget N`으로 범위를 지정한다. 실행 ref target도 같은 패널 포함 여부와 기존 guard를 검증하며 open shadow host 경로를 포함한다. 마지막 실제 수신 delivery를 `--since DELIVERY`로 넘기면 이미 전달한 필드는 생략하며, `--consumer`로 수신자를 구별할 수 있다. since가 없으면 요청 범위를 자체 완결적으로 반환한다. `--repeat`는 의도적 재전달이다. `explain --map MAP --panel PANEL`은 같은 영역을 현재 DOM에서 읽어 HWM 상세를 제공하며, 예산을 넘으면 같은 저장 그래프의 노드 수를 줄여 정상 접힘 문법으로 맞춘다. 최소 투영도 맞지 않을 때만 detail_budget_exceeded를 반환한다.
+`webctl snapshot --session ID`는 본문 그래프 없이 패널 지도와 주요 컨트롤을 반환한다. 지도 응답의 `at`으로 `read --at HANDLE --panel PANEL --want outline`을 요청하면 제목·하위 패널을 읽는다. 해당 항목의 `at`으로 `read --at HANDLE --want content,controls,state`를 요청하면 그 범위만 현재 DOM에서 읽는다. outline은 다른 want와 묶지 않는다. 기본 read는 controls이며 본문 검색에는 content를 명시한다.
+
+`at`은 지도·범위·전달 receipt·consumer를 묶은 불변 핸들이다. 다음 호출에는 실제 받은 최신 응답의 at을 사용한다. 지도 루트 핸들에는 panel을 지정할 수 있지만 패널에 묶인 핸들로 다른 panel을 고를 수 없다. `--at`과 `--map`/`--since`/`--consumer`를 함께 쓰면 conflicting_continuation이다. 기존 `--map MAP --panel PANEL --since DELIVERY` 호환 경로는 유지한다. --repeat는 알고 있는 필드도 다시 전달한다.
+
+핸들 TTL은 5분이며 최대 256개/메타데이터 1MB다. 지도(최대16개)와 전달 ledger(최대64개/총1MB)가 먼저 제거될 수도 있다. continuation_expired/scope_expired/scope_stale/delivery_expired는 새 지도와 필요한 로컬 조회로 복구한다. 다른 문서·세션의 핸들은 거부한다. 핸들은 실행 ref나 쓰기 승인, 실행 대상의 패널 한정 검사를 대신하지 않는다. click/fill/select/press/hover/batch의 기본 hb 경로에서 전달 기준으로 사용할 수 있고 실행 ref guard는 별도로 적용된다. JSON/HWM 호환 실행이나 지원하지 않는 명령에 at을 주면 실행 전에 거부한다.
+
+read의 `--query TEXT`, `--item N`, `--target N…또는발급된e…`, `--offset N`, `--limit N`, `--text-limit N`, `--byte-budget N`으로 범위를 좁힌다. 기본적으로 별도 하위 패널은 제외한다(extent=own). `--include-children`에서만 포함한다(extent=subtree). boundaries.excludedPanels는 제외한 직접 하위 패널 수이며 outline에서 선택할 수 있다. nextRead의 want/query/item/target/offset 조건을 유지해 이어 읽는다.
+
+outline은 본문·값 수집 없이 제목을 최대24개, 하위 패널 최대8개와 함께 작은 예산으로 전달한다. 알려진 제목 레벨에 대해서만 섹션 at을 제공한다. 섹션은 원래 조회 루트 안에서 해당 제목부터 다음 같거나 높은 레벨 제목 전까지다. 이것은 heading-outline-v1 파생 범위이며 DOM 부모 관계가 아니다. 레벨 미확인은 readable=false다. coverage와 childrenCoverage는 제목과 하위 패널의 관찰·출력 범위를 따로 나타낸다. 일부 결과를 전체 목록으로 해석하지 않는다.
+
+조작 응답의 focus에는 새로 열린 영역의 실제 범위가 들어간다. 단일 menu/listbox의 컨트롤이 8개 이하이고 항목 데이터가 2KB 이하인 완전 관찰에서는 items에 실제 역할·이름·실행 ref를 바로 제공한다. 더 크거나 일부면 컨트롤 표본과 로컬 read 경로를 제공한다. 같은 지도 안의 같은 열린 대화상자에서 조작하면 내용·컨트롤·상태 차분을 우선 전달한다. 문서 교체 후에는 작은 새 지도를 제공한다. observationError는 후속 관찰 실패이며 이미 실행된 명령을 다시 보내라는 뜻이 아니다. 관찰된 current는 aria-current의 원문 값이다.
+
+`explain --at HANDLE`은 해당 범위 HWM 상세를 현재 DOM에서 읽는다. 기본 절차로 요청하지 않는다. 예산을 넘으면 같은 보관 그래프의 투영 노드 수를 줄이며 최소 투영도 맞지 않으면 detail_budget_exceeded다. view/expand/inspect는 보관된 과거 관찰 조회이며 live read와 시점을 혼합하지 않는다.
 
 질의 read의 match는 실제 일치 필드, hint/hintSource는 주변 문구의 파생 근거다. 이름 없는 컨트롤의 viewportBox는 뷰포트 CSS 픽셀 [x,y,width,height]다. redacted에 href가 있으면 출력 링크가 마스킹되었다는 뜻이다. aria-hidden은 접근성 선언이며 rendering은 관찰한 CSS 사실로, 시각적 가림이나 과업 성공을 대신 판정하지 않는다. 이어 읽기 offset은 같은 want/query/item/target 집합에서만 사용한다.
 

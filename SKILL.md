@@ -1,6 +1,6 @@
 ---
 name: hyper-browsing
-description: Operate websites through a real Chrome session, verify every result, and save what you learned as reusable site knowledge.
+description: Operate websites through a real Chrome session, request only relevant UI evidence, verify outcomes, and selectively reuse proven knowledge.
 version: 0.3.0
 platforms: [macos, linux, windows]
 metadata:
@@ -13,37 +13,54 @@ metadata:
 
 사용자의 로컬 Chrome으로 현재 요청을 수행한다. Playwright와 기존 데몬을 사용하며, 실행 도중 필요한 내용만 읽는다.
 
-## 기본 관찰: 지도 → 필요한 범위 → 변화
+## 기본 관찰: 받은 정보로 행동 → 모자란 부분만 조회
 
-일반 명령은 `hb`(작은 JSON)를 기본 반환한다. 첫 `snapshot`은 패널 지도와 소수 주요 컨트롤만 제공하며 전체 본문 그래프를 만들지 않는다. `--format json`은 기존 스크립트 호환 응답, `--format hwm`은 명시적 상세다. `explain`은 해당 범위 HWM을 기본 반환한다.
+일반 응답은 작은 `hb` JSON이다. 첫 `snapshot`은 패널 지도와 소수 주요 컨트롤만 보여준다. 전체 본문이나 HWM을 준비 단계로 요청하지 않는다. 필요한 경우에만 `read`로 특정 패널·섹션·항목을 읽고, 관계가 여전히 모호할 때 `explain`으로 그 범위의 HWM을 받는다.
 
-1. 첫 snapshot의 map과 패널 ID, 주요 컨트롤, 열린 dialog, pageState/blocked를 확인한다. 역할·위치·basis는 관찰/계산 근거이며 앱이 목적을 판정한 것이 아니다.
-2. 원하는 패널만 read한다. 같은 판단에 필요한 content/controls/state는 쉼표로 묶어 한 번에 요청한다. 본문·가격·배송 문구·링크는 소속을 함께 읽고 LLM이 해석한다. 앱이 가격이나 광고 의미를 자동 판정한다고 가정하지 않는다.
-3. **이미 받았고 현재 판단에 유효한 정보는 다시 요청하지 않는다.** 마지막으로 실제 받은 delivery를 다음 호출의 --since에 넘긴다. 생략하면 요청 범위를 다시 제공한다. 내부 수집만 한 내용·잘린 끝부분·다른 에이전트가 받은 내용을 알고 있다고 취급하지 않는다.
-4. 과거 전달과 현재 확인을 구분한다. source=live의 known/비교는 이번 요청 범위의 필드에 한정한다. 관련 조작·문서 교체·참조 무효화·부분 관찰로 불확실하면 필요한 범위만 재조회한다. 맥락 유실 시 since를 생략하거나 --repeat로 재기준을 잡는다.
-5. 명확한 실행 ref/역할·이름이 있으면 상세 조회를 강제하지 않고 바로 조작한다. 조작 결과는 보고된 effect 범위이며 다른 패널과 과업 성공은 별도로 확인한다. 모호할 때만 해당 패널/항목을 explain한다. 같은 지도를 반복 snapshot하거나 전체 HWM을 준비 단계로 요구하지 않는다.
+1. **이미 응답에 답이 있으면 바로 다음 행동을 한다.** `focus.items`에 메뉴 선택지와 ref가 있으면 다시 snapshot하거나 메뉴 목록을 묻지 않는다. 목록의 실제 role과 ref를 사용한다. 이름만 보고 link/button을 추측하지 않는다.
+2. 첫 지도나 페이지 이동 후 새 지도를 받으면 주요 패널과 컨트롤을 확인한다. 목적이 명확하고 실행 ref가 있으면 바로 조작한다. 필요한 설정·본문 구역이 보이지 않을 때 해당 패널의 `--want outline`을 요청한다. 메뉴·대화상자를 열었다는 이유만으로 전체 지도를 다시 요청하지 않는다.
+3. **다음 호출에는 실제 받은 최신 응답의 `at`을 쓴다.** 이 핸들은 조회 범위와 그 응답까지 전달된 정보의 기준을 함께 담는다. 루트 지도 핸들에는 `--panel`로 패널을 고르고, `focus.at`이나 개요 항목의 `at`은 이미 해당 범위에 묶여 있으므로 그대로 사용한다. 페이지에 암묵적인 '최신 응답'이 있다고 가정하지 않는다.
+4. 필요한 필드만 `--want controls`, `content`, `state`로 읽고, 같은 판단에 함께 필요하면 쉼표로 묶는다. `outline`은 별도로 요청한다. 본문·가격·배송·링크는 같은 항목의 주변 원문과 소속으로 짝짓는다. 앱이 가격·광고·안전성을 대신 판정한다고 가정하지 않는다.
+5. `read`는 기본적으로 선택한 패널의 자체 내용만 읽고 별도 하위 패널을 제외한다. `outline`에서 하위 패널과 제목 구역을 보고 원하는 항목의 `at`으로 이동한다. 정말 필요한 경우에만 `--include-children`으로 하위 패널까지 포함한다. 설정 화면을 처음부터 끝까지 offset으로 훑기 전에 개요에서 필요한 구역을 찾는다.
+6. 조작 후 `effect`, `focus`, `execution`을 먼저 읽는다. 작은 메뉴는 선택지들을 직접 반환하고, 큰 팝업은 일부 컨트롤과 로컬 조회 핸들을 준다. 같은 대화상자 안에서 계속 조작하면 그 범위의 내용·상태 변화를 전달한다. 범위 내 관찰 완료와 사용자 과업 성공은 따로 판단한다.
+7. **이미 받았고 현재 판단에 유효한 정보는 다시 요청하지 않는다.** `known`은 이번에 확인한 요청 범위의 필드가 전달 기준과 같다는 뜻이다. 수집만 하고 전달하지 않은 내용·잘린 부분·다른 에이전트의 응답은 알고 있다고 취급하지 않는다. 필요한 근거가 충분하면 미수집 필드 때문에 재관찰하지 않는다.
 
 ```text
 webctl snapshot --session SESSION
-webctl read --session SESSION --map MAP --panel PANEL --want controls --since DELIVERY
-webctl read --session SESSION --map MAP --panel PANEL --want content,controls --item 2 --since DELIVERY
-webctl read --session SESSION --map MAP --panel PANEL --want content --query "관찰한 문구" --since DELIVERY
-webctl read --session SESSION --map MAP --panel PANEL --want state --since DELIVERY
-webctl explain --session SESSION --map MAP --panel PANEL
+webctl read --session SESSION --at MAP_AT --panel PANEL --want outline
+webctl read --session SESSION --at SECTION_AT --want content,controls
+webctl click --session SESSION --at FOCUS_AT --ref OBSERVED_REF
+webctl read --session SESSION --at RESULT_AT --want state
+webctl explain --session SESSION --at LOCAL_AT
 ```
 
-대문자는 실제 응답값이다. P…는 해당 map의 패널 ID이며 실행 ref가 아니다. read --target은 내용 노드 N… 또는 같은 패널의 유효한 실행 ref e…로 범위를 좁힐 수 있다. 조작의 --ref에는 발급된 불투명 e…만 사용한다. --item은 DOM 항목 순서이며 광고를 제외한 순서가 아니다. coverage.complete=false를 전체에서 비어 있음으로 해석하지 않는다. nextOffset은 이어 읽기 위치다. textTruncated의 끝을 추측하지 말고 필요하면 target과 --text-limit/--byte-budget을 늘려 요청한다.
+대문자는 실제 응답값이다. `F…`는 읽기·전달 기준 핸들이며 실행 대상이 아니다. `P…`는 패널, `S…`는 제목 기반 조회 구역, `N…`는 내용 대상이며 조작은 발급된 불투명 `e…` ref로 한다. 핸들만으로 쓰기 승인이나 실행 범위 제한을 대신하지 않는다. 실제 실행 대상은 `--ref` 또는 관찰한 역할·이름·맥락으로 명시한다.
 
-query가 있는 내용 조회의 `match`는 그 노드에서 실제 일치한 필드다. `text`/`accessible-name`과 `href.query`를 구분하고, 주변 소속을 보여주기 위해 포함된 조상을 직접 일치한 결과로 취급하지 않는다. 단순 단어가 여러 절에 나오면 관찰한 제목·항목이나 target으로 범위를 좁힌다.
-nextOffset으로 이어 읽을 때는 같은 want/query/item/target 조건을 유지한다. 숫자가 같은 카드 안에 있다는 이유만으로 판매가·배송비·총액 중 하나로 확정하지 말고, 함께 제공된 주변 원문과 하위 그룹을 근거로 판단한다. 부족하면 그 그룹만 조회하고 확인되지 않은 가격은 추천 근거에서 제외한다.
-hint/hintSource는 기존 알고리즘이 찾은 주변 문구이며 실제 레이블을 보장하지 않는다. 팝오버에서 라벨은 보이는데 조절 버튼을 못 찾으면 controls만 추측 검색하지 말고 그 범위의 content,controls를 함께 읽고, 계속 모호할 때만 explain한다.
-이름 없는 컨트롤의 viewportBox는 현재 뷰포트 CSS 픽셀 [x,y,width,height]다. 위치만으로 의미를 확정하지 말고 주변 원문·소속과 함께 해석하며 조작은 좌표가 아닌 발급된 ref로 한다.
-aria-hidden은 작성자의 접근성 선언이며 시각적 가림과 같지 않다. rendering은 수집한 CSS 사실이다. 이 정보가 없는 노드의 상태를 임의로 추정하지 않는다.
+`outline`의 제목 구역은 해당 제목부터 다음 같거나 높은 레벨 제목 전까지라는 규칙으로 계산하며 DOM 부모를 새로 만들지 않는다. 제목 레벨을 확인하지 못한 항목은 `readable=false`다. `aria-current`의 실제 값은 현재 선택의 근거이며, 보이지 않는 선택을 추정하지 않는다.
 
-scope_stale/scope_expired이면 옛 패널을 새 대상으로 임의 재할당하지 말고 지도를 다시 읽는다. delivery_expired/delivery_scope_mismatch이면 필요한 범위를 since 없이 읽어 새 기준을 받는다. read/explain은 현재 DOM 조회, view/expand/inspect는 저장된 옛 관찰 조회이므로 같은 시점으로 혼합하지 않는다. 일반 지도 단계에서 읽지 않은 본문은 folded가 아니라 아직 미수집이다.
+`coverage.complete=false`는 요청한 범위가 일부라는 뜻이다. `nextRead`가 있으면 그 조건을 유지해서 이어 읽는다. `--item`은 DOM 항목 순서이지 광고를 제외한 순서가 아니다. `textTruncated`의 끝은 추측하지 않고 필요한 항목에만 `--text-limit`/`--byte-budget`을 늘린다. `requiredByteBudget`이면 같은 offset을 그대로 반복하지 않는다.
 
-valuePreview=true는 기존 컨트롤 목록의 값이 접두부 미리보기일 수 있다는 뜻이다. 정확한 전체 값이 필요하면 같은 범위에서 want=state로 확인한다. unavailableFields는 이전에 받은 해당 필드를 이번 관찰의 현재값으로 더 이상 사용할 수 없다는 뜻이다. requiredByteBudget이 나오면 같은 offset을 반복하지 말고 예산을 늘리거나 text-limit을 줄인다.
-redacted에 href가 있으면 출력 URL은 마스킹된 값이다. 이를 정상 공유 링크로 복사하거나 생략 부분을 지어내지 않는다. 발급된 ref로는 원래 요소를 조작할 수 있다.
+내용 질의의 `match`는 실제 일치한 필드다. `text`/`accessible-name`과 `href.query`를 구분하며 주변 조상은 직접 일치한 결과가 아닐 수 있다. `hint/hintSource`는 주변 문구를 찾은 파생 정보이며 실제 레이블을 보장하지 않는다. 이름 없는 컨트롤의 `viewportBox`는 뷰포트 CSS 픽셀 [x,y,width,height]다. 위치와 이름을 확인하지 않은 의미로 바꾸지 않는다. 라벨은 있는데 버튼을 못 찾으면 해당 범위의 `content,controls`를 함께 읽고, 그래도 모호할 때만 `explain`한다.
+
+### 웹 UI의 기본 동작을 이용하는 탐색
+
+아래는 탐색 방향을 잡는 일반 지식이며 현재 페이지의 사실을 대신하지 않는다.
+
+- 점 세 개·더보기·접힌 화살표는 추가 메뉴를 여는 경우가 많다. 클릭 뒤 열린 로컬 `focus`부터 읽고, 그 안의 실제 선택지를 사용한다. 메뉴가 열렸다고 페이지 이동으로 취급하지 않는다.
+- 탭·사이드바는 선택된 항목과 표시된 본문이 함께 바뀌는 경우가 많다. `current`, `selected`, 제목과 조작 결과를 근거로 현재 위치를 확인한다. 페이지 이동 후에는 작은 새 지도로 큰 구조를 파악하고, 필요하면 본문 패널 개요를 읽는다.
+- 검색 입력과 자동완성 선택, 제출은 서로 다른 단계일 수 있다. 입력 후 후보의 실제 소속과 일치 근거를 확인해 선택한다. 입력값 변경만으로 결과 조건이 적용됐다고 답하지 않는다.
+- 대화상자·팝오버는 메뉴·날짜·인원·확인 같은 현재 작업의 일부일 수 있다. 먼저 목적과 내부 컨트롤을 읽는다. 방해 팝업이라는 추측으로 닫지 않는다.
+- 필터나 폼은 입력 중 값과 적용된 결과가 다를 수 있다. 적용/제출 후 필요한 값·상태·결과 문구만 확인한다. 상품 카드와 표의 값은 소속 행·항목 안에서 읽는다.
+
+더 자세한 탐색·복구 기준이 필요할 때만 [UI-INTERACTION.md](docs/UI-INTERACTION.md)를 읽는다.
+
+### 핸들 만료와 호환 경로
+
+`at`은 5분 동안 보관하며 최대 256개/메타데이터 1MB 한도와 지도·전달 기준의 수명도 적용된다. 세션·문서가 바뀌거나 보관 데이터가 제거되면 거부한다. `continuation_expired`, `scope_expired`, `scope_stale`이면 현재 지도에서 필요한 범위만 다시 잡는다. `delivery_expired`이면 새 기준을 받는다. 옛 핸들을 새 페이지의 대상으로 바꾸거나 실패한 쓰기를 자동 반복하지 않는다.
+
+맥락 유실로 내용을 다시 받아야 하면 `--repeat`를 명시한다. 기존 `--map MAP --panel PANEL --since DELIVERY --consumer CONSUMER`도 지원한다. `--at`과 `--map`/`--since`/`--consumer`는 함께 쓰지 않는다. 패널에 묶인 핸들로 다른 패널을 지정하지 않는다.
+
+`read/explain`은 현재 DOM 조회이고 `view/expand/inspect`는 보관된 과거 관찰 조회다. 서로 같은 시점으로 혼합하지 않는다. 지도에서 읽지 않은 본문은 접어 보관한 것이 아니라 아직 미수집이다. `valuePreview`는 값의 접두부일 수 있으며 정확한 값이 필요하면 해당 범위의 state를 읽는다. `unavailableFields`는 이전 필드를 현재값으로 더 이상 쓸 수 없다는 뜻이다. `redacted`의 URL·값은 마스킹된 데이터이므로 생략 부분을 지어내지 않는다. `aria-hidden`은 접근성 선언으로 시각적 가림을 보장하지 않는다.
 
 ## 명시적 HWM 상세 문법
 
@@ -115,7 +132,7 @@ view/expand/inspect는 저장된 관찰 조회다. 그동안 페이지가 바뀌
 
 1. session open으로 작업 세션을 만든다. 새 탭이 열리면 effect.newSessions의 URL·제목을 확인하고 해당 sessionId를 명시적으로 사용한다. 여러 새 탭 중 하나를 임의로 고르지 않는다.
 2. 기존 자산을 재사용할 필요가 있을 때만 identify와 관련 capability 본문을 확인한다. 학습 비활성/금지 작업에서는 learning notes/finish 등 학습 절차를 건너뛴다.
-3. 첫 snapshot의 패널 지도를 읽고 필요한 범위만 read한다. 이미 받은 유효한 지도/내용은 반복 조회하지 않는다. 기존 dismiss-annoyances, forms, list, extract, eval, screenshot은 필요한 경우 사용할 수 있다.
+3. 첫 snapshot의 패널 지도를 읽고 받은 at으로 필요한 범위만 이어간다. 열린 메뉴의 항목은 응답에서 바로 선택하고, 긴 본문에서 구역을 찾을 때는 outline을 먼저 읽는다. 이미 받은 유효한 지도/내용은 반복 조회하지 않는다. 기존 dismiss-annoyances, forms, list, extract, eval, screenshot은 필요한 경우 사용할 수 있다.
 4. 적용 조건이 맞는 검증된 액션을 우선 사용한다. 직접 조작은 방금 본 --ref 또는 역할·이름·맥락을 사용한다. 관찰하지 않은 대상·URL·절차를 추측하지 않는다.
 5. 이미 확인한 여러 입력·선택만 묶을 때 batch를 사용한다. 제출·페이지 이동·중간 판단은 분리한다. 자동완성 선택이 필요한 combobox에서는 fill과 후보 선택/Enter를 나누고, 중간 선택이 없는 폼에만 fill --submit을 사용한다. 배치는 영구 자산을 만들지 않는다.
 6. effect·pageState와 실제 요청 결과를 읽어 성공을 검증한다. 검색 지역·날짜·인원·필터처럼 기대값이 있는 과업은 verify --input-file로 조건과 가격 기준을 확인한다. 정상 0개 결과도 조건이 맞으면 유효하다. 명령 completed나 페이지 ready만으로 성공을 선언하지 않는다.

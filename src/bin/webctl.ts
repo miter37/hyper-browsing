@@ -17,7 +17,7 @@ import {outputFormat} from '../../scripts/hwm-policy.mjs';
 
 const config = getConfig();
 const nativeClient = new BrowserdClient(config);
-const client={call:(method:string,params:any={})=>nativeClient.call(method,{...params,format:outputFormat(argv[0],flag('format')),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel')})};
+const client={call:(method:string,params:any={})=>nativeClient.call(method,{...params,format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children')})};
 const argv = process.argv.slice(2);
 
 function flag(name: string): string | undefined {
@@ -94,9 +94,11 @@ Daemon/session:
 
 Discovery primitives (same browser session):
   webctl snapshot --session ID        # lightweight panel map (default hb)
-  webctl read --session ID --map MAP --panel P --want controls,content,state [--since DELIVERY]
-  webctl read --session ID --map MAP --panel P [--query TEXT | --item N | --target NODE] [--offset N] [--limit N]
-  webctl explain --session ID --map MAP --panel P   # scoped HWM detail
+  webctl read --session ID --at HANDLE [--panel P] --want outline
+  webctl read --session ID --at HANDLE --want controls,content,state [--include-children]
+  webctl read --session ID --at HANDLE [--query TEXT | --item N | --target NODE] [--offset N] [--limit N]
+  webctl explain --session ID --at HANDLE          # scoped HWM detail
+  webctl read --session ID --map MAP --panel P --want controls [--since DELIVERY]  # compatibility
   webctl snapshot --session ID [--save] [--query TEXT] [--limit N] [--context] [--context-limit N] [--format hb|json|hwm]
   webctl snapshot --session ID --format hwm [--mode full|overview|focus] [--focus REF] [--node-budget N] [--text-budget N]
   webctl view --session ID --observation OBS --format hwm [--mode overview|focus|full] [--focus REF]
@@ -198,7 +200,7 @@ async function main() {
   if(['view','expand','inspect','changes'].includes(a))return print(await client.call('observation.'+a,{sessionId:required('session'),observation:flag('observation'),comparison:flag('comparison'),target:flag('target'),...observationFlags()}));
   if(a==='close'&&boolFlag('all'))return print(await client.call('session.closeAll'));
   if(a==='close')return print(await client.call('session.close',{sessionId:required('session')}));
-  if(['read','explain'].includes(a))return print(await client.call('page.'+a,{sessionId:required('session'),map:required('map'),panel:required('panel'),want:flag('want'),query:flag('query'),item:flag('item'),target:flag('target'),offset:flag('offset'),limit:flag('limit'),textLimit:flag('text-limit'),byteBudget:flag('byte-budget')}));
+  if(['read','explain'].includes(a))return print(await client.call('page.'+a,{sessionId:required('session'),map:flag('map'),panel:flag('panel'),want:flag('want'),query:flag('query'),item:flag('item'),target:flag('target'),offset:flag('offset'),limit:flag('limit'),textLimit:flag('text-limit'),byteBudget:flag('byte-budget')}));
   if (a === "snapshot") return print(await client.call("page.snapshot", { sessionId: required("session"), save: boolFlag("save"), query: flag("query"), limit: flag("limit"),offset:flag('offset'), contextLimit: flag("context-limit"), ...observationFlags() }));
   if (a === 'verify') return print(await client.call('page.verify',{sessionId:required('session'),input:flag('input')||flag('input-file')?await actionInput():{checks:[]}}));
   if (a === "screenshot") return print(await client.call("page.screenshot", { sessionId: required("session"), fullPage: boolFlag("full-page") }));

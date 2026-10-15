@@ -272,7 +272,7 @@ export function mapCommandToRpc(positionals, flags, boolFlags) {
     if (['role','testid','text','label','placeholder','css','nth','within'].some(k=>flags[k]!==undefined) || boolFlags.has('all')) throw new Error('Use --ref alone; references cannot be indexed, scoped, or extracted with --all');
     rpc.params.ref = flags.ref.replace(/^@(?=e\d+$)/, ''); rpc.params.locator = undefined;
   }
-  if(rpc){rpc.params.format=outputFormat(positionals[0],flags.format);Object.assign(rpc.params,{since:flags.since,consumer:flags.consumer,repeat:boolFlags.has('repeat')});if(!['page.read','page.explain'].includes(rpc.method))Object.assign(rpc.params,{map:flags.map,panel:flags.panel,offset:flags.offset});}
+  if(rpc){rpc.params.format=outputFormat(positionals[0],flags.format);Object.assign(rpc.params,{at:flags.at,since:flags.since,consumer:flags.consumer,repeat:boolFlags.has('repeat'),includeChildren:boolFlags.has('include-children')});if(!['page.read','page.explain'].includes(rpc.method))Object.assign(rpc.params,{map:flags.map,panel:flags.panel,offset:flags.offset});}
   return rpc;
 }
 

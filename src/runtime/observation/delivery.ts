@@ -8,6 +8,11 @@ export class DeliveryLedger {
  private receipts=new Map<string,Receipt>();
  constructor(private ttlMs=300000,private clock=Date.now){}
  private prune(){for(const [id,r]of this.receipts)if(r.expires<=this.clock())this.receipts.delete(id);}
+ validate(session:string,document:string,options:DeliveryOptions={}){
+  this.prune();const prior=options.since?this.receipts.get(options.since):undefined;
+  if(options.since&&!prior)throw observationError('delivery_expired');
+  if(prior&&(prior.session!==session||prior.document!==document||options.consumer&&options.consumer!==prior.consumer))throw observationError('delivery_scope_mismatch');
+ }
  publish(session:string,document:string,units:Unit[],options:DeliveryOptions={}){
   this.prune();const prior=options.since?this.receipts.get(options.since):undefined;
   if(options.since&&!prior)throw observationError('delivery_expired');
