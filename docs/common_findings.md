@@ -893,3 +893,17 @@ Airbnb임시검색은자동완성이름의하위문구를중복시켜no_match, �
 독립리뷰의 재현3건(모달밖연결포털누락,긴scope이름예산초과,120자preview로긴실제값검증실패)을 RED→GREEN으로 수정했다. 입력대기중예산소진·옛DOM의guard변경·전달실패후원결과보존도 회귀로고정했다. 스킬사용성3상황에서 선택지ref즉시사용/옛결과로진행금지/known재사용을확인했고, 무조건snapshot/at을요구하던기존문구를필요한read경로에한정했다.
 
 최종 npm test exit0: 타입검사 및 task31+HWM106+학습35+실행63+브라우저시나리오15+발견46=총296개통과. 실제데몬새소스재시작후 같은Chrome headless유지, 로컬data페이지의fast/nativeCLI find와run 입력/검증/후속조회smoke확인. run994ms/최종약1545B는한로컬smoke의값이지실전전체비용개선율이아니다. 이번개발중신규외부사이트실험·학습자산화·사이트맞춤예외추가없음. 설계와한계는 docs/GOAL-DRIVEN-CORE-DESIGN.md 및 docs/plans/HB-goal-driven-core-implementation.md.
+
+## 2026-10-15 17:10 +09:00 — GPT-6 Codex: 새 목표 코어 GitHub 실전 재수행, 재인증 대기
+
+dy1 headed에서 miter37/tiger-wife 비공개생성·별표를확인했다. Private표시·Unstar전환·삭제dialog의1star를읽었다. 요구한저장소명입력→버튼활성확인→최종삭제요청까지수행했으나 GitHub Confirm access 재인증으로전환되어삭제완료를주장하지않았다. 사용자직접인증대기이며삭제재시도없음. API우회·사이트전용코드·학습자산화없음.
+
+부모실수: 현재창그대로사용요청에도연결Chrome이headless인것을보고reveal을호출했고 rebindContext가과거실험탭전체를복원했다. 사용자지적후복원데몬을중지/현재headedChrome재연결,부모가열었던실험11탭만닫았다. GitHub/빈탭유지. CLI --confirmed오기도not_started한번발생했고--confirm으로정정했다. 모델운영오류를앱클릭실패로돌리지않는다.
+
+GitHub 첫조회~재인증대기직전18CLI/논리조작16(완료15,오기거부1)/공개26,361B/CLI시간합32.206초/벽시계313.423초. 준비복원/정리와이후인증대기제외. 이전Luna49호출/112,721B/약311초는삭제완료까지라전체속도비교불가. 호출출력은줄었어도부모판단·파일작성·도구사이시간은여전히큼.
+
+새코어의보완후보: 마지막follow의복수후보를전체partial실패로표현하는문제,서버쓰기3초미확인복구동선,expect-only --then의finding/receipt경로불일치,모드전환시전체과거탭암묵복원,CLI확인인자혼동. 별도로로컬라우팅재현에서 run existing_action이action.run대신task.run으로매핑되는호환회귀를확인(실제자산실행없음). 상세는 docs/GITHUB-GOAL-CORE-RETEST-2026-10-15.md. 실험중제품코드는수정하지않았다.
+
+## 2026-10-15 17:13 +09:00 — GPT-6 Codex: GitHub 재인증 후 시나리오 완료
+
+사용자직접재인증후읽기만수행했다. 저장소목록 URL의 Your repository "miter37/tiger-wife" was successfully deleted. alert와기존주소재접속HTTP404/Page not found를확인했다. 삭제재요청없음. 최종21CLI/공개28,202B/명령시간합36.389초/벽시계634.825초. 초기모드복원/탭정리제외, 재인증대기·부모분석·파일작성포함이다. 이전Luna49회112,721B보다호출/출력은적지만모델·노출UI(Settings직접링크)·인증조건이다르므로전체속도개선으로해석하지않는다. 목표동반조회/짧은계획은실제로작동했고,쓰기지연/재인증은안전정지후읽기로복구했다. 상세최종결과를 docs/GITHUB-GOAL-CORE-RETEST-2026-10-15.md에누적했다.
