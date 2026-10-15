@@ -19,7 +19,7 @@ export interface ReadOptions extends DeliveryOptions {at?:string;map?:string;pan
 type ScopedOptions=ReadOptions&{map:string;panel:string};
 const number=(value:unknown,fallback:number,max:number)=>{if(value===undefined)return fallback;const n=Number(value);if(!Number.isSafeInteger(n)||n<0||n>max)throw observationError('invalid_read_budget');return n;};
 const publicId=(n:ObservationGraph['nodes'][number])=>n.actionRef??n.tracking?.readTarget??'N'+(n.tracking?.id.split(':').at(-1)??n.id);
-const controlCollected=['role','tag','name','nameTruncated','label','placeholder','href','redacted','value','valuePreview','checked','selected','current','expanded','pressed','disabled','popup','clipped','context','hint','hintSource','viewportBox'];
+const controlCollected=['role','tag','name','nameTruncated','label','placeholder','href','redacted','value','valueTruncated','valuePreview','checked','selected','current','expanded','pressed','disabled','popup','clipped','context','hint','hintSource','viewportBox'];
 const compactControl=(e:SnapshotElement)=>{const value=Object.fromEntries(Object.entries(e).filter(([k,v])=>v!==undefined&&['ref',...controlCollected].includes(k)));if(e.hint)value.hintSource='snapshot-nearby-text-v1';if(typeof e.value==='string'&&e.value.length===60)value.valuePreview=true;return value;};
 const passiveMapRoles=new Set(['dialog','alertdialog','menu','menubar','listbox','tablist','radiogroup','tree','region','main','banner','contentinfo','navigation','group','list','listitem','table','row','cell','heading','status','form','search']);
 const mapControl=(e:SnapshotElement)=>['input','button','select','textarea','a','label','summary'].includes(e.tag)||!passiveMapRoles.has(e.role??'');

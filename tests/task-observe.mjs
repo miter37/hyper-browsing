@@ -7,6 +7,36 @@ import {executePrimitive} from '../src/engine/execute.ts';
 
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 
+test('explicit role-only lookup discovers unnamed inputs without treating an empty goal as all controls',async t=>{
+ const page=await fixture(t,'<input role="combobox"><button>Other</button>');
+ const found=await findGoal(page,{roles:['combobox']});
+ assert.equal(found.status,'unique');assert.ok(found.candidates[0].ref);assert.equal(found.candidates[0].name,undefined);
+ await assert.rejects(()=>findGoal(page,{}),/invalid_goal/);
+});
+
+test('public goal previews mark every capped text and value',async t=>{
+ const page=await fixture(t,`<div role="dialog" aria-label="Details">${'x'.repeat(550)}</div><input aria-label="Long value" value="${'y'.repeat(300)}">`);
+ const text=await findGoal(page,{terms:['Details'],fields:['name'],actionableOnly:false});
+ assert.equal(text.candidates[0].textTruncated,true);
+ const value=await findGoal(page,{terms:['Long value'],scope:'document'});
+ assert.equal(value.candidates[0].valueTruncated,true);
+});
+
+test('repeated controls include bounded source item context, without mixing neighbouring items',async t=>{
+ const page=await fixture(t,'<ul><li>Item A $10 <button>Details</button></li><li>Item B $20 <button>Details</button></li></ul>');
+ const result=await findGoal(page,{terms:['Details'],exact:true});
+ assert.match(result.candidates[0].owner.text,/Item A \$10/);assert.doesNotMatch(result.candidates[0].owner.text,/Item B/);
+ assert.match(result.candidates[1].owner.text,/Item B \$20/);
+});
+
+test('explicit local text budget reads a small dialog without increasing default output',async t=>{
+ const page=await fixture(t,`<div role="dialog" aria-label="Details">${'start '.repeat(100)} end-of-details</div>`);
+ const goal={terms:['Details'],fields:['name'],roles:['dialog'],actionableOnly:false};
+ const compact=await findGoal(page,goal),detail=await findGoal(page,{...goal,textLimit:1200});
+ assert.equal(compact.candidates[0].textTruncated,true);assert.ok(compact.candidates[0].text.length<=500);
+ assert.match(detail.candidates[0].text,/end-of-details$/);assert.notEqual(detail.candidates[0].textTruncated,true);
+});
+
 test('goal lookup preserves visible text separately from name and returns a directly executable ref',async t=>{
  const page=await fixture(t,'<div role="menu" aria-label="Rating"><div role="menuitemradio" aria-checked="false" onclick="this.setAttribute(\'aria-checked\',\'true\')"><span aria-hidden="true">4.5</span></div></div>');
  const found=await findGoal(page,{terms:['4.5'],fields:['text'],roles:['menuitemradio']});

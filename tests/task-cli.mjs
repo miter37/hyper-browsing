@@ -4,6 +4,15 @@ import {BrowserDaemon} from '../src/browserd/server.ts';import {SessionStore} fr
 import {mapCommandToRpc} from '../scripts/webctl-rpc.mjs';
 import {needsHeadedFallback,safeHeadedRetry} from '../src/browserd/headed-fallback.ts';
 
+test('role-only goals and saved action run keep distinct CLI routes',()=>{
+ const found=mapCommandToRpc(['find'],{session:'s',role:'combobox','text-limit':'2400','byte-budget':'12000'},new Set());
+ assert.deepEqual(found.params.input.terms,[]);
+ assert.equal(found.params.input.textLimit,2400);
+ assert.equal(found.params.input.byteBudget,12000);
+ const saved=mapCommandToRpc(['run','existing_action'],{session:'s'},new Set());
+ assert.equal(saved.method,'action.run');assert.equal(saved.params.actionId,'existing_action');
+});
+
 test('goal CLI commands preserve input files and headless policy in the fast transport',()=>{
  const found=mapCommandToRpc(['find'],{session:'s',query:'Rating',role:'button'},new Set(['headless-only']));
  assert.equal(found.method,'task.find');assert.deepEqual(found.params.input.terms,['Rating']);assert.equal(found.params.format,'hb');assert.equal(found.params.allowHeadedFallback,false);

@@ -54,7 +54,9 @@ export async function waitForTransition(page:Page,expect:Expect,baseline:Transit
    const changed=state?.attached&&state.complete&&!state.busy&&state.signature!==baseline.signature;
    confirmed=confirmed&&!!changed;if(!state?.attached)reason='scope_replaced';
   }
-  for(const goal of [expect.goal,expect.introduced])if(goal){const observed=await findGoal(page,goal);finding=observed;confirmed=confirmed&&observed.status==='unique';
+  for(const goal of [expect.goal,expect.exists,expect.introduced])if(goal){const observed=await findGoal(page,goal);finding=observed;
+   // Existence is a witness, not permission to choose among multiple targets.
+   confirmed=confirmed&&observed.ok&&observed.coverage?.complete===true&&observed.candidates.length>0&&(goal!==expect.goal||observed.status==='unique');
    if(goal===expect.introduced){let introduced=baseline.document!==observed.document;
     if(!introduced&&baseline.introduced){const {state}=await referencesFor(page).snapshotState();introduced=await page.evaluate(({state,before,ids})=>ids.some(id=>{const node=(state as any).targets.get(id)?.deref();return !!node&&!(before as WeakSet<Element>).has(node);}),{state,before:baseline.introduced,ids:observed.candidates.map(c=>c.ref!)});}
     confirmed=confirmed&&introduced;

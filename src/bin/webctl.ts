@@ -177,7 +177,7 @@ async function main() {
   if (!a || a === "help" || a === "--help" || a === "-h") return help();
 
   if (a === "health") return print(await client.call("health"));
-  if(['find','run'].includes(a))return print(await client.call('task.'+a,{sessionId:required('session'),input:flag('input-file')||flag('input')?await actionInput():a==='find'?{terms:[required('query')],...(flag('role')?{roles:[flag('role')]}:{}),...(flag('fields')?{fields:flag('fields')!.split(',')}:{}),...(flag('scope')?{scope:flag('scope')}:{}),...(flag('scope-ref')?{scope:{ref:flag('scope-ref')}}:{}),...(boolFlag('exact')?{exact:true}:{}),...(boolFlag('content')?{actionableOnly:false}:{}),...(flag('limit')?{limit:Number(flag('limit'))}:{})}:{}}));
+  if(a==='find'||a==='run'&&!b)return print(await client.call('task.'+a,{sessionId:required('session'),input:flag('input-file')||flag('input')?await actionInput():a==='find'?{terms:flag('query')?[flag('query')]:[],...(flag('text-limit')?{textLimit:Number(flag('text-limit'))}:{}),...(flag('byte-budget')?{byteBudget:Number(flag('byte-budget'))}:{}),...(flag('role')?{roles:[flag('role')]}:{}),...(flag('fields')?{fields:flag('fields')!.split(',')}:{}),...(flag('scope')?{scope:flag('scope')}:{}),...(flag('scope-ref')?{scope:{ref:flag('scope-ref')}}:{}),...(boolFlag('exact')?{exact:true}:{}),...(boolFlag('content')?{actionableOnly:false}:{}),...(flag('limit')?{limit:Number(flag('limit'))}:{})}:{}}));
   if (a === "browser" && b === "status") return print(await client.call("browser.status"));
   if (a === "browser" && b === "repair") return print(await client.call("browser.repair"));
   if (a === "browser" && b === "reveal") return print(await client.call("browser.reveal"));

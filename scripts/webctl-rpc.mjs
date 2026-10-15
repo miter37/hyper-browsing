@@ -61,8 +61,8 @@ function parseLocator(flags, boolFlags) {
 
 function mapCommandToRpcBase(positionals, flags, boolFlags) {
   const [a, b, c] = positionals;
-  if(['find','run'].includes(a)&&flags.session){
-    const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):a==='find'?{terms:[flags.query],...(flags.role?{roles:[flags.role]}:{}),...(flags.fields?{fields:flags.fields.split(',')}:{}),...(flags.scope?{scope:flags.scope}:{}),...(flags['scope-ref']?{scope:{ref:flags['scope-ref']}}:{}),...(boolFlags.has('exact')?{exact:true}:{}),...(boolFlags.has('content')?{actionableOnly:false}:{}),...(flags.limit?{limit:Number(flags.limit)}:{})}:{};
+  if((a==='find'||a==='run'&&!b)&&flags.session){
+    const input=flags['input-file']?JSON.parse(fs.readFileSync(flags['input-file'],'utf8')):flags.input?JSON.parse(flags.input):a==='find'?{terms:flags.query?[flags.query]:[],...(flags['text-limit']?{textLimit:Number(flags['text-limit'])}:{}),...(flags['byte-budget']?{byteBudget:Number(flags['byte-budget'])}:{}),...(flags.role?{roles:[flags.role]}:{}),...(flags.fields?{fields:flags.fields.split(',')}:{}),...(flags.scope?{scope:flags.scope}:{}),...(flags['scope-ref']?{scope:{ref:flags['scope-ref']}}:{}),...(boolFlags.has('exact')?{exact:true}:{}),...(boolFlags.has('content')?{actionableOnly:false}:{}),...(flags.limit?{limit:Number(flags.limit)}:{})}:{};
     return {method:'task.'+a,params:{sessionId:flags.session,input}};
   }
   if(['read','explain'].includes(a)&&flags.session)return {method:'page.'+a,params:{sessionId:flags.session,map:flags.map,panel:flags.panel,want:flags.want,query:flags.query,item:flags.item,target:flags.target,offset:flags.offset,limit:flags.limit,textLimit:flags['text-limit'],byteBudget:flags['byte-budget'],since:flags.since,consumer:flags.consumer,repeat:boolFlags.has('repeat')}};

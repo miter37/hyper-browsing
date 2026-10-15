@@ -2,11 +2,38 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import {browserOptions} from './browser-options.mjs';
-import {runTask} from '../src/runtime/task/run.ts';
+import {runTask,executeWithFollow} from '../src/runtime/task/run.ts';
 import {findGoal} from '../src/runtime/task/observe.ts';
 import {executePrimitive} from '../src/engine/execute.ts';
 
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
+
+test('terminal follow is a read, not a demand for a unique next action',async t=>{
+ const page=await fixture(t,'<button>Open</button><button>Choice A</button><button>Choice B</button>');
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{terms:['Choice']}}]});
+ assert.equal(result.ok,true);assert.equal(result.execution,'completed');assert.equal(result.finding.status,'ambiguous');
+});
+
+test('introduced verifies existence of new matching nodes without requiring unique content',async t=>{
+ const page=await fixture(t,'<button onclick="document.querySelector(\'section\').innerHTML=\'<p>Included bag one</p><p>Included bag two</p>\'">Open</button><section></section>');
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{introduced:{terms:['Included bag'],actionableOnly:false}}}]});
+ assert.equal(result.ok,true);assert.equal(result.finding.coverage.matched,2);
+});
+
+test('exists waits for multiple menu choices before follow, without replaying the opener',async t=>{
+ const page=await fixture(t,'<button onclick="window.clicks=(window.clicks||0)+1;setTimeout(()=>document.querySelector(\'section\').innerHTML=\'<div role=menu><button>Choice A</button><button>Choice B</button></div>\',150)">Open</button><section></section>');
+ const ref=(await findGoal(page,{terms:['Open'],exact:true})).candidates[0].ref;
+ const result=await executeWithFollow(page,{ref},{expect:{exists:{terms:['Choice']}},follow:{terms:['Choice']}},()=>executePrimitive(page,'click',{ref,goalDriven:true}));
+ assert.equal(result.verification.status,'confirmed');assert.equal(result.finding.scope.role,'menu');assert.equal(result.finding.coverage.matched,2);assert.equal(result.verification.finding,undefined);assert.equal(await page.evaluate(()=>window.clicks),1);
+});
+
+test('exists cannot confirm an incomplete scan, and goal still requires unique evidence',async t=>{
+ const page=await fixture(t,'<button>Open</button><button>Choice</button><button>Choice</button>');
+ for(const expect of [{exists:{terms:['Choice'],maxVisits:2}},{goal:{terms:['Choice']}}]){
+  const r=await runTask(page,{waitMs:0,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect}]});
+  assert.equal(r.reason,'postcondition_unconfirmed');
+ }
+});
 test('short plans find and execute shared refs, verify current value, then select a newly introduced option',async t=>{
  const page=await fixture(t,'<input aria-label="Destination"><div id="choices"></div>');
  await page.locator('input').evaluate(el=>{el.oninput=()=>setTimeout(()=>{const b=document.createElement('button');b.textContent='Seoul';b.onclick=()=>b.textContent='Chosen';document.querySelector('#choices').append(b);},180);});

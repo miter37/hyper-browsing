@@ -48,5 +48,5 @@ export async function captureMap(page:Page,offset=0){
 }
 export async function panelRoot(roots:JSHandle,id:string):Promise<ElementHandle>{
  const handle=await roots.evaluateHandle((entries:any,{id,guard})=>{const e=entries[id],el=e?.ref.deref();return el?.isConnected&&eval(`(${guard})`)(el)===e.guard?el:null;},{id,guard:PANEL_GUARD});
- const element=handle.asElement();if(!element){await handle.dispose();throw Object.assign(new Error('Panel target no longer matches the observed DOM'),{code:'scope_stale'});}return element;
+ const element=handle.asElement();if(!element){await handle.dispose();throw Object.assign(new Error('Panel target no longer matches the observed DOM'),{code:'scope_stale',execution:'not_started'});}return element;
 }

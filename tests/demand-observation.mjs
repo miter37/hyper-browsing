@@ -4,6 +4,13 @@ import {chromium} from 'playwright';
 import {browserOptions} from './browser-options.mjs';
 import {captureSnapshot} from '../src/runtime/snapshot.ts';
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
+
+test('expired panel read is a scope error, not uncertain execution',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const page=await fixture(t,'<main><p>Ready</p></main>');const service=new DemandObservationService();t.after(()=>service.close());
+ const map=await service.map(page,'s');await page.locator('main').evaluate(e=>e.remove());
+ await assert.rejects(()=>service.read(page,'s',{map:map.map,panel:map.panels[0].id,want:'content'}),e=>e.code==='scope_stale'&&e.execution==='not_started');
+});
 test('map facts mask sensitive URL paths before delivery, including null-origin URLs',async t=>{
  const {DemandObservationService}=await import('../src/runtime/observation/service.ts');const page=await fixture(t,'<main>Ready</main>');
  const service=new DemandObservationService();t.after(()=>service.close());

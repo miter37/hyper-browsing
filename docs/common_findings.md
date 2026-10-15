@@ -907,3 +907,17 @@ GitHub 첫조회~재인증대기직전18CLI/논리조작16(완료15,오기거부
 ## 2026-10-15 17:13 +09:00 — GPT-6 Codex: GitHub 재인증 후 시나리오 완료
 
 사용자직접재인증후읽기만수행했다. 저장소목록 URL의 Your repository "miter37/tiger-wife" was successfully deleted. alert와기존주소재접속HTTP404/Page not found를확인했다. 삭제재요청없음. 최종21CLI/공개28,202B/명령시간합36.389초/벽시계634.825초. 초기모드복원/탭정리제외, 재인증대기·부모분석·파일작성포함이다. 이전Luna49회112,721B보다호출/출력은적지만모델·노출UI(Settings직접링크)·인증조건이다르므로전체속도개선으로해석하지않는다. 목표동반조회/짧은계획은실제로작동했고,쓰기지연/재인증은안전정지후읽기로복구했다. 상세최종결과를 docs/GITHUB-GOAL-CORE-RETEST-2026-10-15.md에누적했다.
+
+## 2026-10-15 17:28 +09:00 — GPT-6 Codex: Booking 목표 코어 직접 실험
+
+headed dy1의 기존 탭에서 인천–다낭 2026-11-15~19 왕복/직항/성인1명 후보3개와 상세 수하물을 확인했다. 날짜2개 및 직항+검색을 각각 run 한 호출로 처리했다. 40 CLI, stdout 100,169B, CLI 시간 합60.469초, 벽시계584.674초(판단/파일작성/도구사이간격 포함). 전체 속도 개선은 미입증이다.
+
+핵심 병목: 이름 없는 포털 입력은 terms 필수 find와 패널 read에서 빠졌다. option 선택 후 노드가 사라지므로 해당 selected 검증보다 바깥 지속 표시 검증이 적합했다. 즉시 follow가 메뉴 출현보다 빨라 기존 본문을 반환했다. 마지막 follow의 복수 후보를 partial로 표현했다. introduced는 여러 수하물 일치가 있어도 ambiguous→unconfirmed로 기다렸다. 읽기 대상 만료를 outcome_unknown으로 반환했다. 작은 상세 본문도 토막/중복60행으로 끝까지 못 전달해 bounded eval로 보완했다. 세번째 dialog goal text의 잘림 표식 누락도 관찰했다. 사이트 예외·학습·제품코드 변경 없음. 상세: docs/BOOKING-GOAL-CORE-EXPERIMENT-2026-10-15.md.
+
+## 2026-10-16 08:16 +09:00 — GPT-6 Codex: Booking 실험 공통 병목 보완
+
+실험에서 확인한 경로를 로컬 HTML/실제 Playwright 수집으로 재현한 뒤 공통 계층을 수정했다. terminal follow의 복수/0건 결과는 실행완료와 분리했다(중간 모호함 중단은 유지). expect.exists를 추가하고 introduced의 새 DOM 존재 확인은 복수 일치를 허용했다. goal/실행 target의 유일성 검사는 유지하며 불완전 스캔은 검증 성공으로 쓰지 않는다. 메뉴 등장 검증 후 follow를 실행하도록 스킬 예시를 바꿨다. 고정 sleep이나 쓰기 재시도는 추가하지 않았다.
+
+이름 없는 입력의 role-only find를 추가했다(terms/roles 모두 없으면 거부). 같은 listitem/row/article의 원문 문맥을 owner.text 최대160자로 제공하며 전체 응답 예산은 유지한다. find 텍스트 기본500자/명시상한4000자와 CLI text-limit/byte-budget을 연결해 작은 상세 창을 한정 조회할 수 있게 했다. 본문 분할 read 전체를 재설계한 것은 아니며 긴 문서는 기존 outline/구역 read를 사용한다. 잘림 표식은 text/value에 유지한다. direct expect의 finding을 최상위로 옮겨 중복/전달기준 불일치를 줄였다. 오래된 패널 조회는 scope_stale/not_started로 분류한다. 새 run 경로가 기존 run ACTION을 가로채던 호환 회귀도 수정했다.
+
+SKILL.md/COMMANDS.md에 코드와 같은 조건을 명시했다. 추가 회귀10개는 수정 전 실패를 확인했고 전체 npm test 306개(목표40/HWM107/학습35/실행63/Chrome15/discovery46), 타입검사가 통과했다. CLI text-limit/byte-budget 전달 추가 보완 후 해당 라우팅 테스트와 타입검사도 다시 통과했다. 사이트별 규칙·학습자산·예약/결제 없음. 실전 전체 시간 향상은 아직 재측정하지 않았다.

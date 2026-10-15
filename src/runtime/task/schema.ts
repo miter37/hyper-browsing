@@ -3,23 +3,24 @@ import {z} from 'zod';
 const Ref=z.string().regex(/^e\d+$/);
 export const StateSchema=z.object({value:z.string().max(2000).optional(),checked:z.union([z.boolean(),z.literal('mixed')]).optional(),selected:z.boolean().optional(),expanded:z.boolean().optional(),pressed:z.union([z.boolean(),z.literal('mixed')]).optional(),disabled:z.boolean().optional()}).strict();
 export const GoalSchema=z.object({
- terms:z.array(z.string().trim().min(1).max(240)).min(1).max(8),
+ terms:z.array(z.string().trim().min(1).max(240)).max(8).default([]),
  fields:z.array(z.enum(['name','text','placeholder','label','value','href'])).min(1).max(6).default(['name','text']),
  roles:z.array(z.string().min(1).max(40)).min(1).max(12).optional(),exact:z.boolean().default(false),
  scope:z.union([z.enum(['active','document']),z.object({ref:Ref}).strict()]).default('active'),
  states:StateSchema.optional(),actionableOnly:z.boolean().default(true),
+ textLimit:z.number().int().min(1).max(4000).default(500),
  limit:z.number().int().min(1).max(12).default(5),maxVisits:z.number().int().min(1).max(20000).default(12000),
  byteBudget:z.number().int().min(1000).max(16000).default(4000),
-}).strict();
+}).strict().refine(v=>v.terms.length>0||!!v.roles?.length,'Provide search terms or explicit roles');
 export type Goal=z.infer<typeof GoalSchema>;
 export function parseGoal(input:unknown):Goal{
  const result=GoalSchema.safeParse(input);if(!result.success)throw Object.assign(new Error('invalid_goal'),{code:'invalid_goal',execution:'not_started'});return result.data;
 }
 export const ExpectSchema=z.object({
- fields:StateSchema.optional(),goal:GoalSchema.optional(),introduced:GoalSchema.optional(),
+ fields:StateSchema.optional(),goal:GoalSchema.optional(),exists:GoalSchema.optional(),introduced:GoalSchema.optional(),
  changed:z.object({ref:Ref}).strict().optional(),
  url:z.object({pathname:z.string().max(2000).optional(),includes:z.string().min(1).max(2000).optional()}).strict().refine(v=>v.pathname!==undefined||v.includes!==undefined).optional(),
-}).strict().refine(v=>Boolean(v.fields&&Object.keys(v.fields).length||v.goal||v.introduced||v.changed||v.url),'Provide a measurable condition');
+}).strict().refine(v=>Boolean(v.fields&&Object.keys(v.fields).length||v.goal||v.exists||v.introduced||v.changed||v.url),'Provide a measurable condition');
 export type Expect=z.infer<typeof ExpectSchema>;
 const ActionSchema=z.object({op:z.enum(['click','fill','press','select','hover']),value:z.string().max(10000).optional(),key:z.string().min(1).max(80).optional(),option:z.string().max(2000).optional(),confirmed:z.boolean().optional()}).strict()
  .refine(v=>v.op==='fill'?v.value!==undefined:v.op==='press'?v.key!==undefined:v.op==='select'?v.option!==undefined:true,'Missing action input');

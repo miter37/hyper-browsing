@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Page, ElementHandle, JSHandle } from "playwright";
 import {SCOPING_JS} from './observation/scoping';
 import type { AppConfig } from "../config";
-import { redactText, redactUrl } from "../utils/strings";
+import { redactText, redactContent, redactUrl } from "../utils/strings";
 import { DEEP_WALK_JS, detectBlock, inspectPageState, type BlockInfo, type PageStateInfo } from "../engine/page-state";
 import { REFERENCE_GUARD, referencesFor, type ElementReferences } from "./references";
 import { randomUUID } from 'node:crypto';
@@ -14,7 +14,7 @@ import type {Goal} from './task/schema';
 export interface SnapshotElement {
   match?:Array<{field:string;term:string}>;
   nameSource?:string;
-  owner?:{role:string;name?:string;basis:string};
+  owner?:{role:string;name?:string;text?:string;textTruncated?:boolean;basis:string};
   actionable?:boolean;
   ref?: string;
   tag: string;
@@ -23,6 +23,8 @@ export interface SnapshotElement {
   name?: string;
   nameTruncated?: boolean;
   text?: string;
+  textTruncated?:boolean;
+  valueTruncated?:boolean;
   testId?: string;
   placeholder?: string;
   label?: string;
@@ -309,7 +311,10 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   function goalOwner(el){
     for(let p=el.parentElement||el.getRootNode().host;p;p=p.parentElement||p.getRootNode().host){
       const role=p.getAttribute('role')||({FORM:'form',NAV:'navigation',MAIN:'main',DIALOG:'dialog',LI:'listitem',ARTICLE:'article',FIELDSET:'group',TR:'row'})[p.tagName];
-      if(role&&/^(form|navigation|main|dialog|alertdialog|listitem|article|group|row|menu|listbox|radiogroup)$/.test(role))return {role,name:cleanStr(p.getAttribute('aria-label'))||byIds(p,'aria-labelledby')||(p.tagName==='FIELDSET'?cleanStr(p.querySelector(':scope > legend')?.textContent):undefined),basis:'dom-ancestor'};
+      if(role&&/^(form|navigation|main|dialog|alertdialog|listitem|article|group|row|menu|listbox|radiogroup)$/.test(role)){
+        const text=/^(listitem|article|row)$/.test(role)?textOf(p):undefined;
+        return {role,name:cleanStr(p.getAttribute('aria-label'))||byIds(p,'aria-labelledby')||(p.tagName==='FIELDSET'?cleanStr(p.querySelector(':scope > legend')?.textContent):undefined),...(text?{text:text.slice(0,160),...(text.length>160?{textTruncated:true}:{})}:{}),basis:'dom-ancestor'};
+      }
     }
   }
   function ownHeading(el) {
@@ -447,10 +452,12 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       const fields={name:fullName,text:visual,placeholder:entry.placeholder,label:label,value,href:entry.href};
       const matches=[];
       for(const field of opts.goal.fields)for(const term of opts.goal.terms){const text=fields[field]?.toLowerCase(),needle=term.toLowerCase();if(text&&(opts.goal.exact?text===needle:text.includes(needle)))matches.push({field,term});}
-      if(!matches.length)return;
+      if(opts.goal.terms.length&&!matches.length)return;
+      if(!opts.goal.terms.length)matches.push({field:'role',term:role});
       for(const [key,wanted]of Object.entries(opts.goal.states||{}))if((key==='value'?value:entry[key]??(key==='disabled'?false:undefined))!==wanted)return;
-      entry.match=matches;entry.owner=goalOwner(el);entry.text=visual?.slice(0,600);entry.value=value?.slice(0,240);
-      if(visual?.length>600)entry.textTruncated=true;
+      entry.match=matches;entry.owner=goalOwner(el);entry.text=visual?.slice(0,opts.goal.textLimit);entry.value=value?.slice(0,240);
+      if(visual?.length>opts.goal.textLimit)entry.textTruncated=true;
+      if(value?.length>240)entry.valueTruncated=true;
     }
     if (opts.refs) {
       const guard = (${REFERENCE_GUARD})(el);
@@ -632,7 +639,8 @@ export async function captureSnapshot(
   const elements = (data.elements || []).map(({ _node, _guard, _fullName, ...e }: any) => ({
     ...e,
     name: e.name ? redactText(e.name) : undefined,
-    text: e.text ? redactText(e.text) : undefined,
+    text: e.text ? (options.goal?redactContent(e.text):redactText(e.text)) : undefined,
+    ...(!options.goal&&e.text&&redactText(e.text).length<e.text.length?{textTruncated:true}:{}),
     href: e.href ? redactUrl(e.href) : undefined,
     ...(e.href&&redactUrl(e.href)!==e.href?{redacted:['href']}:{}),
     value: e.value ? redactText(e.value) : undefined,

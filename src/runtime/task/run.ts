@@ -36,7 +36,7 @@ export async function runTask(page:Page,input:unknown,runtime:Runtime={}){
    if(step.expect){try{const {finding,...verification}=await waitForTransition(page,step.expect,baseline,ref,Math.min(deadline,Date.now()+task.waitMs));record.verification=verification;lastFinding=finding;}catch{record.verification={status:'unconfirmed',reason:'observation_failed'};}
     if(record.verification.status!=='confirmed')return finish('postcondition_unconfirmed');
    }else if(steps.length<task.steps.length)return finish('verification_required');
-   if(step.follow){try{lastFinding=await findGoal(page,step.follow);}catch{return finish('follow_observation_failed');}if(lastFinding.status!=='unique')return finish('follow_'+(lastFinding.status??lastFinding.reason));}
+   if(step.follow){try{lastFinding=await findGoal(page,step.follow);}catch{return finish('follow_observation_failed');}if(steps.length<task.steps.length&&lastFinding.status!=='unique')return finish('follow_'+(lastFinding.status??lastFinding.reason));}
   }finally{await baseline.dispose().catch(()=>{});}
  }
  return finish();
@@ -50,7 +50,7 @@ export async function executeWithFollow(page:Page,params:PrimitiveParams,input:u
   if(!baseline.valid)return {ok:false,execution:'not_started',reason:'baseline_incomplete'};
   const action=await execute();let verification,finding,observationError;
   try{
-   if(action.ok===true&&action.execution==='completed'&&follow.expect)verification=await waitForTransition(page,follow.expect,baseline,params.ref??'',Date.now()+follow.waitMs);
+   if(action.ok===true&&action.execution==='completed'&&follow.expect){const observed=await waitForTransition(page,follow.expect,baseline,params.ref??'',Date.now()+follow.waitMs);const {finding:verifiedFinding,...status}=observed;verification=status;finding=verifiedFinding;}
    if(follow.follow)finding=await findGoal(page,follow.follow);
   }catch{observationError='follow_observation_failed';}
   return taskResult({...action,...(verification?{verification}:{}),...(finding?{finding}:{}),...(observationError?{observationError}:{})});

@@ -306,8 +306,12 @@ webctl fill --session ID --ref REF --value VALUE --then-file next.json
 
 선언한 조건은 AND다. action은 click/fill/press/select/hover이며 필요한 value/key/option을 명시한다. target은 목표 또는 {ref}다. 조회가 유일해도 부분 수집이면 자동 실행하지 않는다. 중간 expect 누락, 모호함, 확인 필요, 결과 불명, 새 세션은 다음 단계를 중지한다. 마지막 단계에서 expect를 생략하면 동작 완료까지만 보고한다.
 
-expect.goal은 현재 존재를 확인하며 갱신 증거가 아니다. introduced는 실제 DOM 동일성을 사용해 이전 일치 대상과 다른 후보인지 확인한다. 조상 변화로 ref 문자열만 바뀐 것은 새 대상이라고 간주하지 않는다. changed={ref}는 같은 지정 DOM 영역의 내용·상태 변화와 aria-busy를 검사하며 분리/교체됐으면 미확인이다. 이 영역의 변경 자체가 업무 성공이라는 뜻은 아니다. fields는 현재 target의 value/checked/selected/expanded/pressed/disabled를 확인한다. url={pathname,includes}는 명시한 항목 모두를 검사한다.
+expect.goal은 현재 유일 후보를 확인하며 갱신 증거가 아니다. expect.exists는 완결된 조회에서 전달 가능한 후보가 한 개 이상 존재하는지 확인한다. introduced도 복수 일치를 허용하되 실제 DOM 동일성을 사용해 이전 일치 대상과 다른 후보가 있어야 한다. 조상 변화로 ref 문자열만 바뀐 것은 새 대상이라고 간주하지 않는다. 존재 검증은 실행 대상의 유일성 검증을 대신하지 않는다. 다음 target은 여전히 새로 찾은 유일 후보 또는 명시한 ref여야 한다. changed={ref}는 같은 지정 DOM 영역의 내용·상태 변화와 aria-busy를 검사하며 분리/교체됐으면 미확인이다. 이 영역의 변경 자체가 업무 성공이라는 뜻은 아니다. fields는 현재 target의 value/checked/selected/expanded/pressed/disabled를 확인한다. url={pathname,includes}는 명시한 항목 모두를 검사한다.
 
 `next.json`은 {expect?,follow?,waitMs?}이며 expect/follow 중 하나는 필요하다. 기존 단일 명령의 `--then-file`에도 같은 조건을 사용한다. 후속 관찰 오류가 원래 실행 결과를 바꾸지 않는다. fields는 ref 대상으로만 지원한다.
+
+메뉴가 늦게 뜬다면 `{"expect":{"exists":{"terms":["관찰할 선택지"]}},"follow":{"terms":["관찰할 선택지"]}}`로 조건을 기다린 뒤 조회한다. follow만 지정하면 즉시 읽기다. 마지막 follow의 ambiguous/not_found/incomplete는 조회 결과로 반환하며 완료한 실행을 partial로 낮추지 않는다. 중간 follow의 모호함/불완전성은 다음 행동 전에 중단한다. 검증 finding은 follow가 없을 때도 최상위 finding으로 한 번만 전달한다.
+
+`find --role combobox` 또는 `{"roles":["combobox"]}`는 이름 없는 입력을 포함해 역할로 조회한다. terms와 roles가 모두 없는 목표는 거부한다. 역할만 일치한 match는 field="role"로 표시한다. `find --text-limit N`/goal.textLimit는 기본500자, 상한4000자이며 byteBudget과 함께 적용한다. textTruncated/valueTruncated는 미리보기 잘림이다. 목록 항목·행·article의 owner.text는 최대160자의 같은 조상 원문이며 textTruncated가 있으면 일부다. `run ACTION --session ID`는 기존 저장 액션 실행, `run --input-file task.json --session ID`는 목표 계획 실행으로 구분한다.
 
 RPC: `task.find`는 {sessionId,input:goal,since?,consumer?,repeat?}, `task.run`은 {sessionId,input:task}, 기존 page.click/fill/press/select/hover는 {then:{expect?,follow?,waitMs?}}를 받는다. 요청별 allowHeadedFallback=false는 CLI의 --headless-only와 같다. 실행 중에는 원래 requestId로 request.status를 조회하며 계획을 재전송하지 않는다.
