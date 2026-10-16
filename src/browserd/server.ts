@@ -34,6 +34,7 @@ import { runBatch } from "../engine/batch";
 import { compactResult } from "../runtime/output";
 import {renderCommandResult} from '../runtime/hwm/result';
 import {DemandObservationService} from '../runtime/observation/service';
+import {boundedSnapshot,boundedObservationOutput} from '../runtime/observation/bounded-snapshot';
 import {ObservationStore} from '../runtime/hwm/store';
 import { RequestStore } from "./request-store";
 import { serial } from "../runtime/learning-policy";
@@ -59,7 +60,7 @@ function json(res: http.ServerResponse, status: number, body: unknown) {
 
 export class BrowserDaemon {
   private observations=new ObservationService(new ObservationStore({maxBytes:14*1024*1024}));
-  private demand=new DemandObservationService({detailed:this.observations});
+  private demand:DemandObservationService;
   private projection(params:any):ProjectionOptions{
     if(params.mode!==undefined&&!['full','overview','focus'].includes(params.mode))throw Object.assign(new Error('mode must be full, overview or focus'),{execution:'not_started'});
     const options:ProjectionOptions={mode:params.mode??(params.format==='hwm'?'overview':'full'),focus:params.focus};
@@ -83,7 +84,7 @@ export class BrowserDaemon {
   private networkLogs = new Map<string, any[]>();
   private networkListeners = new Map<string, { request: (req: any) => void; response: (res: any) => void }>();
 
-  constructor(private config: AppConfig) { this.chrome = new ChromeManager(config); }
+  constructor(private config: AppConfig) { this.chrome = new ChromeManager(config);this.demand=new DemandObservationService({detailed:this.observations,screenshotsDir:path.join(config.runtimeDir,'snapshots')}); }
 
   async start(): Promise<void> {
     await ensureRuntime(this.config);
@@ -117,9 +118,9 @@ export class BrowserDaemon {
         // How long each command took, so slow steps are visible to the agent and in transcripts.
         const full = params.verbose || params.observe || params.context || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
         const output=params.format==='hb'?result:params.format==='hwm'?Object.fromEntries(Object.entries(result).filter(([key])=>!['snapshot','changes'].includes(key))):full?result:compactResult(result);
-        json(res, 200, { ok: true, result: output });
+        json(res, 200, { ok: true, result: boundedObservationOutput(output) });
       } catch (error: any) {
-        json(res, 200, { ok: false, execution: error.execution === "not_started" ? "not_started" : "outcome_unknown", error: error?.message || String(error), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
+        json(res, 200, { ok: false, execution: error.execution === "not_started" ? "not_started" : "outcome_unknown", error: error?.message || String(error), ...(error.code==='invalid_goal'&&error.validation?{validation:error.validation}:{}), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
       }
     });
 
@@ -299,11 +300,13 @@ export class BrowserDaemon {
     if(['task.find','task.run'].includes(method)){
       if(!page)throw Object.assign(new Error('sessionId required'),{execution:'not_started'});
       if(params.at)throw Object.assign(new Error('task_scope_requires_explicit_goal_scope'),{execution:'not_started'});
+      if(method==='task.run'){const pending=await this.demand.beforeGoal(page,params.sessionId,params);if(pending)return pending;}
       return method==='task.find'?this.demand.find(page,params.sessionId,params.input,params):this.demand.goalResult(page,params.sessionId,await runTask(page,params.input,{requestId:params.observationRequestId}),params);
     }
     if(params.at&&(!['page.read','page.explain','page.snapshot','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(method)||!['page.read','page.explain'].includes(method)&&params.format!=='hb'))throw Object.assign(new Error('continuation_requires_supported_hb_command'),{code:'continuation_requires_supported_hb_command',execution:'not_started'});
     if(['page.read','page.explain'].includes(method)){
       if(!page)throw Object.assign(new Error('sessionId required'),{execution:'not_started'});
+      const pending=await this.demand.beforeGoal(page,params.sessionId,params);if(pending)return pending;
       return method==='page.read'?this.demand.read(page,params.sessionId,params):this.demand.explain(page,params.sessionId,params);
     }
     if (method === "batch.run") {
@@ -384,20 +387,22 @@ export class BrowserDaemon {
     if (method === "page.snapshot") {
       if (!page) throw new Error("sessionId required");
       if (params.format !== undefined && !['hb','json','hwm'].includes(params.format)) throw new Error('Unsupported snapshot format; use hb, json or hwm');
+      const pending=await this.demand.beforeGoal(page,params.sessionId,params);if(pending)return pending;
       if(params.format==='hb'){
-        if(params.query&&!params.map&&!params.at)return {ok:false,execution:'not_started',reason:'scope_required',hint:'Use snapshot for the map, then read --at HANDLE --panel PANEL --want content --query TEXT; or explicit --format json for legacy discovery.'};
+        if(params.query&&!params.map&&!params.at)return {ok:false,execution:'not_started',reason:'scope_required',hint:'Use find for the current target, or map then scoped read. After two misses, open the screenshot instead of widening text output.'};
         if(params.map||params.at&&params.query)return this.demand.read(page,params.sessionId,{...params,want:params.want??'controls'});
         const map=await this.demand.map(page,params.sessionId,params);return {...map,pageState:await inspectPageState(page,undefined,0),blocked:await detectBlock(page)};
       }
       const projection=this.projection(params);
-      const snapshot = await captureSnapshot(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined, references: referencesFor(page), context: true, contextLimit: params.contextLimit ? Number(params.contextLimit) : undefined });
+      const snapshot = await captureSnapshot(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined, references: referencesFor(page), context: params.format==='hwm'||params.context===true, contextLimit: params.contextLimit ? Number(params.contextLimit) : undefined });
       if(params.format==='hwm'&&!snapshot.contextGraph) return {ok:false,execution:'not_started',reason:'capture_failed',snapshot};
       const header=JSON.parse(JSON.stringify({'collection-timing':snapshot.collectionTiming,'state-observation':{...snapshot.stateObservation,pageState:snapshot.pageState,blocked:snapshot.blocked}}));
       const retention=snapshot.contextGraph?this.observations.remember(params.sessionId,snapshot.contextGraph,header):undefined;
       const hwm=params.format==='hwm'&&snapshot.contextGraph?retention?.ok?this.observations.view(params.sessionId,snapshot.contextGraph.observation,projection).hwm:renderObservation(snapshot.contextGraph,{session:params.sessionId,projection,retentionFailure:retention?.reason??'observation_unavailable',extraHeader:{...header,retention:{...retention}}}):undefined;
       const file = params.save ? await saveSnapshot(this.config, params.sessionId, snapshot) : undefined;
       const learning = await recordLearningEvent(this.config, page, params.sessionId, "snapshot", { saved: Boolean(params.save), query: params.query });
-      return { snapshot, hwm, file,retention, learning_pending: false, learning_warning: learning.warning, learningPolicy };
+      const graph=snapshot.contextGraph;
+      return { snapshot:boundedSnapshot(snapshot,14000,retention?.ok===true), hwm, file,retention,...(graph?{context:{observation:graph.observation,nodes:graph.nodes.length,edges:graph.edges.length,inline:false,retained:retention?.ok===true}}:{}), learning_pending: false, learning_warning: learning.warning, learningPolicy };
     }
     if (method === "page.list") {
       if (!page) throw new Error("sessionId required");
@@ -486,7 +491,8 @@ export class BrowserDaemon {
       if (!page) throw new Error("sessionId required");
       const before: any = params.before;
       if(params.format&&!['json','hwm'].includes(params.format))throw new Error('format must be json or hwm');
-      const graph=before?.contextGraph??before?.snapshot?.contextGraph;
+      const retained=before?.contextRef?.observation??before?.snapshot?.contextRef?.observation;
+      const graph=before?.contextGraph??before?.snapshot?.contextGraph??(retained?this.observations.store.get(params.sessionId,retained).graph:undefined);
       if(graph&&(params.context===true||params.format==='hwm')){
         const after=await captureSnapshot(page,{references:referencesFor(page),context:true});
         if(!after.contextGraph)return {after,observationError:'capture-failed'};

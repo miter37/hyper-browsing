@@ -10,13 +10,15 @@ export interface GoalFinding {
  document?:string;capturedAt?:string;url?:string;scope?:any;
  urlPreview?:string;urlTruncated?:boolean;
  pageState?:any;
+ readiness?:{status:'ready'|'unchanged'|'not_ready';basis:'requested-goal'|'linked-region'};
  coverage?:{complete:boolean;matched:number;shown:number;truncated:boolean};candidates:SnapshotElement[];
 }
 /** Uses the same collector, naming and guarded references as ordinary HB observations. */
-export async function findGoal(page:Page,input:unknown):Promise<GoalFinding>{
+export async function findGoal(page:Page,input:unknown,within?:ElementHandle):Promise<GoalFinding>{
  const goal=parseGoal(input),references=referencesFor(page);let root:ElementHandle|undefined;
  try{
-  if(typeof goal.scope==='object'){
+  if(within)root=(await within.evaluateHandle(el=>el)).asElement()??undefined;
+  else if(typeof goal.scope==='object'){
    const resolved=await references.resolve(goal.scope.ref);if('ok' in resolved)return {ok:false,kind:'goal',reason:resolved.reason,candidates:[]};
    const state=await references.snapshotState(),handle=await state.state.evaluateHandle((s:any,id:string)=>s.targets.get(id)?.deref()??null,goal.scope.ref);
    root=handle.asElement()??undefined;if(!root){await handle.dispose();return {ok:false,kind:'goal',reason:'stale_ref',candidates:[]};}
@@ -35,4 +37,17 @@ export async function findGoal(page:Page,input:unknown):Promise<GoalFinding>{
   if(Buffer.byteLength(JSON.stringify(result))>goal.byteBudget&&result.pageState)result.pageState={state:result.pageState.state,detailTruncated:true};
   return result;
  }finally{await root?.dispose();}
+}
+
+/** Wait only for the next target to become available. Never retries an action or resolves ambiguity. */
+export async function findReadyGoal(page:Page,input:unknown,deadline:number,onUnexpected?:()=>Promise<boolean>):Promise<GoalFinding>{
+ const started=Date.now();
+ for(;;){
+  const found=await findGoal(page,input);
+  const absent=found.ok&&found.status==='not_found'&&found.coverage?.complete===true;
+  const disabled=found.status==='unique'&&found.candidates[0]?.disabled===true;
+  if(!absent&&!disabled||Date.now()>=deadline)return found;
+  if(absent&&Date.now()-started>=250&&onUnexpected&&await onUnexpected())return {...found,reason:'new_linked_region'};
+  await new Promise(resolve=>setTimeout(resolve,Math.min(100,Math.max(0,deadline-Date.now()))));
+ }
 }

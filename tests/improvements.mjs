@@ -5,6 +5,8 @@ import { browserOptions } from './browser-options.mjs';
 import { captureSnapshot } from '../src/runtime/snapshot.ts';
 import { referencesFor } from '../src/runtime/references.ts';
 import { executePrimitive } from '../src/engine/execute.ts';
+import {diffProbe} from '../src/engine/page-state.ts';
+import {DemandObservationService} from '../src/runtime/observation/service.ts';
 import { runBatch } from '../src/engine/batch.ts';
 import { needsHeadedFallback } from '../src/browserd/headed-fallback.ts';
 import { SessionStore } from '../src/browserd/session-store.ts';
@@ -22,6 +24,52 @@ async function fixture(t,html){
  const page=await context.newPage();await page.goto('https://example.test/');
  t.after(()=>browser.close());return {page,context};
 }
+
+test('bounded changes prioritize current states over removed states and label removals explicitly',()=>{
+ const base={url:'https://example.test',title:'',fields:{},open:[],interactive:30,names:[]};
+ const old=Object.fromEntries(Array.from({length:12},(_,i)=>['old '+i,'selected=false']));
+ const fresh=Object.fromEntries(Array.from({length:12},(_,i)=>['new '+i,'selected=false']));
+ const change=diffProbe({...base,states:old},{...base,states:fresh});
+ assert.ok(change.stateChanges.every(s=>s.after==='selected=false'));
+ assert.equal(change.stateChangesCoverage.complete,false);assert.equal(change.stateChangesCoverage.removed,12);
+ const removed=diffProbe({...base,states:{Old:'checked=false'}},{...base,states:{}});
+ assert.equal(removed.stateChanges[0].op,'removed');
+});
+
+test('repeat UI action returns current local headings and choices rather than old date states',async t=>{
+ const {page}=await fixture(t,`<main><section id="scope"><h2>Window A</h2><button onclick="document.querySelector('h2').textContent='Window B';document.querySelector('#rows').innerHTML='<button>Choice B</button>'">Next</button><div id="rows"><button>Choice A</button></div></section></main><aside><button>Unrelated</button></aside>`);
+ const raw=await executePrimitive(page,'click',{locator:{role:'button',name:'Next',exact:true}});
+ assert.deepEqual(raw.effect.current.headings,['Window B']);
+ const service=new DemandObservationService();t.after(()=>service.close());const result=await service.afterAction(page,'s',raw);
+ assert.ok(JSON.stringify(result.focus).includes('Choice B'));assert.ok(!JSON.stringify(result.focus).includes('Unrelated'));
+ assert.ok(Buffer.byteLength(JSON.stringify(result))<6500);
+});
+
+test('terminal goal actions use the same current-region delivery as direct actions',async t=>{
+ const {runTask}=await import('../src/runtime/task/run.ts');
+ const {page}=await fixture(t,`<section><h2>Batch A</h2><button onclick="document.querySelector('h2').textContent='Batch B'">Next batch</button><button>Choose batch</button></section>`);
+ const service=new DemandObservationService();t.after(()=>service.close());
+ const result=await service.goalResult(page,'s',await runTask(page,{steps:[{id:'next',target:{terms:['Next batch'],exact:true},action:{op:'click'}}]}));
+ assert.equal(result.execution,'completed');assert.equal(result.steps.length,1);
+ assert.ok(JSON.stringify(result.focus).includes('Batch B'));assert.ok(JSON.stringify(result.focus).includes('Choose batch'));
+});
+
+test('unchanged local UI adds no current dump and a large changed region stays bounded',async t=>{
+ const {page}=await fixture(t,`<section><h2>Rows A</h2><input type="password" value="DO_NOT_SHOW"><button onclick="document.querySelector('h2').textContent='Rows B'">Advance</button><button>Unchanged</button>${Array.from({length:120},(_,i)=>'<button>Row '+i+'</button>').join('')}</section>`);
+ const unchanged=await executePrimitive(page,'click',{locator:{role:'button',name:'Unchanged',exact:true}});assert.equal(unchanged.effect.current,undefined);
+ const service=new DemandObservationService();t.after(()=>service.close());
+ const changed=await service.afterAction(page,'s',await executePrimitive(page,'click',{locator:{role:'button',name:'Advance',exact:true}}));
+ assert.deepEqual(changed.effect.current.headings,['Rows B']);assert.equal(changed.focus.coverage.complete,false);
+ assert.ok(!JSON.stringify(changed).includes('DO_NOT_SHOW'));assert.ok(Buffer.byteLength(JSON.stringify(changed))<6500);
+});
+
+test('visible modal covering an input is reported before typing, with its local controls',async t=>{
+ const {page}=await fixture(t,`<input aria-label="Destination" style="position:absolute;top:150px;left:150px"><div role="dialog" aria-modal="true" aria-label="Notice" style="position:fixed;inset:0;background:white;z-index:100"><button>Dismiss</button></div>`);
+ const raw=await executePrimitive(page,'fill',{locator:{role:'textbox',name:'Destination',exact:true},value:'Somewhere'});
+ assert.equal(raw.reason,'blocked_by_overlay');assert.equal(raw.execution,'not_started');assert.equal(await page.locator('input').inputValue(),'');
+ const service=new DemandObservationService();t.after(()=>service.close());const result=await service.afterAction(page,'s',raw);
+ assert.ok(JSON.stringify(result.focus).includes('Dismiss'));assert.equal(result.execution,'not_started');
+});
 
 test('damaged DOM children do not discard healthy observed controls',async t=>{
  const {page}=await fixture(t,'<div id="broken">Damaged</div><button>Healthy</button>');

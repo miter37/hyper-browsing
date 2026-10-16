@@ -1,0 +1,78 @@
+[
+  {
+    "site": "booking",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 29,
+    "completedInputs": 10,
+    "taskWallMs": 191504,
+    "cliMs": 34913,
+    "stdoutBytes": 46658,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 1,
+    "revealCalls": 0,
+    "setupMs": 3992,
+    "trace": {
+      "agent": "/root/deliveryfix_booking",
+      "sessionFile": "rollout-2026-10-16T16-31-33-01a1439f-927b-7a52-a0f8-7b0ba0939203.jsonl",
+      "startedAt": "2026-10-16T07:31:34.136Z",
+      "completedAt": "2026-10-16T07:35:48.323Z",
+      "wallMs": 254187,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 37,
+      "deliveredToolTextBytes": 140116,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 2110945,
+        "cached_input_tokens": 2036864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10902,
+        "reasoning_output_tokens": 4286,
+        "total_tokens": 2121847
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "홈 초기 오버레이",
+        "issue": "Booking.com의 할인 가입 안내 dialog가 초기 화면을 가렸다.",
+        "evidence": "관찰된 dialog 안의 Dismiss sign-in info. 버튼을 클릭해 닫고 진행했다. command-009, command-010."
+      }
+    ],
+    "processFindings": [
+      "Current project SKILL read and gpt-6-luna/medium confirmed in actual tool trace; headed, one trial, no browser-use.",
+      "All34 exec_command calls explicitly used30000 at inner tool and outer functions.exec. Actual host truncation0; old analyzer falsely counted the literal warning examples in SKILL and has been corrected for this trial.",
+      "3 actual image-tool calls: after003 destination miss,005 popup-close miss,027 budget miss.",
+      "Critical recovery succeeded: screenshot027 supplied named native Min./Max. refs; Luna actually viewed image and immediately filled Min.ref in028, with no intervening browser lookup. The previous partial trial failed to bridge image to action.",
+      "Content029 used --content, retained card ownership and did not trigger a screenshot merely because there were multiple content matches.",
+      "Ambiguous date candidates018/020 did not force screenshots; Luna selected observed gridcell refs.",
+      "Remaining inefficiency: commands002–010 spent on overlay. Whole-viewport fallback controls prioritized background native inputs and omitted the dialog dismiss button; Luna guessed Close/X names, changed dismiss goal ID, tried dismiss-annoyances and attempted background fill008 with value_mismatch before map009 exposed actual Dismiss sign-in info.",
+      "No run batch was used. Individually planned find/click calls add round trips; this trial does not demonstrate fluent batching.",
+      "024 completed search but observationError=scope_stale in local follow-up; completion remained correctly preserved.",
+      "No source repair or task coaching during trial."
+    ],
+    "output": {
+      "destination": "Sydney, New South Wales, Australia",
+      "checkIn": "2027-01-10",
+      "checkOut": "2027-01-12",
+      "adults": 2,
+      "rooms": 1,
+      "priceFilter": "KRW 100,000 or more per night",
+      "property": {
+        "name": "Mercure Sydney",
+        "rating": "8.4 Very Good",
+        "room": "Standard Queen Room",
+        "displayedPrice": "KRW 308,209",
+        "pricePeriod": "2 nights, 2 adults",
+        "priceIncludes": "Taxes and fees",
+        "url": "https://www.booking.com/searchresults.html?label=mkt123sc-ad0fa22f-a3ce-42cc-94d4-a83572d45a49&aid=304142&ss=Sydney%2C+New+South+Wales%2C+Australia&efdco=1&lang=en-us&src=index&dest_id=-1603135&dest_type=city&checkin=2027-01-10&checkout=2027-01-12&group_adults=2&no_rooms=1&group_children=0&nflt=price%3DKRW-100000-max-1"
+      }
+    }
+  }
+]

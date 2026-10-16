@@ -1,0 +1,182 @@
+[
+  {
+    "site": "google",
+    "trials": 3,
+    "successes": 0,
+    "taskWallMsMedian": 52081,
+    "callsMedian": 7,
+    "scores": [
+      1,
+      1,
+      1
+    ],
+    "statuses": [
+      "blocked",
+      "blocked",
+      "blocked"
+    ],
+    "cliStdoutBytesMedian": 11369
+  },
+  {
+    "site": "amazon",
+    "trials": 3,
+    "successes": 3,
+    "taskWallMsMedian": 115340,
+    "callsMedian": 17,
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "statuses": [
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "cliStdoutBytesMedian": 91835
+  },
+  {
+    "site": "walmart",
+    "trials": 3,
+    "successes": 0,
+    "taskWallMsMedian": 41420,
+    "callsMedian": 11,
+    "scores": [
+      1,
+      1,
+      0
+    ],
+    "statuses": [
+      "partial",
+      "partial",
+      "blocked"
+    ],
+    "cliStdoutBytesMedian": 30420
+  },
+  {
+    "site": "ebay",
+    "trials": 3,
+    "successes": 3,
+    "taskWallMsMedian": 124607,
+    "callsMedian": 24,
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "statuses": [
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "cliStdoutBytesMedian": 88790
+  },
+  {
+    "site": "bestbuy",
+    "trials": 3,
+    "successes": 0,
+    "taskWallMsMedian": 213237,
+    "callsMedian": 33,
+    "scores": [
+      2,
+      2,
+      2
+    ],
+    "statuses": [
+      "partial",
+      "partial",
+      "blocked"
+    ],
+    "cliStdoutBytesMedian": 80126
+  },
+  {
+    "site": "booking",
+    "trials": 3,
+    "successes": 3,
+    "taskWallMsMedian": 208558,
+    "callsMedian": 32,
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "statuses": [
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "cliStdoutBytesMedian": 102923
+  },
+  {
+    "site": "expedia",
+    "trials": 3,
+    "successes": 1,
+    "taskWallMsMedian": 32339,
+    "callsMedian": 1,
+    "scores": [
+      0,
+      4,
+      0
+    ],
+    "statuses": [
+      "blocked",
+      "succeeded",
+      "blocked"
+    ],
+    "cliStdoutBytesMedian": 685
+  },
+  {
+    "site": "wikipedia",
+    "trials": 3,
+    "successes": 3,
+    "taskWallMsMedian": 47822,
+    "callsMedian": 11,
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "statuses": [
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "cliStdoutBytesMedian": 62888
+  },
+  {
+    "site": "weather",
+    "trials": 3,
+    "successes": 3,
+    "taskWallMsMedian": 156847,
+    "callsMedian": 25,
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "statuses": [
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "cliStdoutBytesMedian": 69370
+  },
+  {
+    "site": "imdb",
+    "trials": 3,
+    "successes": 3,
+    "taskWallMsMedian": 129890,
+    "callsMedian": 17,
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "statuses": [
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "cliStdoutBytesMedian": 56303
+  }
+]

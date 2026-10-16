@@ -1,6 +1,6 @@
 import {randomBytes,createHash} from 'node:crypto';
 export interface Unit {key:string;data:Record<string,any>;collected?:string[]}
-export interface DeliveryOptions {since?:string;consumer?:string;repeat?:boolean}
+export interface DeliveryOptions {since?:string;consumer?:string;repeat?:boolean;goalId?:string;visualReviewed?:string}
 interface Receipt {session:string;document:string;consumer:string;expires:number;fields:Map<string,string>;bytes:number}
 export const observationError=(code:string)=>Object.assign(new Error(code),{code,execution:'not_started'});
 /** Only final public fields are recorded. No baseline is inferred from a browser tab. */

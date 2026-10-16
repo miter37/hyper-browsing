@@ -17,7 +17,7 @@ import {outputFormat} from '../../scripts/hwm-policy.mjs';
 
 const config = getConfig();
 const nativeClient = new BrowserdClient(config);
-const client={call:async(method:string,params:any={})=>nativeClient.call(method,{...params,...(flag('then-file')?{then:JSON.parse(await fs.readFile(flag('then-file')!,'utf8'))}:{}),...(boolFlag('headless-only')?{allowHeadedFallback:false}:{}),format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children')})};
+const client={call:async(method:string,params:any={})=>nativeClient.call(method,{...params,...(flag('then-file')?{then:JSON.parse(await fs.readFile(flag('then-file')!,'utf8'))}:{}),...(boolFlag('headless-only')?{allowHeadedFallback:false}:{}),format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children'),goalId:flag('goal-id'),visualReviewed:flag('visual-reviewed')})};
 const argv = process.argv.slice(2);
 
 function flag(name: string): string | undefined {
@@ -71,7 +71,7 @@ async function actionInput(): Promise<Record<string, unknown>> {
 function print(value: unknown) {
   if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
   if(outputFormat(argv[0],flag('format'))==='hwm'&&value&&typeof value==='object'&&'hwm' in value&&typeof value.hwm==='string') {process.stdout.write(value.hwm);return;}
-  process.stdout.write(JSON.stringify(value, null, outputFormat(argv[0],flag('format'))==='hb'?undefined:2) + "\n");
+  process.stdout.write(JSON.stringify(value) + "\n");
   if (value && typeof value === "object" && "ok" in value && value.ok === false) process.exitCode = 1;
 }
 
@@ -90,6 +90,8 @@ Daemon/session:
   webctl session list
   webctl find --session ID --query TEXT [--scope active|document] [--role ROLE]
   webctl find --session ID --input-file goal.json
+  # Same target: keep --goal-id STEP across queries; after two misses open visual.file with the image tool.
+  # After actually viewing: add --visual-reviewed VISUAL_ID to the next lookup.
   webctl run --session ID --input-file task.json
   webctl click/fill/press/select/hover ... --then-file next.json
   webctl session close --session ID | close --session ID

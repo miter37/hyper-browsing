@@ -1,9 +1,52 @@
 import test from 'node:test';
+test('SPA URL changes expire old read scopes without invalidating live execution refs',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const {referencesFor}=await import('../src/runtime/references.ts');
+ const page=await fixture(t,'<main><button>Zoom</button><p>Old route</p></main>');
+ await page.route('https://fixture.invalid/**',r=>r.fulfill({contentType:'text/html',body:'<main><button>Zoom</button><p>Old route</p></main>'}));await page.goto('https://fixture.invalid/old');
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s'),panel=map.panels.find(p=>p.role==='main');
+ const ref=panel.controls.find(c=>c.name==='Zoom').ref;await page.evaluate(()=>history.pushState({},'', '/new'));
+ assert.ok('locator' in await referencesFor(page).resolve(ref));
+ await assert.rejects(()=>service.read(page,'s',{at:map.at,panel:panel.id,want:'content'}),e=>e.code==='scope_stale');
+ const fresh=await service.map(page,'s');assert.equal(fresh.url,'https://fixture.invalid/new');
+ await page.evaluate(()=>history.pushState({},'', '/old'));
+ await assert.rejects(()=>service.read(page,'s',{at:map.at,panel:panel.id,want:'content'}),e=>e.code==='scope_stale');
+});
+
+test('a URL transition during capture cannot return content under an old read scope',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');const page=await fixture(t,'<main><p>Content</p></main>');
+ await page.route('https://fixture.invalid/**',r=>r.fulfill({contentType:'text/html',body:'<main><p>Content</p></main>'}));await page.goto('https://fixture.invalid/old');
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s'),evaluate=page.evaluateHandle.bind(page);let moved=false;
+ page.evaluateHandle=async(...args)=>{const result=await evaluate(...args);if(!moved&&args[1]?.script&&args[1]?.options){moved=true;await page.evaluate(()=>history.pushState({},'', '/new'));}return result;};
+ await assert.rejects(()=>service.read(page,'s',{at:map.at,panel:map.panels.find(p=>p.role==='main').id,want:'content'}),e=>e.code==='scope_stale');assert.equal(moved,true);
+});
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import {browserOptions} from './browser-options.mjs';
 import {captureSnapshot} from '../src/runtime/snapshot.ts';
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
+
+test('reading projection drops empty hidden decorations and repeated control labels but keeps item ownership',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const page=await fixture(t,`<main><ul><li><h2>Mouse A</h2><p>$18.40</p><a href="/a">Details A</a><span aria-hidden="true">\ue001</span></li><li><h2>Mouse B</h2><p>$16.00</p><a href="/b">Details B</a></li></ul>${'<div style="display:none"></div>'.repeat(25)}<input type="hidden" value="internal"></main>`);
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s');
+ const args={at:map.at,panel:map.panels.find(p=>p.role==='main').id,want:'content,controls',byteBudget:18000};
+ const read=await service.read(page,'s',{...args,repeat:true});assert.ok(read.projection?.omitted>20,JSON.stringify(read));
+ assert.equal(read.data.filter(d=>d.text==='Details A').length,0);assert.ok(read.data.some(d=>d.href==='/a'&&(d.name==='Details A'||d.display==='Details A')));
+ const byId=new Map(read.data.map(d=>[d.id,d]));const owner=n=>{while(n&&n.kind!=='item')n=byId.get(n.parent);return n?.id;};
+ assert.equal(owner(read.data.find(d=>d.text==='$18.40')),owner(read.data.find(d=>d.href==='/a')));assert.notEqual(owner(read.data.find(d=>d.href==='/a')),owner(read.data.find(d=>d.href==='/b')));
+ assert.equal(read.data.some(d=>d.text==='\ue001'),false);
+ assert.equal(read.data.some(d=>d.kind==='control'&&d.rendering?.display==='none'),false);
+ const details=await service.explain(page,'s',{at:read.at});assert.ok(JSON.stringify(details).includes('Details A'));
+});
+
+test('explicit query, state and relationship endpoints are not hidden by reading compression',async t=>{
+ const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
+ const page=await fixture(t,'<main><span id="label">Label</span><button aria-labelledby="label">Label</button><section aria-hidden="true" aria-busy="true"><span>Pending</span></section><div style="display:none" aria-label="Hidden context"></div></main>');
+ const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s'),args={at:map.at,panel:map.panels.find(p=>p.role==='main').id,want:'content,controls',repeat:true};
+ const queried=await service.read(page,'s',{...args,query:'Label'});assert.ok(queried.data.some(d=>d.text==='Label'));
+ const state=await service.read(page,'s',{...args,want:'content,controls,state'});assert.ok(state.data.some(d=>d.busy===true));assert.ok(state.data.some(d=>d.rendering?.display==='none'));
+});
 
 test('delivery retracts explicitly undefined collected fields while preserving null observations',async()=>{
  const {DeliveryLedger}=await import('../src/runtime/observation/delivery.ts');const ledger=new DeliveryLedger();

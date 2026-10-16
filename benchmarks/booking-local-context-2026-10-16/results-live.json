@@ -1,0 +1,67 @@
+[
+  {
+    "site": "booking",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 38,
+    "completedInputs": 9,
+    "taskWallMs": 170673,
+    "cliMs": 39369,
+    "stdoutBytes": 1614952,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 1,
+    "revealCalls": 0,
+    "setupMs": 3859,
+    "trace": {
+      "agent": "/root/localfix_booking",
+      "sessionFile": "rollout-2026-10-16T14-57-04-01a14349-0f95-75a2-87e0-37af33d11b5b.jsonl",
+      "startedAt": "2026-10-16T05:57:04.462Z",
+      "completedAt": "2026-10-16T06:00:19.671Z",
+      "wallMs": 195209,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 43,
+      "deliveredToolTextBytes": 171268,
+      "truncatedToolResponses": 2,
+      "tokenUsage": {
+        "input_tokens": 2542913,
+        "cached_input_tokens": 2423040,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 8614,
+        "reasoning_output_tokens": 2367,
+        "total_tokens": 2551527
+      }
+    },
+    "difficulties": [],
+    "processFindings": [
+      "Initial modal was handled before destination entry,no value_mismatch or timedout backgroundclick this time.",
+      "010 response current.headings shows November2026/December2026;012 shows December2026/January2027. Agent stops advancing after2next-month actions and selects Jan10/12 instead of4advances then prematurestop.",
+      "Monthlyclick responses1893/1847stdout bytes,including currentcontext plus boundedchoices. No fullpage dump required for calendar recovery.",
+      "020 searches with requested dates/occupancy and reaches actual searchresults.html,unlike original undated-city trial.",
+      "021-036 include broad/zero pricequeries,control lookup and one rejectedscoped snapshot before native Min slider filled037. Filter discovery remains less efficient than calendar.",
+      "038 scopedmatch returns entire named propertycard with rating/price/staylength kept together;agent reports1validcandidate and stops.",
+      "No proof of general successrate or timing gains from one before/after;observed targeted improvement is currentmonth delivery and completing this formerlyunfinished task.",
+      "034/035 exact slider Min searches returnedzero.036 richgraph has Min/Max native range inputs at1x1CSSpx with aria-label names/values;033 scopedreadN303 had no usable control fields.037 direct semantic slider fill succeeds. Selective observation/execution discrepancy and large legacy fallback remain unresolved."
+    ],
+    "output": {
+      "url": "https://www.booking.com/searchresults.html?label=<redacted>&aid=304142&ss=Sydney%2C+New+South+Wales+%28Sydney+Region%29%2C+Australia&dest_id=-1603135&dest_type=city&checkin=2027-01-10&checkout=2027-01-12&group_adults=2&no_rooms=1&group_children=0&nflt=price%3DKRW-100000-max-1",
+      "stay": "Sydney, Australia; Jan 10–12, 2027 (2 nights); 2 adults, 1 room",
+      "price_filter": "Minimum KRW 100,000 per night; applied in Booking.com UI; currency KRW",
+      "properties": [
+        {
+          "name": "Shangri-La Sydney",
+          "rating": "8.7 Excellent (9,037 reviews)",
+          "displayed_price": "KRW 595,933 including taxes and fees",
+          "period": "2 nights, 2 adults",
+          "average_per_night_from_displayed_total": "KRW 297,966.5"
+        }
+      ]
+    }
+  }
+]

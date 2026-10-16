@@ -1,0 +1,80 @@
+[
+  {
+    "site": "booking",
+    "status": "partial",
+    "claimedStatus": "partial",
+    "audited": true,
+    "score": 2,
+    "calls": 32,
+    "completedInputs": 8,
+    "taskWallMs": 265988,
+    "cliMs": 27340,
+    "stdoutBytes": 94258,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 3,
+    "revealCalls": 0,
+    "setupMs": 3869,
+    "trace": {
+      "agent": "/root/visualfix_booking",
+      "sessionFile": "rollout-2026-10-16T15-57-05-01a14380-022f-7052-880f-89d2caeb45f2.jsonl",
+      "startedAt": "2026-10-16T06:57:05.500Z",
+      "completedAt": "2026-10-16T07:02:14.228Z",
+      "wallMs": 308728,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 40,
+      "deliveredToolTextBytes": 157996,
+      "truncatedToolResponses": 3,
+      "tokenUsage": {
+        "input_tokens": 2411371,
+        "cached_input_tokens": 2333440,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 12059,
+        "reasoning_output_tokens": 5505,
+        "total_tokens": 2423430
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "minimum nightly price filter",
+        "issue": "The visible budget filter is a custom slider, and project observations exposed only its non-interactive group/summary rather than a uniquely targetable minimum control.",
+        "evidence": "The page screenshot showed the slider with current range KRW 40,000–KRW 1,000,000+; scoped control reads and targeted searches did not expose a minimum-price input/ref.",
+        "handling": "Left the filter unchanged and recorded the two observed listings without claiming they were filtered at KRW 100,000 minimum."
+      }
+    ],
+    "processFindings": [
+      "Luna used project SKILL.md, headed, no browser-use; one trial.",
+      "Calendar misses009/010 triggered screenshot; actual host image calls confirmed, then gridcell query013 found both December/January candidates and selected correct January cell.",
+      "Four actual tools.view_image calls in agent tool trace; image fallback did execute, not merely return file paths.",
+      "Price searches020–026 stalled: text query budget does not match native slider name Min.; role-only goal requests022/023 invalid_goal.",
+      "Critical delivery gap: raw command030 contains named native Min./Max. sliders and values40000/1000000 with keyboard=native-control; actual truncated tool text contains neither Min. nor Max. Luna therefore reported controls unavailable. Native capture fix works in raw output; actual consumer delivery remains inadequate.",
+      "command030 returned1260 observed controls,47 shown,11016bytes. Agent requested small max_output_tokens and tool truncation hid relevant controls. No product source edits during trial.",
+      "Generic wrappers still appear in goal candidates and panel control output; actionable-control priority is not consistently effective across paths.",
+      "Two property-content queries without --content triggered another screenshot on ambiguity; data-selection intent remains mixed with unique action-target intent.",
+      "After screenshot acknowledgements agent resumed textual scans; image fallback alone did not guarantee progress or a bounded overall recovery sequence."
+    ],
+    "output": {
+      "url": "https://www.booking.com/searchresults.html",
+      "search": "Sydney, Australia; 2027-01-10 to 2027-01-12; 2 adults; 1 room; KRW displayed.",
+      "properties": [
+        {
+          "name": "Mercure Sydney",
+          "rating": "8.4 Very Good",
+          "displayedPrice": "KRW 308,209, includes taxes and fees",
+          "pricePeriod": "2 nights, 2 adults (whole stay)"
+        },
+        {
+          "name": "Moxy Sydney Airport",
+          "rating": "8.9 Excellent",
+          "displayedPrice": "KRW 291,262, includes taxes and fees",
+          "pricePeriod": "2 nights, 2 adults (whole stay)"
+        }
+      ],
+      "priceFilter": "Not applied; visible per-night range remained KRW 40,000–KRW 1,000,000+."
+    }
+  }
+]

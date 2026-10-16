@@ -173,7 +173,8 @@ export async function probePage(page: Page): Promise<PageProbe | null> {
 
 export interface PageChange {
   valueChanges?: Array<{ field: string; before: string; after: string }>;
-  stateChanges?: Array<{ element: string; before?: string; after?: string }>;
+  stateChanges?: Array<{ element: string; before?: string; after?: string; op?:'added'|'changed'|'removed' }>;
+  stateChangesCoverage?: {complete:boolean;observed:number;shown:number;removed:number};
   opened?: string[];
   closed?: string[];
   interactiveDelta?: number;
@@ -195,9 +196,13 @@ export function diffProbe(before: PageProbe | null, after: PageProbe | null): Pa
   if (values.length) out.valueChanges = values.slice(0, 6);
   const states: NonNullable<PageChange["stateChanges"]> = [];
   for (const key of new Set([...Object.keys(before.states), ...Object.keys(after.states)])) {
-    if (before.states[key] !== after.states[key]) states.push({ element: key, before: before.states[key], after: after.states[key] });
+    if (before.states[key] !== after.states[key]) states.push({ element: key, before: before.states[key], after: after.states[key],op:after.states[key]===undefined?'removed':before.states[key]===undefined?'added':'changed' });
   }
-  if (states.length) out.stateChanges = states.slice(0, 6);
+  if (states.length) {
+    states.sort((a,b)=>Number(a.op==='removed')-Number(b.op==='removed'));
+    out.stateChanges=states.slice(0,6);
+    if(states.length>6)out.stateChangesCoverage={complete:false,observed:states.length,shown:6,removed:states.filter(s=>s.op==='removed').length};
+  }
   const opened = after.open.filter((o) => !before.open.includes(o));
   const closed = before.open.filter((o) => !after.open.includes(o));
   if (opened.length) out.opened = opened;

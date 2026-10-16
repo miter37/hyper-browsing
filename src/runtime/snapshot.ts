@@ -11,6 +11,7 @@ import { CONTEXT_COLLECTOR, sanitizeObservation, type ObservationGraph } from '.
 import { PRIVATE_FIELD_SCRIPT } from './private-fields';
 import type {Goal} from './task/schema';
 import {CONTROL_CONTEXT_JS,sanitizeLocalContext,type LocalControlContext} from './observation/control-context';
+import {isActionControl} from './observation/action-control';
 
 export interface SnapshotElement {
   match?:Array<{field:string;term:string}>;
@@ -55,6 +56,7 @@ export interface SnapshotElement {
   clipped?: true | "scroll";
   // opacity:0 control lying on top of its visible look (e.g. a menu checkbox over its label): the real click target.
   transparent?: true;
+  interaction?:{keyboard?:'native-control';pointer?:'target-center-hit'|'target-center-covered'|'unobserved';small?:boolean;custom?:true};
 }
 
 export interface HiddenMatch {
@@ -409,10 +411,14 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       }
       return;
     }
-    let transparent = false;
+    let transparent = false,interaction;
     if (transparentSelf(el)) {
       if (!CONTROL_TAGS[tagU] && !el.hasAttribute("role")) return;
-      if (!onTop(el)) return;
+      if (!onTop(el)) {
+        const native=/^(INPUT|SELECT|TEXTAREA)$/.test(tagU)&&el.type!=='hidden';
+        if(!native||!nameOf(el,tag,false))return;
+        const hit=hitsSelf(el),r=rectOf(el);interaction={keyboard:'native-control',pointer:hit===null?'unobserved':hit?'target-center-hit':'target-center-covered',small:r.width<8||r.height<8};
+      }
       transparent = true;
     }
     const hiddenControl = tagU === "LABEL" ? hiddenControlOf(el) : null;
@@ -445,10 +451,15 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       label: label && label !== name ? label : undefined,
       href: cleanStr(el.getAttribute("href")),
       current: el.getAttribute('aria-current')??undefined,
+      ...(interaction?{interaction}:{}),
+      ...(!CONTROL_TAGS[tagU]&&!explicitRole&&!container&&(el.isContentEditable||styleOf(el).cursor==='pointer')?{interaction:{custom:true}}:{}),
       ...(hiddenControl ? stateOf(hiddenControl, "input") : stateOf(el, tag)),
     };
+    const actionControl=(${isActionControl.toString()})(entry);
+    if(opts.controlsOnly&&!actionControl)return;
+    if(opts.viewportOnly){const r=rectOf(el);if(r.right<=0||r.bottom<=0||r.left>=innerWidth||r.top>=innerHeight||clipState(el))return;}
     if(opts.goal){
-      const actionable=!readable&&!STRUCTURAL.test(role||'')&&!/^(heading|dialog|alertdialog|menu|menubar|listbox|radiogroup|tablist|tree)$/.test(role||'');
+      const actionable=!readable&&actionControl;
       if(opts.goal.actionableOnly&&!actionable)return;
       if(opts.goal.roles&&!opts.goal.roles.includes(role))return;
       entry.actionable=actionable;entry.nameSource=fullName?nameSourceOf(el,tag,container):undefined;
@@ -499,6 +510,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   });
 
   if (query) matched.sort((a, b) => b.s - a.s || a.order - b.order);
+  else if(opts.viewportOnly)matched.sort((a,b)=>Number(!/^(input|select|textarea)$/.test(a.entry.tag))-Number(!/^(input|select|textarea)$/.test(b.entry.tag))||a.order-b.order);
   const controlOffset=opts.controlOffset||0;
   const picked = matched.slice(controlOffset, controlOffset+limit);
   const omittedBy = {};
@@ -602,11 +614,11 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { goal?:Goal;localContext?:boolean;query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
+  options: { goal?:Goal;localContext?:boolean;query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;controlsOnly?:boolean;viewportOnly?:boolean;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
-  const opts = { goal:options.goal,localContext:options.localContext,query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,
+  const opts = { goal:options.goal,localContext:options.localContext,query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,controlsOnly:options.controlsOnly,viewportOnly:options.viewportOnly,
     contextLimit: Math.max(1, Math.min(Number(options.contextLimit) || 2000, 6000)), observation: 'p' + randomUUID().replace(/-/g,'') };
   const references = options.references ?? referencesFor(page);
   let collectionTiming: PageSnapshot['collectionTiming'];

@@ -1,4 +1,14 @@
 import test from 'node:test';
+test('same-document URL navigation preserves guarded refs but real reload invalidates them',async t=>{
+ const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();
+ await page.route('https://fixture.invalid/**',r=>r.fulfill({contentType:'text/html',body:'<button>Zoom</button>'}));await page.goto('https://fixture.invalid/start');
+ const refs=referencesFor(page),snap=await captureSnapshot(page,{waitMs:0}),ref=snap.elements.find(e=>e.tag==='button').ref,doc=refs.documentIdentity();
+ for(const method of ['pushState','replaceState','hash']){
+  await page.evaluate(method=>method==='hash'?location.hash='section':history[method]({},'', '/'+method),method);
+  assert.ok('locator' in await refs.resolve(ref),method);assert.equal(refs.documentIdentity(),doc);
+ }
+ await page.reload();assert.equal((await refs.resolve(ref)).reason,'stale_ref');assert.notEqual(refs.documentIdentity(),doc);
+});
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { execFile } from 'node:child_process';

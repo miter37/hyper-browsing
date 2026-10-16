@@ -30,7 +30,7 @@ async function fixture(t, html='<h1>Example</h1>') {
 test('a small intercepted target reports its hit-test layer and visible controls without dismissing it',async t=>{
  const {page}=await fixture(t,'<button id="target" style="position:absolute;left:30px;top:30px;width:120px;height:40px" onclick="window.didClick=true">Show details</button><section role="dialog" aria-label="Notice" style="position:fixed;left:10px;top:10px;width:280px;height:150px;background:white;z-index:9"><p>Read this notice</p><button aria-label="Dismiss notice" onclick="this.parentElement.remove()">X</button><textarea autocomplete="one-time-code" style="position:absolute;top:90px">SENSITIVE_DRAFT_ABC</textarea></section>');
  const result=await executePrimitive(page,'click',{locator:{role:'button',name:'Show details',exact:true},timeoutMs:250});
- assert.equal(result.ok,false);assert.equal(result.execution,'outcome_unknown');
+ assert.equal(result.ok,false);assert.equal(result.execution,'not_started');
  assert.equal(result.obstruction?.test,'target-center');
  assert.equal(result.obstruction?.container?.name,'Notice');
  assert.ok(result.obstruction?.controls?.some(c=>c.name==='Dismiss notice'));
@@ -109,7 +109,7 @@ test('actual daemon exposes refs, batch, compact details and duplicate-request p
   const call=(method,params={},requestId)=>postRpc({endpoint,token:token.trim(),method,params:{sessionId,...params},requestId});
   const snap=(await call('page.snapshot')).result.snapshot;
   const hwm=(await call('page.snapshot',{format:'hwm'})).result;
-  assert.ok(hwm.hwm?.startsWith('@hwm '));assert.ok(hwm.hwm.includes('document'));assert.equal(hwm.snapshot,undefined);assert.ok(snap.contextGraph);
+  assert.ok(hwm.hwm?.startsWith('@hwm '));assert.ok(hwm.hwm.includes('document'));assert.equal(hwm.snapshot,undefined);assert.equal(snap.contextGraph,undefined);assert.ok(Buffer.byteLength(JSON.stringify(snap))<16000);
   const input=snap.elements.find(e=>e.name==='Name');const button=snap.elements.find(e=>e.name==='Count');
   assert.ok(input.ref);assert.ok(button.ref);
   const batch=(await call('batch.run',{input:{commands:[{op:'fill',ref:input.ref,value:'Alice'}]}})).result;

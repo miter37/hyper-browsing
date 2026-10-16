@@ -62,7 +62,7 @@ test('daemon context commands expose actual popup registration and graph diff wi
  const p=await fixture(t);await p.context().route('**/*',r=>r.fulfill({contentType:'text/html',body:'<input value="A"><a href="/next" target="_blank">Open details</a>'}));
  const store=new SessionStore(p.context()),parent=await store.open('https://example.test/');
  const daemon=new BrowserDaemon({...getConfig(),learningDisabled:true});daemon.sessions=store;daemon.context=p.context();daemon.chrome.ensureConnected=async()=>p.context();
- const before=(await daemon.dispatchUnlocked('page.snapshot',{sessionId:parent.id,format:'json'})).snapshot;
+ const before=(await daemon.dispatchUnlocked('page.snapshot',{sessionId:parent.id,format:'json',context:true})).snapshot;assert.ok(before.contextRef);assert.equal(before.contextGraph,undefined);
  const filled=await daemon.dispatchUnlocked('page.fill',{sessionId:parent.id,locator:{css:'input'},value:'B',format:'hwm',observationRequestId:'reqFill'});
  assert.equal(filled.execution,'completed');assert.ok(filled.changes.some(c=>c.field==='value'&&c.new==='B'));
  const diff=await daemon.dispatchUnlocked('page.diff',{sessionId:parent.id,before,format:'hwm'});assert.ok(diff.changes.some(c=>c.field==='value'&&c.new==='B'));

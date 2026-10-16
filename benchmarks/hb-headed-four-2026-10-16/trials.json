@@ -1,0 +1,26 @@
+[
+  {
+    "site": "bestbuy",
+    "sequence": 1,
+    "agent": "/root/headed4_bestbuy",
+    "status": "succeeded"
+  },
+  {
+    "site": "booking",
+    "sequence": 2,
+    "agent": "/root/headed4_booking",
+    "status": "partial"
+  },
+  {
+    "site": "wikipedia",
+    "sequence": 3,
+    "agent": "/root/headed4_wikipedia",
+    "status": "succeeded"
+  },
+  {
+    "site": "walmart",
+    "sequence": 4,
+    "agent": "/root/headed4_walmart",
+    "status": "blocked"
+  }
+]

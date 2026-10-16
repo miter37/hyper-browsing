@@ -1,0 +1,8 @@
+[
+  {
+    "site": "booking",
+    "sequence": 1,
+    "agent": "/root/deliveryfix_booking",
+    "status": "succeeded"
+  }
+]

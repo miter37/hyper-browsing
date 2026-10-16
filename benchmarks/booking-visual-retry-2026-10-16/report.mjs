@@ -1,0 +1,14 @@
+import fs from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const base='benchmarks/booking-visual-retry-2026-10-16/',rows=JSON.parse(await fs.readFile(base+'results-live.json','utf8')),v=JSON.parse(await fs.readFile(base+'versions.json','utf8')),scenarios=JSON.parse(await fs.readFile(base+'scenarios.json','utf8'));
+const changed=[];for(const [file,hash]of Object.entries(v.sourceHashes)){const now=await fs.readFile(file).then(b=>createHash('sha256').update(b).digest('hex')).catch(()=>null);if(now!==hash)changed.push(file);}
+await fs.writeFile(base+'source-verification.json',JSON.stringify({at:new Date().toISOString(),count:Object.keys(v.sourceHashes).length,changed},null,2));
+const n=x=>Number.isFinite(x)?x.toFixed(1):'—',status={succeeded:'성공',partial:'부분 완료',blocked:'차단',failed:'실패',running:'진행 중'};
+const lines=['# 현재 HB · Booking 동일 조건 · 국소 상태 보완 후 headed 재시험','',`2026-10-16 · ${v.model}/${v.effort} · 프로젝트 SKILL.md · 사이트당1회 · 순차 수행 · 학습 OFF`,'',`브랜치 ${v.branch}, HEAD ${v.head}, 미커밋 현재 소스 포함. 동결 파일 변경 ${changed.length}개.`,'','직전 headed Booking 시행과 검색어·날짜·인원·가격 조건이 같은 보완 후1회다. 이전 시행은 미완료였으므로 시간만 직접 비교하지 않는다. N=1로 일반적 개선 효과를 확정하지 않는다. 모든 시행은 처음부터 headed로 준비했다. browser-use/바닐라 비교는 실행하지 않았다.','','| 사이트 | 결과 | 완료 단계 | 과업 시간(초) | 브라우저 호출 | 완료 입력 조작 | 생성 stdout(KiB) | 실제 도구 전달 텍스트(KiB) |','|---|---|---:|---:|---:|---:|---:|---:|'];
+for(const r of rows)lines.push(`| ${r.site} | ${status[r.status]} | ${r.score}/4 | ${n(r.taskWallMs/1000)} | ${r.calls} | ${r.completedInputs} | ${n(r.stdoutBytes/1024)} | ${n(r.trace?.deliveredToolTextBytes/1024)} |`);
+lines.push('','과업 시간은 첫 브라우저 명령부터 마지막 증거 조회까지이며 준비·정리·최종 보고 작성은 제외한다. 실제 도구 텍스트에는 스킬·도움말 읽기가 포함되고, 생성 stdout과 출력 잘림 정도가 다르다. 명령 사이 시간을 순수 사고시간이라고 부르지 않는다. 토큰은 results-live.json의 실제 제공 사용량만 기록한다.');
+for(const s of scenarios){const r=rows.find(r=>r.site===s.site);if(!r)continue;const audit=await fs.readFile(`.runtime/booking-visual-retry-2026-10-16/${s.site}/audit.json`,'utf8').then(JSON.parse).catch(()=>null);lines.push('',`## ${s.site}`,'',s.task,'',typeof r.output==='string'?r.output:JSON.stringify(r.output,null,2),'',...(audit?.processFindings??[]).map(t=>'- '+t),'',...(audit?.notes??[]).map(t=>'- '+t));}
+lines.push('','## 실행 출처와 한계','','| 사이트 | 초기 실제 headed | 프로젝트 스킬 읽기 | 실제 모델 | 금지 도구 관찰 | root 감사 |','|---|---|---|---|---|');
+for(const r of rows)lines.push(`| ${r.site} | ${r.initialHeadless===false?'확인':'미확인'} | ${r.trace?.projectSkillReadObserved?'확인':'미확인'} | ${r.trace?.model??'미확인'} | ${r.trace?.prohibitedToolObserved?'있음':'없음'} | ${r.audited?'완료':'대기'} |`);
+lines.push('','Booking은2027-01-10~12,성인2명/객실1개로 해석했으며 1박10만원은KRW 기준이다. 기본값·다른 숙박기간 가격을 요청 조건 가격으로 간주하지 않는다. 차단이나 미제공은 해당 정보의 부재와 구분해 적었다. 상세 체크포인트는 각 trial의 audit.json, 원시 명령은 command-NNN.json에 보관한다.');
+await fs.writeFile(base+'report.ko.md',lines.join('\n')+'\n');console.log(JSON.stringify({sites:rows.length,audited:rows.filter(r=>r.audited).length,changedFrozenFiles:changed.length}));

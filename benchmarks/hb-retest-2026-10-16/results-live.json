@@ -1,0 +1,617 @@
+[
+  {
+    "site": "google",
+    "status": "blocked",
+    "claimedStatus": "blocked",
+    "audited": true,
+    "score": 1,
+    "calls": 9,
+    "completedInputs": 2,
+    "taskWallMs": 74025,
+    "cliMs": 49443,
+    "stdoutBytes": 5615,
+    "stderrBytes": 207,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 4,
+    "revealCalls": 2,
+    "setupMs": 2882,
+    "trace": {
+      "agent": "/root/retest_google",
+      "sessionFile": "rollout-2026-10-16T13-53-08-01a1430e-8805-7bf3-9815-3fe81af0349c.jsonl",
+      "startedAt": "2026-10-16T04:53:08.686Z",
+      "completedAt": "2026-10-16T04:54:36.589Z",
+      "wallMs": 87903,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 14,
+      "deliveredToolTextBytes": 53892,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 508349,
+        "cached_input_tokens": 456320,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3093,
+        "reasoning_output_tokens": 891,
+        "total_tokens": 511442
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "Google search results",
+        "issue": "Google returned a CAPTCHA / sorry page with HTTP 429 immediately after submission.",
+        "evidence": "command-4 reported pageState.state=blocked, blocked.kind=captcha, and a CAPTCHA frame on a nearly empty page."
+      },
+      {
+        "stage": "Headed reveal",
+        "issue": "The site-specific browser reveal was attempted, but the original session was no longer recognized when checking the page.",
+        "evidence": "The following snapshot returned outcome_unknown with 'Unknown session: task_9c7b149cd7c4'.",
+        "handling": "Stopped without retrying the search or attempting CAPTCHA bypass."
+      }
+    ],
+    "processFindings": [
+      "Initial English name query on Korean-rendered Google returned no match despite requested en-US; role lookup succeeded.",
+      "Agent wrote a malformed input goal then recovered via combobox role.",
+      "Parallel reveal/snapshot invalidated the session; old session queried, session command malformed; second reveal returned sessions but agent stopped without reading.",
+      "Action.effect.pageState=ready while following finding.pageState=blocked; consumers must distinguish observation times, success of submission from task success."
+    ],
+    "output": "Blocked at Google CAPTCHA after submitting the requested search. No NASA page was reached, so no title or mission description could be verified."
+  },
+  {
+    "site": "amazon",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 24,
+    "completedInputs": 4,
+    "taskWallMs": 103437,
+    "cliMs": 25492,
+    "stdoutBytes": 1954140,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": true,
+    "failedCalls": 4,
+    "revealCalls": 0,
+    "setupMs": 2813,
+    "trace": {
+      "agent": "/root/retest_amazon",
+      "sessionFile": "rollout-2026-10-16T13-55-33-01a14310-bf4e-71b3-8c61-539158dd633c.jsonl",
+      "startedAt": "2026-10-16T04:55:33.867Z",
+      "completedAt": "2026-10-16T04:57:36.610Z",
+      "wallMs": 122743,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 28,
+      "deliveredToolTextBytes": 126652,
+      "truncatedToolResponses": 2,
+      "tokenUsage": {
+        "input_tokens": 1374255,
+        "cached_input_tokens": 1295616,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5548,
+        "reasoning_output_tokens": 1456,
+        "total_tokens": 1379803
+      }
+    },
+    "difficulties": [],
+    "processFindings": [
+      "Search query initially scoped to open shopping alert returned zero; document scope succeeded.",
+      "Malformed run task and goal payloads; CLI limit20 above goal cap12 produced opaque invalid_goal errors.",
+      "Logitech checkbox query was zero because filter is a link. Broad name queries repeated before outline/content revealed Apply Logitech filter.",
+      "Valid Apply and Remove filter controls proved brand application; observed product detail was then opened correctly.",
+      "Final bounded content query provided actual price/shipping; no full body eval or site learning.",
+      "Explicit snapshot --format json at010 generated1,900,170 raw stdout bytes; total raw output about1.95MB. Actual delivered tool text may be truncated, so raw output is not the same as LLM input."
+    ],
+    "output": {
+      "product": "Logitech M185 Compact Ambidextrous 2.4 GHz Wireless Mouse - Swift Grey | Ambidextrous mouse with 2.4 GHz USB-A Nano Receiver, Optical Tracking, 12-Months Battery Life, PC, Mac, Laptop compatible",
+      "displayPrice": "KRW 20,028",
+      "shippingOrStock": "FREE delivery Tuesday, October 20; no import charges and KRW 11,976 shipping to Republic of Korea",
+      "url": "https://www.amazon.com/Logitech-Wireless-Mouse-M185-Swift/dp/B004YAVF8I/ref=sr_1_1?crid=30XB3ZT1TQ76G&keywords=Logitech%2BM185%2Bwireless%2Bmouse&refinements=p_123%3A213704&rnid=85457740011&sr=8-1&th=1"
+    }
+  },
+  {
+    "site": "walmart",
+    "status": "blocked",
+    "claimedStatus": "blocked",
+    "audited": true,
+    "score": 1,
+    "calls": 11,
+    "completedInputs": 2,
+    "taskWallMs": 110452,
+    "cliMs": 78169,
+    "stdoutBytes": 10506,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 1,
+    "revealCalls": 2,
+    "setupMs": 2874,
+    "trace": {
+      "agent": "/root/retest_walmart",
+      "sessionFile": "rollout-2026-10-16T13-58-26-01a14313-6447-7923-83ff-ffdd9796d8a1.jsonl",
+      "startedAt": "2026-10-16T04:58:27.186Z",
+      "completedAt": "2026-10-16T05:00:32.153Z",
+      "wallMs": 124967,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 17,
+      "deliveredToolTextBytes": 54848,
+      "truncatedToolResponses": 2,
+      "tokenUsage": {
+        "input_tokens": 590204,
+        "cached_input_tokens": 568832,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2965,
+        "reasoning_output_tokens": 473,
+        "total_tokens": 593169
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "search results",
+        "issue": "Walmart human-verification block",
+        "evidence": "command-006 reported pageState blocked, kind captcha, visible human-verification dialog; command-010 snapshot title was Robot or human? and only exposed home-page and terms links.",
+        "handling": "Used the prescribed one-time browser reveal. Browser status confirmed headed mode; re-observation showed the blocked page remained. Stopped without bypassing it."
+      }
+    ],
+    "processFindings": [
+      "Session open already switched headless to headed; agent did not use that fact and repeated browser reveal twice.",
+      "Malformed task used actions instead of steps and top-level follow; opaque invalid_task then corrected from command reference.",
+      "Final submit follow stayed tied to the closed autocomplete region (linked_region_not_ready) rather than search results; recovery alone did not identify block until next read.",
+      "No sorting or product detail reached. CAPTCHA result is external access failure; repeated mode changes and goal schema mistakes are separate agent/interface costs."
+    ],
+    "output": "Blocked after submitting a wireless mouse search. Walmart redirected to https://www.walmart.com/blocked?url=L3NlYXJjaD9xPXdpcmVsZXNzK21vdXNl&uuid=6a8d8f20-c91e-11f1-a7db-a1988a971875&vid=48b8c0d7-c91e-11f1-a1e8-6c57a0ab16da&g=b. Could not apply price sorting or inspect a product detail."
+  },
+  {
+    "site": "ebay",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 15,
+    "completedInputs": 5,
+    "taskWallMs": 95713,
+    "cliMs": 40425,
+    "stdoutBytes": 37813,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 2,
+    "revealCalls": 0,
+    "setupMs": 2875,
+    "trace": {
+      "agent": "/root/retest_ebay",
+      "sessionFile": "rollout-2026-10-16T14-01-05-01a14315-ce47-79e1-8cd1-2e4b69179169.jsonl",
+      "startedAt": "2026-10-16T05:01:05.418Z",
+      "completedAt": "2026-10-16T05:02:59.108Z",
+      "wallMs": 113690,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 21,
+      "deliveredToolTextBytes": 113639,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 978333,
+        "cached_input_tokens": 935424,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5554,
+        "reasoning_output_tokens": 1961,
+        "total_tokens": 983887
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "filter application",
+        "issue": "The first run payload used an invalid task schema; a later filter click was classified as external_write.",
+        "evidence": "Wrapper returned invalid_task before execution and then confirmation_required for the filter click.",
+        "handling": "Used the task schema documented in project docs and applied the requested filter with --confirm, then verified both filters in the results URL and UI."
+      }
+    ],
+    "processFindings": [
+      "Invalid task schema once then valid direct fill-submit.",
+      "Risk classifier required per-action confirmation for a requested filter; agent used explicit confirm, no site exception.",
+      "Buy It Now/New filter selection was followed by actual applied URL and removal controls.",
+      "New tab session was used directly without opening unrelated tabs; seller query returned containing card plus separate links, requiring ownership interpretation.",
+      "No full graph snapshot or body eval; 15 calls vs historical median24."
+    ],
+    "output": {
+      "title": "Logitech M185 Wireless Optical Mouse with USB Mini receiver compatible PC Laptop",
+      "price": "GBP 7.99 (approximately KRW 14,236.98)",
+      "condition": "New",
+      "seller": "shapestechnology",
+      "url": "https://www.ebay.com/itm/296754422562"
+    }
+  },
+  {
+    "site": "bestbuy",
+    "status": "partial",
+    "claimedStatus": "partial",
+    "audited": true,
+    "score": 2,
+    "calls": 45,
+    "completedInputs": 4,
+    "taskWallMs": 268918,
+    "cliMs": 91631,
+    "stdoutBytes": 83836,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 8,
+    "revealCalls": 1,
+    "setupMs": 2795,
+    "trace": {
+      "agent": "/root/retest_bestbuy",
+      "sessionFile": "rollout-2026-10-16T14-03-37-01a14318-232c-7ca1-8ecc-6d5341b5ad58.jsonl",
+      "startedAt": "2026-10-16T05:03:38.225Z",
+      "completedAt": "2026-10-16T05:08:35.242Z",
+      "wallMs": 297017,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 59,
+      "deliveredToolTextBytes": 140745,
+      "truncatedToolResponses": 3,
+      "tokenUsage": {
+        "input_tokens": 2972879,
+        "cached_input_tokens": 2881536,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10515,
+        "reasoning_output_tokens": 2462,
+        "total_tokens": 2983394
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "country selection",
+        "issue": "Initial United States element reference became stale after page change; subsequent search submission showed country chooser again.",
+        "evidence": "stale_ref in command 37f0b77f-8af8-4790-b0a7-189eccf3cd25; search submit then showed Choose a country in command d795e3f8-06d8-46b6-8feb-afedbe05f635.",
+        "handling": "Selected the observed United States link and continued on the search results page."
+      },
+      {
+        "stage": "product detail",
+        "issue": "Search result cards could not be reached/read before trial command budget was exhausted.",
+        "evidence": "Result list was not found in document searches; a click on Skip To Results was intercepted by the page grid (command bfbbdfe5-5521-47dd-84e7-1b061a8157b). Trial budget was then reported exceeded.",
+        "handling": "Stopped without guessing a product or opening an unobserved destination."
+      }
+    ],
+    "processFindings": [
+      "Observed country selection ref became stale; recovery contained country links; agent used semantic target next.",
+      "Manual headed reveal was initiated after UI/ref trouble without confirmed access block; this deviates from access-restriction-only manual fallback policy.",
+      "Search re-triggered country chooser; selecting country from actual UI then reached results.",
+      "Brand checkbox and URL proved Logitech filter application.",
+      "Repeated product-name/price/text searches and list/scroll calls did not yield actionable result cards. No screenshot fallback to determine whether content existed visually; one skip-link click was intercepted.",
+      "Command032 screenshot inspected by root after completion: Logitech chip visibly selected, result count3648, but visible main result rows blank; not merely an inaccessible product label. No image viewing call observed in Luna trace, so screenshot path itself did not give Luna visual evidence.",
+      "After empty results, multiple text queries/scrolls consumed remaining budget; observed viewport had no product cards. Distinguish unrendered site content from missing DOM extraction. Whole-page absence and exact rendering failure cause remain unproven."
+    ],
+    "output": {
+      "search": "wireless mouse",
+      "brandFilter": "Logitech",
+      "product": null,
+      "detailUrl": null,
+      "price": null,
+      "rating": null,
+      "reviewCount": null
+    }
+  },
+  {
+    "site": "booking",
+    "status": "partial",
+    "claimedStatus": "partial",
+    "audited": true,
+    "score": 2,
+    "calls": 45,
+    "completedInputs": 13,
+    "taskWallMs": 228484,
+    "cliMs": 46934,
+    "stdoutBytes": 107603,
+    "stderrBytes": 50,
+    "initialHeadless": true,
+    "finalHeadless": true,
+    "failedCalls": 3,
+    "revealCalls": 0,
+    "setupMs": 2806,
+    "trace": {
+      "agent": "/root/retest_booking",
+      "sessionFile": "rollout-2026-10-16T14-09-37-01a1431d-a0ff-73b2-8bae-c5d2dc1291c8.jsonl",
+      "startedAt": "2026-10-16T05:09:38.083Z",
+      "completedAt": "2026-10-16T05:14:04.801Z",
+      "wallMs": 266718,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 54,
+      "deliveredToolTextBytes": 194552,
+      "truncatedToolResponses": 9,
+      "tokenUsage": {
+        "input_tokens": 3463738,
+        "cached_input_tokens": 3373696,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 14525,
+        "reasoning_output_tokens": 6500,
+        "total_tokens": 3478263
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "home search submission",
+        "issue": "Search navigated to the New York city listing rather than preserving dates in results.",
+        "evidence": "After submission the page displayed 'Enter your dates to see the latest prices and deals'; the form had previously shown Tue, Nov 17 — Thu, Nov 19.",
+        "handling": "Reapplied dates through the visible calendar and checked the form values, then submitted once more; the listing still reloaded with blank dates."
+      },
+      {
+        "stage": "free cancellation",
+        "issue": "No free-cancellation filter was present in the listing document.",
+        "evidence": "Complete find for 'Free cancellation' and 'cancellation' returned zero matches.",
+        "handling": "Stopped without claiming the condition was applied."
+      }
+    ],
+    "processFindings": [
+      "Initial multiword phrase query produced zero; help, scope switch and controls read added calls before filling destination.",
+      "A sign-in popup interfered with first fill; dismissed before successful destination entry.",
+      "Autocomplete was selected, calendar dates were clicked, but submission navigated to an undated city listing. Do not infer successful date application from clicks completing.",
+      "Dates were re-entered and Search retried; dates again absent. Exact cause is unproven; requires generic form/transition evidence rather than a site exception.",
+      "Repeated zero-match cancellation queries added calls without obtaining a new control scope;45-call limit reached.",
+      "Hotel facts are from a one-night default listing. Agent correctly qualified that these do not answer requested two-night/free-cancellation pricing."
+    ],
+    "output": "Partial. Destination selected from the home UI. A listing showed The Wallace Hotel (9.3) at KRW 563,678 for 1 night / 2 adults. The site did not retain the requested dates after Search, and no free-cancellation filter was available in the current listing. URL: https://www.booking.com/city/us/new-york.html"
+  },
+  {
+    "site": "expedia",
+    "status": "blocked",
+    "claimedStatus": "blocked",
+    "audited": true,
+    "score": 0,
+    "calls": 1,
+    "completedInputs": 0,
+    "taskWallMs": 28289,
+    "cliMs": 28289,
+    "stdoutBytes": 685,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 0,
+    "revealCalls": 0,
+    "setupMs": 2807,
+    "trace": {
+      "agent": "/root/retest_expedia",
+      "sessionFile": "rollout-2026-10-16T14-16-52-01a14324-44db-7ae0-aea0-e25060a06b1f.jsonl",
+      "startedAt": "2026-10-16T05:16:53.262Z",
+      "completedAt": "2026-10-16T05:17:37.761Z",
+      "wallMs": 44499,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 3,
+      "deliveredToolTextBytes": 24954,
+      "truncatedToolResponses": 1,
+      "tokenUsage": {
+        "input_tokens": 106536,
+        "cached_input_tokens": 97920,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 886,
+        "reasoning_output_tokens": 194,
+        "total_tokens": 107422
+      }
+    },
+    "difficulties": [
+      {
+        "handling": "Stopped without retrying, bypassing verification, or requesting human intervention.",
+        "stage": "home",
+        "evidence": "command-001 headedFallback.reason.kind=captcha; evidence: captcha frame on a nearly empty page; switched=true",
+        "issue": "CAPTCHA access restriction on nearly empty page"
+      }
+    ],
+    "processFindings": [
+      "Initial home navigation triggered automatic headless-to-headed fallback with captcha evidence.",
+      "Only one browser call. Agent treated fallback reason as final access state and stopped without a post-switch observation. This is incomplete fallback handling, not proof that headed failed.",
+      "No search/date/filter/detail step completed; no bypass or learning attempted."
+    ],
+    "output": "Could not complete the Expedia search. Session opened at https://www.expedia.com/ (command-001); a CAPTCHA was detected and the wrapper automatically switched from headless to headed. The task stopped at this access block."
+  },
+  {
+    "site": "wikipedia",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 21,
+    "completedInputs": 2,
+    "taskWallMs": 121978,
+    "cliMs": 37204,
+    "stdoutBytes": 39571,
+    "stderrBytes": 50,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 7,
+    "revealCalls": 0,
+    "setupMs": 2843,
+    "trace": {
+      "agent": "/root/retest_wikipedia",
+      "sessionFile": "rollout-2026-10-16T14-18-14-01a14325-844b-71a1-b2a0-5fbbaad76220.jsonl",
+      "startedAt": "2026-10-16T05:18:15.035Z",
+      "completedAt": "2026-10-16T05:20:36.909Z",
+      "wallMs": 141874,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 30,
+      "deliveredToolTextBytes": 89153,
+      "truncatedToolResponses": 1,
+      "tokenUsage": {
+        "input_tokens": 1200432,
+        "cached_input_tokens": 1135872,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 6652,
+        "reasoning_output_tokens": 2216,
+        "total_tokens": 1207084
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "home search submit",
+        "issue": "Initial run plans were rejected as invalid_task, and an optional follow request was rejected as invalid_follow. A subsequent fill+submit returned outcome_unknown because the search input detached during Enter.",
+        "evidence": "The follow-up snapshot showed the search query Apollo 11 remained in the expanded search box; autocomplete returned the matching Apollo 11 item.",
+        "handling": "Inspected the current session, selected the observed Apollo 11 autocomplete item, and verified the article loaded."
+      }
+    ],
+    "processFindings": [
+      "Two invalid_task and two invalid_follow requests preceded useful input. Full task/follow envelopes remain difficult for Luna despite reading project skill.",
+      "Fill-submit008 detached during Enter, outcome_unknown and automatic headed fallback reason error. This is not evidence of an access restriction.",
+      "After observation, another fill-submit011 had the same detach error; existing autocomplete was then selected successfully. No speculative ref replacement.",
+      "Content searches Crew/landed/born answered the task without full-body eval. Exact guessed date phrases returned zero before broader content terms worked.",
+      "Multiple NeilArmstrong candidates were shown; an explicitly observed link was selected and correct article verified.21calls versus historical median11."
+    ],
+    "output": {
+      "apollo11_landing": "July 20, 1969 at 20:17:40 UTC",
+      "crew": [
+        "Neil Armstrong",
+        "Michael Collins",
+        "Edwin Buzz Aldrin"
+      ],
+      "neil_armstrong_birthdate": "August 5, 1930",
+      "urls": [
+        "https://en.wikipedia.org/wiki/Apollo_11",
+        "https://en.wikipedia.org/wiki/Neil_Armstrong"
+      ]
+    }
+  },
+  {
+    "site": "weather",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 21,
+    "completedInputs": 5,
+    "taskWallMs": 93875,
+    "cliMs": 30493,
+    "stdoutBytes": 32227,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 3,
+    "revealCalls": 0,
+    "setupMs": 18969,
+    "trace": {
+      "agent": "/root/retest_weather",
+      "sessionFile": "rollout-2026-10-16T14-21-33-01a14328-8bcb-7e92-a19a-6eed80f5a2d3.jsonl",
+      "startedAt": "2026-10-16T05:21:33.565Z",
+      "completedAt": "2026-10-16T05:23:39.362Z",
+      "wallMs": 125797,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 25,
+      "deliveredToolTextBytes": 91509,
+      "truncatedToolResponses": 2,
+      "tokenUsage": {
+        "input_tokens": 1089789,
+        "cached_input_tokens": 1053440,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5791,
+        "reasoning_output_tokens": 2151,
+        "total_tokens": 1095580
+      }
+    },
+    "difficulties": [
+      {
+        "evidence": "Root-provided startup state; weather session opened successfully.",
+        "issue": "Chrome startup exited and the project automatically fell back to headed before navigation.",
+        "stage": "startup"
+      },
+      {
+        "evidence": "commands 005-009 show opening the location dialog, filling the location textbox, and selecting New York City, New York.",
+        "issue": "Initial location wording search did not match; opened the observed current-location control and searched its location textbox.",
+        "stage": "location search"
+      }
+    ],
+    "processFindings": [
+      "Location search required opening current-location control rather than assuming a visible search textbox; observed NewYork selection reached10Day directly.",
+      "Old More ref returned stale_ref twice; a guessed role/name produced no_match; fresh find More then successful ref click recovered.",
+      "Local More dialog effect immediately exposed Fahrenheit checked=true and Celsius false; no extra unit mutation was needed.",
+      "Forecast read maintained row ordering and explicitly distinguished Tonight from first dated row Fri16, avoiding high/low/precipitation mixing.",
+      "Agent omitted stale-ref/no-match failures from difficulties; root separately records3 failed calls."
+    ],
+    "output": "URL: https://weather.com/us/new-york/city/new-york-city/tenday. The top visible row is Tonight (date not labeled): precipitation 24%, low 60°F, high 68°F. The first dated daily entry is Friday, October 16, 2026: precipitation 67%, low 52°F, high 76°F."
+  },
+  {
+    "site": "imdb",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 9,
+    "completedInputs": 3,
+    "taskWallMs": 66097,
+    "cliMs": 36742,
+    "stdoutBytes": 18715,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 0,
+    "revealCalls": 0,
+    "setupMs": 2895,
+    "trace": {
+      "agent": "/root/retest_imdb",
+      "sessionFile": "rollout-2026-10-16T14-24-17-01a1432b-0ccd-72b2-8cca-2801bb7c13eb.jsonl",
+      "startedAt": "2026-10-16T05:24:17.661Z",
+      "completedAt": "2026-10-16T05:25:45.771Z",
+      "wallMs": 88110,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 18,
+      "deliveredToolTextBytes": 92411,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 787282,
+        "cached_input_tokens": 754176,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3992,
+        "reasoning_output_tokens": 1152,
+        "total_tokens": 791274
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "initial home navigation",
+        "issue": "Headless browser failure triggered automatic headed fallback.",
+        "evidence": "command-001 reported headedFallback.switched=true, reason=headless_failure; command-002 observed the actual session at IMDb home with pageState ready.",
+        "handling": "Continued with the returned session ID and observed the page after the switch."
+      }
+    ],
+    "processFindings": [
+      "Automatic headed fallback on initial home;agent correctly inspected returned session before continuing,unlike Google/Expedia.",
+      "Home fill+submit succeeded in one action;exact combined title/year phrase returned zero before broader title query found observed1994film.",
+      "Title facts and ordered TopCast were obtained with two small content searches;no fullbody eval or stored assets.",
+      "Nine browser calls versus historical median17;no rejected browser calls. Correct outcome despite generic fallback cost."
+    ],
+    "output": {
+      "title": "The Shawshank Redemption",
+      "year": 1994,
+      "rating": "9.3/10",
+      "voteCountDisplayed": "3.3M",
+      "firstTwoTopCastActors": [
+        "Tim Robbins",
+        "Morgan Freeman"
+      ],
+      "titleUrl": "https://www.imdb.com/title/tt0111161/?ref_=fn_t_1",
+      "searchUrl": "https://www.imdb.com/find/?q=The%20Shawshank%20Redemption&ref_=hm_nv_srb_sm"
+    }
+  }
+]

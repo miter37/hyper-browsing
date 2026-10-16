@@ -2,12 +2,19 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {chromium} from 'playwright';import {browserOptions} from './browser-options.mjs';
 import {BrowserDaemon} from '../src/browserd/server.ts';import {SessionStore} from '../src/browserd/session-store.ts';import {getConfig} from '../src/config.ts';
 import {mapCommandToRpc} from '../scripts/webctl-rpc.mjs';
+import {parseGoal} from '../src/runtime/task/schema.ts';
+
+test('role-only CLI lookup inside an observed group requires no guessed name or text field',()=>{
+ const request=mapCommandToRpc(['find'],{session:'s','scope-ref':'e123',role:'slider','goal-id':'amount'},new Set());
+ const goal=parseGoal(request.params.input);assert.deepEqual(goal.roles,['slider']);assert.deepEqual(goal.terms,[]);assert.deepEqual(goal.scope,{ref:'e123'});
+});
 test('default CLI maps native reads with explicit scope and receipt; HWM is opt-in',()=>{
  const result=mapCommandToRpc(['snapshot'],{session:'s'},new Set());assert.equal(result.params.format,'hb');
  const read=mapCommandToRpc(['read'],{session:'s',map:'M1',panel:'P2',want:'content,state',since:'D1',consumer:'C1','text-limit':'2000'},new Set());
  assert.equal(read.method,'page.read');assert.equal(read.params.map,'M1');assert.equal(read.params.since,'D1');assert.equal(read.params.textLimit,'2000');
  assert.equal(mapCommandToRpc(['explain'],{session:'s',map:'M1',panel:'P2'},new Set()).params.format,'hwm');
  assert.equal(mapCommandToRpc(['snapshot'],{session:'s',format:'json'},new Set()).params.format,'json');
+ const visual=mapCommandToRpc(['find'],{session:'s',query:'Minimum','goal-id':'price-min','visual-reviewed':'V123'},new Set());assert.equal(visual.params.goalId,'price-min');assert.equal(visual.params.visualReviewed,'V123');
 });
 test('native daemon map/read and a real fill preserve execution while avoiding post-action graphs',async t=>{
  const b=await chromium.launch(browserOptions());t.after(()=>b.close());const context=await b.newContext();await context.route('**/*',r=>r.fulfill({contentType:'text/html',body:'<header><button>Menu</button></header><main><input aria-label="Place" value="Seoul"><p>Article words</p></main>'}));

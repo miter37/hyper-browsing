@@ -8,6 +8,91 @@ import {executePrimitive} from '../src/engine/execute.ts';
 
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 
+test('terminal follow waits for the explicitly linked region rather than returning old background buttons',async t=>{
+ const page=await fixture(t,`<button aria-controls="panel" onclick="setTimeout(()=>document.querySelector('#panel').hidden=false,180)">Open</button><button>Old background</button><div id="panel" hidden><button>New choice</button></div>`);
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{roles:['button']}}]});
+ assert.equal(result.ok,true,JSON.stringify(result));assert.deepEqual(result.finding.candidates.map(c=>c.name),['New choice']);assert.equal(result.finding.readiness.status,'ready');
+});
+
+test('linked follow survives opener remount and deduplicates native and ARIA connections',async t=>{
+ const page=await fixture(t,`<button aria-controls="panel" onclick="this.remove();setTimeout(()=>document.querySelector('#panel').hidden=false,180)">Open</button><button>Background</button><div id="panel" hidden><button>Choice</button></div>`);
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{roles:['button']}}]});
+ assert.deepEqual(result.finding.candidates.map(c=>c.name),['Choice']);assert.equal(result.finding.readiness.basis,'linked-region');
+ await page.setContent('<button aria-controls="popup" popovertarget="popup">Open</button><div id="popup" popover><button>Native choice</button></div>');
+ const native=await runTask(page,{waitMs:500,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{roles:['button']}}]});
+ assert.equal(native.finding.readiness.status,'ready');assert.deepEqual(native.finding.candidates.map(c=>c.name),['Native choice']);
+});
+
+test('terminal follow waits for delayed requested content and marks unchanged facts honestly',async t=>{
+ const page=await fixture(t,`<button onclick="setTimeout(()=>document.querySelector('section').innerHTML='<button>Result</button>',180)">Open</button><section></section>`);
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{terms:['Result'],exact:true}}]});
+ assert.equal(result.ok,true);assert.equal(result.finding.status,'unique');assert.equal(result.finding.readiness.status,'ready');
+ const unchanged=await runTask(page,{steps:[{id:'open',target:{terms:['Result'],exact:true},action:{op:'click'},follow:{terms:['Result'],exact:true}}]});
+ assert.equal(unchanged.finding.readiness.status,'unchanged');
+});
+
+test('hidden progress templates do not block a linked follow, missing results preserve completed actions',async t=>{
+ const page=await fixture(t,'<button aria-controls="panel" onclick="document.querySelector(\'#panel\').hidden=false">Open</button><div id="panel" hidden><span role="progressbar" hidden></span><button>Choice</button></div>');
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{terms:['Choice'],exact:true}}]});assert.equal(result.finding.readiness.status,'ready');
+ const missing=await runTask(page,{waitMs:150,steps:[{id:'choice',target:{terms:['Choice'],exact:true},action:{op:'click'},follow:{terms:['Missing'],exact:true}}]});
+ assert.equal(missing.ok,true);assert.equal(missing.execution,'completed');assert.equal(missing.finding.readiness.status,'not_ready');assert.ok(missing.recovery);assert.equal(missing.steps.length,1);
+});
+
+test('semantic target discovery happens after input pacing, explicit refs are never substituted',async t=>{
+ const page=await fixture(t,'<button onclick="window.clicked=1">Continue</button>');
+ await page.evaluate(()=>setTimeout(()=>{const button=document.createElement('button');button.textContent='Continue';button.onclick=()=>window.clicked=2;document.querySelector('button').replaceWith(button);},200));
+ const result=await runTask(page,{steps:[{id:'go',target:{terms:['Continue'],exact:true},action:{op:'click'}}]});
+ assert.equal(result.ok,true,JSON.stringify(result));assert.equal(await page.evaluate(()=>window.clicked),2);
+ const ref=(await findGoal(page,{terms:['Continue'],exact:true})).candidates[0].ref;
+ await page.evaluate(()=>setTimeout(()=>document.querySelector('button').replaceWith(document.querySelector('button').cloneNode(true)),200));
+ const stale=await runTask(page,{steps:[{id:'go',target:{ref},action:{op:'click'}}]});assert.equal(stale.reason,'stale_ref');
+});
+
+test('final fill-submit sends Enter to the same input despite its name changing',async t=>{
+ const page=await fixture(t,`<form onsubmit="event.preventDefault();window.submits=(window.submits||0)+1"><input aria-label="Search" oninput="this.setAttribute('aria-label','Query '+this.value)"><button>Search</button></form>`);
+ const result=await runTask(page,{steps:[{id:'search',target:{terms:['Search'],roles:['textbox'],exact:true},action:{op:'fill',value:'Paris',submit:true}}]});
+ assert.equal(result.ok,true,JSON.stringify(result));assert.equal(await page.evaluate(()=>window.submits),1);assert.equal(result.steps[0].action.submitted,true);assert.equal(result.steps[0].action.submissionExecution,'completed');
+});
+
+test('ordinary fill keeps a partially completed form unsubmitted',async t=>{
+ const page=await fixture(t,'<form onsubmit="event.preventDefault();window.submits=1"><input aria-label="Query"><input aria-label="Date"><button>Search</button></form>');
+ const result=await runTask(page,{steps:[{id:'type',target:{terms:['Query'],exact:true},action:{op:'fill',value:'Paris'}}]});
+ assert.equal(result.ok,true);assert.equal(await page.evaluate(()=>window.submits),undefined);
+});
+
+test('task submission is a final fill and counts Enter toward the four-action budget',async t=>{
+ const page=await fixture(t,'<input aria-label="Query">');
+ const fill={id:'fill',target:{terms:['Query'],exact:true},action:{op:'fill',value:'Paris',submit:true}};
+ await assert.rejects(runTask(page,{steps:[{...fill,action:{op:'click',submit:true}}]}),/invalid_task/);
+ await assert.rejects(runTask(page,{steps:[fill,{id:'more',target:{terms:['Query']},action:{op:'fill',value:'other'}}]}),/invalid_task/);
+ await assert.rejects(runTask(page,{steps:[...['a','b','c'].map(id=>({...fill,id,action:{op:'fill',value:'Paris'}})),fill]}),/invalid_task/);
+ assert.equal(await page.locator('input').inputValue(),'');
+});
+
+test('fill-submit cannot send Enter after its task deadline expires during input handling',async t=>{
+ const page=await fixture(t,`<form onsubmit="event.preventDefault();window.submits=1"><input aria-label="Query" oninput="window.expireBudget()"><button>Search</button></form>`);
+ const result=await runTask(page,{steps:[{id:'type',target:{terms:['Query'],exact:true},action:{op:'fill',value:'Paris',submit:true}}]},{execute:async(page,kind,params)=>{await page.exposeFunction('expireBudget',()=>{params.deadline=Date.now()-1;});return executePrimitive(page,kind,params);}});
+ assert.equal(result.reason,'task_budget');assert.equal(result.steps[0].action.execution,'completed');assert.equal(result.steps[0].action.submissionExecution,'not_started');assert.equal(await page.locator('input').inputValue(),'Paris');assert.equal(await page.evaluate(()=>window.submits),undefined);
+});
+
+test('known action sequences need no intermediate proof and verify once at the end',async t=>{
+ const page=await fixture(t,`<input aria-label="Query"><button onclick="setTimeout(()=>document.querySelector('section').innerHTML='<button onclick=&quot;window.done=true&quot;>Finish</button>',150)">Search</button><section></section>`);
+ const result=await runTask(page,{steps:[{id:'type',target:{terms:['Query'],exact:true},action:{op:'fill',value:'Paris'}},{id:'search',target:{terms:['Search'],exact:true},action:{op:'click'}},{id:'finish',target:{terms:['Finish'],exact:true},action:{op:'click'},expect:{goal:{terms:['Finish'],exact:true}}}]});
+ assert.equal(result.ok,true,JSON.stringify(result));assert.equal(result.steps.length,3);assert.equal(result.steps[0].verification,undefined);assert.equal(result.steps[1].verification,undefined);assert.equal(result.steps[2].verification.status,'confirmed');assert.equal(await page.evaluate(()=>window.done),true);
+});
+
+test('a read with multiple candidates does not block an independently unique next target',async t=>{
+ const page=await fixture(t,'<button>Open</button><button onclick="window.choice=true">Choice A</button><button>Choice B</button>');
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{terms:['Choice']}},{id:'choose',target:{terms:['Choice A'],exact:true},action:{op:'click'}}]});
+ assert.equal(result.ok,true,JSON.stringify(result));assert.equal(await page.evaluate(()=>window.choice),true);
+});
+
+test('an ambiguous next action still stops even without intermediate postconditions',async t=>{
+ const page=await fixture(t,'<button onclick="window.opens=(window.opens||0)+1">Open</button><button onclick="window.bad=true">Choice</button><button onclick="window.bad=true">Choice</button>');
+ const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'}},{id:'choose',target:{terms:['Choice'],exact:true},action:{op:'click'}}]});
+ assert.equal(result.reason,'target_ambiguous');assert.equal(result.execution,'partial');assert.equal(await page.evaluate(()=>window.opens),1);assert.equal(await page.evaluate(()=>window.bad),undefined);
+});
+
 test('a newly linked local region yields early with actual context, without confirming the missing goal',async t=>{
  const page=await fixture(t,`${'<div class="notice" hidden><button>Unrelated</button></div>'.repeat(4)}<button aria-controls="choices" onclick="document.querySelector('#choices').hidden=false;document.querySelectorAll('.notice').forEach(el=>el.hidden=false)">Open</button><div id="choices" hidden><div><span>Adults</span><input type="range" value="1"><button><span aria-hidden="true">+</span></button></div><button>Apply</button></div><button onclick="window.bad=true">Continue</button>`);
  const result=await runTask(page,{waitMs:2500,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{exists:{terms:['Guessed name'],exact:true}}},{id:'continue',target:{terms:['Continue'],exact:true},action:{op:'click'}}]});

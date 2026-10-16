@@ -1,0 +1,62 @@
+[
+  {
+    "site": "google",
+    "sequence": 1,
+    "agent": "/root/retest_google",
+    "status": "blocked"
+  },
+  {
+    "site": "amazon",
+    "sequence": 2,
+    "agent": "/root/retest_amazon",
+    "status": "succeeded"
+  },
+  {
+    "site": "walmart",
+    "sequence": 3,
+    "agent": "/root/retest_walmart",
+    "status": "blocked"
+  },
+  {
+    "site": "ebay",
+    "sequence": 4,
+    "agent": "/root/retest_ebay",
+    "status": "succeeded"
+  },
+  {
+    "site": "bestbuy",
+    "sequence": 5,
+    "agent": "/root/retest_bestbuy",
+    "status": "partial"
+  },
+  {
+    "site": "booking",
+    "sequence": 6,
+    "agent": "/root/retest_booking",
+    "status": "partial"
+  },
+  {
+    "site": "expedia",
+    "sequence": 7,
+    "agent": "/root/retest_expedia",
+    "status": "blocked"
+  },
+  {
+    "site": "wikipedia",
+    "sequence": 8,
+    "agent": "/root/retest_wikipedia",
+    "status": "succeeded"
+  },
+  {
+    "site": "weather",
+    "sequence": 9,
+    "agent": "/root/retest_weather",
+    "status": "succeeded"
+  },
+  {
+    "site": "imdb",
+    "sequence": 10,
+    "agent": "/root/retest_imdb",
+    "status": "succeeded"
+  }
+]

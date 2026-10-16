@@ -2,7 +2,9 @@ import type {Page} from 'playwright';
 import {executePrimitive,type PrimitiveParams} from '../../engine/execute';
 import type {ActionKind} from '../../engine/interact';
 import {referencesFor} from '../references';
-import {findGoal,type GoalFinding} from './observe';
+import {paceBeforeTarget} from '../../engine/input-pacing';
+import {prepareFollow,observeFollow} from './follow';
+import {findGoal,findReadyGoal,type GoalFinding} from './observe';
 import {parseTask,parseFollow} from './schema';
 import {prepareTransition,waitForTransition} from './transition';
 import {actionEvidence,taskResult} from './result';
@@ -19,16 +21,19 @@ export async function runTask(page:Page,input:unknown,runtime:Runtime={}){
  try{
  for(const step of task.steps){
   if(Date.now()>=deadline)return await finish('task_budget');
+  const inputPacing=await paceBeforeTarget();
+  if(Date.now()>=deadline)return await finish('task_budget');
   let ref:string;
   if('ref' in step.target)ref=step.target.ref;
-  else{let found;try{found=await findGoal(page,step.target);}catch{return await finish('target_observation_failed');}if(found.status!=='unique'||found.candidates[0]?.actionable!==true)return await finish('target_'+(found.status??found.reason),{finding:found,...(found.pageState?{pageState:found.pageState}:{})});ref=found.candidates[0].ref!;}
+  else{let found;try{found=await findReadyGoal(page,step.target,steps.length?Math.min(deadline,Date.now()+task.waitMs):Date.now(),()=>hasNewLinkedRegion(page,recoveryBaseline));}catch{return await finish('target_observation_failed');}if(found.status!=='unique'||found.candidates[0]?.actionable!==true||found.candidates[0]?.disabled===true)return await finish('target_'+(found.candidates[0]?.disabled?'disabled':found.reason??found.status),{finding:found,...(found.pageState?{pageState:found.pageState}:{})});ref=found.candidates[0].ref!;}
   const metadata=referencesFor(page).metadata(ref);if(metadata?.actionable===false)return await finish('target_not_actionable');
   let baseline;try{baseline=await prepareTransition(page,step.expect);}catch{return await finish('baseline_unavailable');}
+  const followBaseline=step.follow&&step===task.steps.at(-1)?await prepareFollow(page,step.follow,ref):undefined;
   try{
    if(!baseline.valid)return await finish('baseline_incomplete');
    if(Date.now()>=deadline)return await finish('task_budget');
    await recoveryBaseline?.dispose();recoveryBaseline=await prepareRecovery(page,ref);
-   let action;try{action=await execute(page,step.action.op,{ref,value:step.action.value,key:step.action.key,option:step.action.option,confirmed:step.action.confirmed,goalDriven:true,deadline,targetStates:'ref' in step.target?undefined:step.target.states,timeoutMs:Math.max(1,Math.min(5000,deadline-Date.now()))});}
+   let action;try{action=await execute(page,step.action.op,{ref,value:step.action.value,key:step.action.key,option:step.action.option,submit:step.action.submit,confirmed:step.action.confirmed,goalDriven:true,localContext:step===task.steps.at(-1)&&!step.follow,inputPacing,deadline,targetStates:'ref' in step.target?undefined:step.target.states,timeoutMs:Math.max(1,Math.min(5000,deadline-Date.now()))});}
    catch{action={ok:false,execution:'outcome_unknown',reason:'execution_exception'};}
    const record:any={id:step.id,...(runtime.requestId?{requestId:runtime.requestId,stepId:runtime.requestId+':'+step.id}:{}),ref,action:actionEvidence(action)};steps.push(record);
    lastFinding=undefined;
@@ -39,9 +44,11 @@ export async function runTask(page:Page,input:unknown,runtime:Runtime={}){
    if(action.effect?.newSessions?.length)return await finish('new_context_requires_selection');
    if(step.expect){try{const {finding,...verification}=await waitForTransition(page,step.expect,baseline,ref,Math.min(deadline,Date.now()+task.waitMs),()=>hasNewLinkedRegion(page,recoveryBaseline));record.verification=verification;lastFinding=finding;}catch{record.verification={status:'unconfirmed',reason:'observation_failed'};}
     if(record.verification.status!=='confirmed')return await finish('postcondition_unconfirmed');
-   }else if(steps.length<task.steps.length)return await finish('verification_required');
-   if(step.follow){try{lastFinding=await findGoal(page,step.follow);}catch{return await finish('follow_observation_failed');}if(steps.length<task.steps.length&&lastFinding.status!=='unique')return await finish('follow_'+(lastFinding.status??lastFinding.reason));}
-  }finally{await baseline.dispose().catch(()=>{});}
+   }
+   if(step.follow){try{lastFinding=followBaseline?await observeFollow(page,step.follow,followBaseline,Math.min(deadline,Date.now()+task.waitMs)):await findGoal(page,step.follow);}catch{return await finish('follow_observation_failed');}
+    if(lastFinding.readiness?.status==='not_ready')return await finish(undefined,{recovery:await observeRecovery(page,recoveryBaseline)});
+   }
+  }finally{await followBaseline?.dispose();await baseline.dispose().catch(()=>{});}
  }
  return await finish();
  }finally{await recoveryBaseline?.dispose();}
@@ -51,6 +58,7 @@ export async function executeWithFollow(page:Page,params:PrimitiveParams,input:u
  const follow=parseFollow(input);
  if(follow.expect?.fields&&!params.ref)throw Object.assign(new Error('field_verification_requires_ref'),{execution:'not_started'});
  const baseline=await prepareTransition(page,follow.expect);
+ const followBaseline=follow.follow?await prepareFollow(page,follow.follow,params.ref):undefined;
  let recoveryBaseline:RecoveryBaseline|undefined;
  try{
   if(!baseline.valid)return {ok:false,execution:'not_started',reason:'baseline_incomplete'};
@@ -58,9 +66,9 @@ export async function executeWithFollow(page:Page,params:PrimitiveParams,input:u
   const action=await execute();let verification,finding,observationError;
   try{
    if(action.ok===true&&action.execution==='completed'&&follow.expect){const observed=await waitForTransition(page,follow.expect,baseline,params.ref??'',Date.now()+follow.waitMs,()=>hasNewLinkedRegion(page,recoveryBaseline));const {finding:verifiedFinding,...status}=observed;verification=status;finding=verifiedFinding;}
-   if(follow.follow&&!(verification?.status==='unconfirmed'&&verification.reason==='new_linked_region'))finding=await findGoal(page,follow.follow);
+   if(follow.follow&&!(verification?.status==='unconfirmed'&&verification.reason==='new_linked_region'))finding=action.ok===true&&action.execution==='completed'&&verification?.status!=='unconfirmed'&&followBaseline?await observeFollow(page,follow.follow,followBaseline,Date.now()+follow.waitMs):await findGoal(page,follow.follow);
   }catch{observationError='follow_observation_failed';}
   const stalled=action.ok!==true||action.execution!=='completed'||verification?.status==='unconfirmed'||observationError||follow.follow&&['not_found','incomplete'].includes(finding?.status??'');
   return taskResult({...action,...(verification?{verification}:{}),...(finding?{finding}:{}),...(observationError?{observationError}:{}),...(stalled?{recovery:await observeRecovery(page,recoveryBaseline)}:{})});
- }finally{await baseline.dispose();await recoveryBaseline?.dispose();}
+ }finally{await followBaseline?.dispose();await baseline.dispose();await recoveryBaseline?.dispose();}
 }

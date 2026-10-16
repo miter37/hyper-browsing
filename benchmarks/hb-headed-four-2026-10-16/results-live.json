@@ -1,0 +1,234 @@
+[
+  {
+    "site": "bestbuy",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 13,
+    "completedInputs": 4,
+    "taskWallMs": 66459,
+    "cliMs": 21358,
+    "stdoutBytes": 26647,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 0,
+    "revealCalls": 0,
+    "setupMs": 3849,
+    "trace": {
+      "agent": "/root/headed4_bestbuy",
+      "sessionFile": "rollout-2026-10-16T14-34-22-01a14334-4837-7a50-a8df-96a75a28db3b.jsonl",
+      "startedAt": "2026-10-16T05:34:22.710Z",
+      "completedAt": "2026-10-16T05:35:47.471Z",
+      "wallMs": 84761,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 18,
+      "deliveredToolTextBytes": 75545,
+      "truncatedToolResponses": 1,
+      "tokenUsage": {
+        "input_tokens": 696974,
+        "cached_input_tokens": 659712,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3147,
+        "reasoning_output_tokens": 597,
+        "total_tokens": 700121
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "homepage",
+        "issue": "Best Buy initially displayed its country selection page.",
+        "evidence": "The homepage title was ‘Best Buy International: Select your Country - Best Buy’; the observed United States link was available.",
+        "handling": "Selected the observed United States link and continued on the Best Buy homepage."
+      }
+    ],
+    "processFindings": [
+      "Country chooser observed and actual UnitedStates link selected;no mode switch needed.",
+      "Search/ProductSearch guessed queries did not find exact box;small map plus observed placeholder found input.",
+      "Single fill+submit reached results and observed Dell link opened actual detail. Product content rendered,unlike previous mouse trial.",
+      "Rating query included sponsored Acer product alongside main Dell. Owner main versus complementary and review anchor distinguish them;Luna chose correct4.0/1review.",
+      "13browser calls,no rejected commands. Detail price999.00 obtained without fullbody eval or learned assets."
+    ],
+    "output": {
+      "product_name": "Dell - XPS Googlebook - 13.4\" 2.5K Touchscreen Laptop - Snapdragon X Elite X1E-80-100 2024 - 16GB Memory - 512GB Storage",
+      "price": "$999.00",
+      "rating": "4.0 out of 5 stars",
+      "review_count": 1,
+      "url": "https://www.bestbuy.com/product/<redacted-long-token>/J3K4L6QQFC/sku/6690181"
+    }
+  },
+  {
+    "site": "booking",
+    "status": "partial",
+    "claimedStatus": "partial",
+    "audited": true,
+    "score": 1,
+    "calls": 27,
+    "completedInputs": 8,
+    "taskWallMs": 105799,
+    "cliMs": 29856,
+    "stdoutBytes": 50599,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 4,
+    "revealCalls": 0,
+    "setupMs": 3788,
+    "trace": {
+      "agent": "/root/headed4_booking",
+      "sessionFile": "rollout-2026-10-16T14-36-56-01a14336-a16f-7411-80c7-9f3a64cdf9bd.jsonl",
+      "startedAt": "2026-10-16T05:36:56.589Z",
+      "completedAt": "2026-10-16T05:39:07.270Z",
+      "wallMs": 130681,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 32,
+      "deliveredToolTextBytes": 108653,
+      "truncatedToolResponses": 3,
+      "tokenUsage": {
+        "input_tokens": 1518239,
+        "cached_input_tokens": 1476864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4499,
+        "reasoning_output_tokens": 287,
+        "total_tokens": 1522738
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "destination entry",
+        "issue": "Initial typing was consumed while a sign-in dialog covered the page; the first fill returned an empty value.",
+        "evidence": "command-003 value_mismatch; command-006 obstruction identified Dismiss sign-in info button.",
+        "handling": "Dismissed the observed dialog and entered Sydney; selected the unique Sydney New South Wales (Sydney Region), Australia autocomplete option."
+      },
+      {
+        "stage": "date selection",
+        "issue": "Date picker navigation moved beyond the target month; requested days were not found in the current observation.",
+        "evidence": "Calendar ultimately showed February 2027; query for January 10 returned no results (commands 026–028).",
+        "handling": "Stopped without submitting a search or guessing date controls."
+      }
+    ],
+    "processFindings": [
+      "Sign-in overlay caused first fill value_mismatch and later click timeout;dismissed008,then fill009 succeeded. Initial popup evidence was not used promptly.",
+      "snapshot--query without scope and find--roles gridcell were rejected;four total failed calls including overlay-related failures.",
+      "Calendar Nextmonth clicked4times. Effects listed disappearing prior-month gridcell states,not a concise new month overview. Agent overshot January and current map026 showedFebruary2027.",
+      "Two January-date queries returnedzero;panel read027 was incomplete with excludedPanels2. Agent stopped instead of obtaining visible current calendar/previous-month controls,despite budget remaining.",
+      "No search submission means this trial did not reproduce the previous date-loss-on-submit problem. Main observed failure is calendar navigation/recovery and premature stopping."
+    ],
+    "output": "Partial. Sydney selected: Sydney, New South Wales (Sydney Region), Australia. Intended dates Jan 10–12, 2027 (2 nights), 2 adults, 1 room, with minimum KRW 100,000 per night. Requested date range and price threshold were not applied, so no property names, ratings, or prices can be reported. Currency UI was KRW. Last observed page URL: https://www.booking.com/?chal_t=1792129027404&force_referer= ."
+  },
+  {
+    "site": "wikipedia",
+    "status": "succeeded",
+    "claimedStatus": "succeeded",
+    "audited": true,
+    "score": 4,
+    "calls": 8,
+    "completedInputs": 1,
+    "taskWallMs": 31867,
+    "cliMs": 14560,
+    "stdoutBytes": 29724,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 1,
+    "revealCalls": 0,
+    "setupMs": 3755,
+    "trace": {
+      "agent": "/root/headed4_wikipedia",
+      "sessionFile": "rollout-2026-10-16T14-39-43-01a14339-2ca8-77d0-930c-a6763b385471.jsonl",
+      "startedAt": "2026-10-16T05:39:43.316Z",
+      "completedAt": "2026-10-16T05:40:34.904Z",
+      "wallMs": 51588,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": false,
+      "prohibitedToolObserved": false,
+      "toolCalls": 12,
+      "deliveredToolTextBytes": 91407,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 513145,
+        "cached_input_tokens": 482560,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1630,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 514775
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "home search submission",
+        "issue": "Initial fill-and-submit encountered an element detached from the DOM, leaving submission outcome unknown.",
+        "evidence": "command-003; subsequent snapshot command-004 showed the search field retained ‘BTS’ and its autocomplete was expanded; command-005 exposed the suggestion."
+      }
+    ],
+    "processFindings": [
+      "Home fill+submit003 again returned detached-input outcome_unknown. Initial headed does not fix this common execution failure.",
+      "Instead of retrying Enter,agent observed current BTS field and selected actual Koreanboyband autocomplete;correct document reached006.",
+      "Broad panel read007 had233observed/60shown;queryformed read008 exposed introduction and all7member names with original paragraph/link ownership.",
+      "Content read succeeded without fullbodyeval or HWM explain. Eightcalls,onefailedcommand,nolearning or modechanges."
+    ],
+    "output": "BTS is a South Korean boy band formed in 2010. The seven members named in the article introduction are Jin, Suga, J-Hope, RM, Jimin, V, and Jung Kook. Source: https://en.wikipedia.org/wiki/BTS"
+  },
+  {
+    "site": "walmart",
+    "status": "blocked",
+    "claimedStatus": "blocked",
+    "audited": true,
+    "score": 1,
+    "calls": 4,
+    "completedInputs": 2,
+    "taskWallMs": 15391,
+    "cliMs": 8039,
+    "stdoutBytes": 6333,
+    "stderrBytes": 0,
+    "initialHeadless": false,
+    "finalHeadless": false,
+    "failedCalls": 2,
+    "revealCalls": 0,
+    "setupMs": 4094,
+    "trace": {
+      "agent": "/root/headed4_walmart",
+      "sessionFile": "rollout-2026-10-16T14-41-12-01a1433a-8981-7740-9c19-30484ffb6c3f.jsonl",
+      "startedAt": "2026-10-16T05:41:12.619Z",
+      "completedAt": "2026-10-16T05:41:43.850Z",
+      "wallMs": 31231,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 7,
+      "deliveredToolTextBytes": 64041,
+      "truncatedToolResponses": 1,
+      "tokenUsage": {
+        "input_tokens": 277806,
+        "cached_input_tokens": 240384,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1118,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 278924
+      }
+    },
+    "difficulties": [
+      {
+        "stage": "search results",
+        "handling": "Stopped without retries or bypass.",
+        "evidence": "command-004: pageState blocked, visible human-verification dialog",
+        "issue": "Captcha / human verification interstitial"
+      }
+    ],
+    "processFindings": [
+      "Started headed and homepage loaded200. snapshot--query002 withoutscope was rejected;regular map003 showed actual search field.",
+      "004 directfill+submit delivered requestedquery and changedURL,then visible human-verification blocked results.",
+      "Agent stopped on current headed block without repeatedreveal,blindsubmitretry,learning or bypass. Fourcalls,total2nonzeroexitcodes including accessblock."
+    ],
+    "output": "Search was submitted from the Walmart homepage UI for “cheese cake”. The site presented a human-verification dialog, preventing search results and product inspection. No purchase or cart action was taken."
+  }
+]

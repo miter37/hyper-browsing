@@ -35,6 +35,8 @@ export class ElementReferences {
   private readonly pageIdentity = randomUUID().replace(/-/g,'');
   private state?: JSHandle;
   private generation = 0;
+  private locationGeneration=0;
+  private navigationBarrier:Promise<void>=Promise.resolve();
   private entries = new Map<string, { handle?: ElementHandle<HTMLElement | SVGElement>; guard: string; metadata: SnapshotElement }>();
   private pendingDisposals=new Set<Promise<void>>();
   private disposalSettled=0;
@@ -47,7 +49,17 @@ export class ElementReferences {
   }
   documentIdentity(): string { return `d${this.pageIdentity}_${this.generation}`; }
   constructor(private page: Page) {
-    page.on("framenavigated", frame => { if (frame === page.mainFrame()) this.invalidate('navigation'); });
+    page.on("framenavigated", frame => {
+      if(frame!==page.mainFrame())return;
+      this.locationGeneration++;
+      const state=this.state;
+      if(!state){this.invalidate('navigation');return;}
+      this.navigationBarrier=this.navigationBarrier.then(async()=>{
+        if(this.state!==state)return;
+        const same=await state.evaluate((s:any)=>s.document===document).catch(()=>false);
+        if(!same&&this.state===state)this.invalidate('navigation');
+      });
+    });
     page.on("close", () => this.invalidate('close'));
   }
   private invalidate(reason:string) {
@@ -61,11 +73,12 @@ export class ElementReferences {
     void Promise.all(pending).then(()=>{event.complete=true;event.elapsedMs=performance.now()-started;});
   }
   async snapshotState() {
+    await this.settleNavigation();
     const generation = this.generation;
     if (!this.state) {
       const base = nextBlock; nextBlock += 1_000_000;
       if (!Number.isSafeInteger(base + 999999)) throw new Error('Reference block capacity reached');
-      const state = await this.page.evaluateHandle(({ base, epoch }) => ({ ids: new WeakMap(), targets:new Map(), next: base, max: base + 999999, epoch, observedIds: new WeakMap(), observedTargets:new Map(), observedNext: 1, observedReadIds:new WeakMap(), observedReadNext:1,regionTargets:new Map() }), { base, epoch: referenceEpoch });
+      const state = await this.page.evaluateHandle(({ base, epoch }) => ({ document, ids: new WeakMap(), targets:new Map(), next: base, max: base + 999999, epoch, observedIds: new WeakMap(), observedTargets:new Map(), observedNext: 1, observedReadIds:new WeakMap(), observedReadNext:1,regionTargets:new Map() }), { base, epoch: referenceEpoch });
       if (generation !== this.generation) { await this.dispose(state); throw new Error("Snapshot document changed; observe again"); }
       this.state = state;
     }
@@ -91,6 +104,8 @@ export class ElementReferences {
     while(this.entries.size>1200){const id=this.entries.keys().next().value!,entry=this.entries.get(id)!;if(entry.handle)void this.dispose(entry.handle);this.entries.delete(id);}
   }
   metadata(ref: string): SnapshotElement | undefined { return this.entries.get(normalizeReference(ref))?.metadata; }
+  async settleNavigation(){await this.navigationBarrier;}
+  navigationRevision(){return this.locationGeneration;}
   semanticLocator(ref: string): LocatorStrategy | undefined {
     const e = this.metadata(ref); if (!e) return undefined;
     const scope = e.context ? { within: e.context } : {};
@@ -102,6 +117,7 @@ export class ElementReferences {
     return undefined;
   }
   async resolve(ref: string): Promise<{ locator: ActionTarget; resolvedBy: "reference" } | { ok: false; reason: "stale_ref"; execution: "not_started"; hint: string }> {
+    await this.settleNavigation();
     ref = normalizeReference(ref);
     const entry = this.entries.get(ref);
     const stale = { ok: false as const, reason: "stale_ref" as const, execution: "not_started" as const, hint: "The observed element is no longer valid. Take a fresh snapshot; do not substitute a similar element." };

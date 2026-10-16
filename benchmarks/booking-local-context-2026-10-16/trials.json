@@ -1,0 +1,8 @@
+[
+  {
+    "site": "booking",
+    "sequence": 1,
+    "agent": "/root/localfix_booking",
+    "status": "succeeded"
+  }
+]

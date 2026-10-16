@@ -107,10 +107,12 @@ automatically; one inside a collapsed container is refused even with `--force` (
 
 Every action waits for the page to settle and returns `effect`: `urlChanged` (+ `status`, new `title`, `h1`,
 `blocked` when the new page is a bot check), `targetChanged`, `targetGone`, and `page` = changes elsewhere
-(`valueChanges`, `stateChanges`, dialogs/menus `opened`/`closed`, `interactiveDelta`, `appeared`/`disappeared` button and
+(`valueChanges`, `stateChanges` with `op=added|changed|removed` and explicit truncation counts, dialogs/menus `opened`/`closed`, `interactiveDelta`, `appeared`/`disappeared` button and
 link names — a renamed control shows in both). `session open`/`goto` report `status`; `interstitial: "passed"` means a
 bot check showed first and the real page followed (the status is the check's, e.g. 403). `observed: false` means
 nothing visible changed. Every response has `durationMs`.
+
+`effect.current` is a bounded current-local-DOM summary when the observed action region changed: current headings, limited field values/status, observed control count and completeness. It is not aria-current or task success. `before`-only/`op=removed` changes describe past elements. A modal covering the target center returns `blocked_by_overlay`, `execution=not_started` and its local focus before input; it is not auto-dismissed. No current dump is added for an unchanged region, and known task batches collect implicit local context only at their terminal step without an explicit follow.
 
 `snapshot` (open shadow roots included) gives `viewport`, `open` (visible dialogs/menus/listboxes), and elements with:
 - state when present: `checked`, `selected`, `selectedText`, `expanded`, `pressed`, `disabled`; `value` of text
@@ -176,7 +178,7 @@ webctl verify --session ID --input-file checks.json
 최대 20개 명시 조건, 전체 기본 5초. 조건별 기대값·관찰값과 APPLIED/NOT_APPLIED/UNKNOWN을 반환한다. 실행이나 자산 저장은 하지 않는다. 입력 형식과 예시는 [VERIFICATION.md](VERIFICATION.md). 기존 @e27 참조를 PowerShell에 직접 전달할 때는 `--ref '@e27'`처럼 감싼다.
 ## 요청 중심 관찰과 HWM 상세
 
-`webctl snapshot --session ID`는 본문 그래프 없이 패널 지도와 주요 컨트롤을 반환한다. 지도 응답의 `at`으로 `read --at HANDLE --panel PANEL --want outline`을 요청하면 제목·하위 패널을 읽는다. 해당 항목의 `at`으로 `read --at HANDLE --want content,controls,state`를 요청하면 그 범위만 현재 DOM에서 읽는다. outline은 다른 want와 묶지 않는다. 기본 read는 controls이며 본문 검색에는 content를 명시한다.
+`webctl snapshot --session ID`는 본문 그래프 없이 패널 지도와 주요 컨트롤을 반환한다. 지도 응답의 `at`으로 `read --at HANDLE --panel PANEL --want outline`을 요청하면 제목·하위 패널을 읽는다. 해당 항목의 `at`으로 `read --at HANDLE --want content,controls,state`를 요청하면 그 범위만 현재 DOM에서 읽는다. outline은 다른 want와 묶지 않는다. 기본 read는 controls(12개, byteBudget3500, textLimit240)이며 일반 래퍼를 제외한 실제 조작 요소를 페이지 나누기 전에 추린다. content/state를 포함한 읽기의 기존 기본 예산은 유지한다. 본문 검색에는 content를 명시한다.
 
 `at`은 지도·범위·전달 receipt·consumer를 묶은 불변 핸들이다. 다음 호출에는 실제 받은 최신 응답의 at을 사용한다. 지도 루트 핸들에는 panel을 지정할 수 있지만 패널에 묶인 핸들로 다른 panel을 고를 수 없다. `--at`과 `--map`/`--since`/`--consumer`를 함께 쓰면 conflicting_continuation이다. 기존 `--map MAP --panel PANEL --since DELIVERY` 호환 경로는 유지한다. --repeat는 알고 있는 필드도 다시 전달한다.
 
@@ -192,7 +194,9 @@ outline은 본문·값 수집 없이 제목을 최대24개, 하위 패널 최대
 
 질의 read의 match는 실제 일치 필드, hint/hintSource는 주변 문구의 파생 근거다. 이름 없는 컨트롤의 viewportBox는 뷰포트 CSS 픽셀 [x,y,width,height]다. redacted에 href가 있으면 출력 링크가 마스킹되었다는 뜻이다. aria-hidden은 접근성 선언이며 rendering은 관찰한 CSS 사실로, 시각적 가림이나 과업 성공을 대신 판정하지 않는다. 이어 읽기 offset은 같은 want/query/item/target 집합에서만 사용한다.
 
-명시적인 `--format hwm` snapshot은 기존 상세 관찰이고, `--format json` 또는 `WEBAGENT_OUTPUT_FORMAT=json`은 기존 스크립트 호환 JSON과 contextGraph를 반환한다. 이 두 상세 경로의 `--context-limit N`은 본문 수집 soft 한도(기본2000, 하드6000), `--limit`은 기존 컨트롤 한도다. hb 지도에는 적용되지 않는다. 새 read의 coverage.complete는 현재 요청 범위의 완결성, nextOffset은 추가 조회 위치, 문자열 Truncated/Length는 잘림 정보다. P…/N…는 읽기용, e…만 실행 참조다.
+명시적인 `--format json` snapshot도 전체 contextGraph를 응답에 첨부하지 않는다. 기본 JSON은 컨트롤 관찰만 수집하고 약14KB의 snapshot 예산 안에서 접힘을 표시한다. JSON CLI는 들여쓰기 없이 출력한다. `--context`나 `--format hwm`으로 상세 수집을 명시하면 그래프는 관찰 저장소에 보관하며 응답 context에 관찰ID·노드 수·보관 여부만 준다. 정본 파일이 필요하면 `--context --save`로 저장하고 필요한 범위만 inspect/expand한다. `--context-limit N`은 상세 수집 soft 한도(기본2000,하드6000), `--limit`은 컨트롤 한도다. hb 지도에는 적용되지 않는다. coverage.complete는 요청 범위의 완결성, nextOffset은 추가 조회 위치, Truncated/Length는 잘림 정보다. P…/N…는 읽기용, e…만 실행 참조다.
+
+같은 단계의 find/read/run에는 `--goal-id price-min`처럼 동일한 식별자를 쓴다(선택,미지정은현재단계공유). 0건·불완전·조작 대상의 미해결 복수후보는 첫 조회 후 재조회1회까지만 이어간다. 본문 읽기의 정상적인 복수 일치는 실패로 세지 않는다. 두 번째에는 visual.file을 자동 캡처하고 visual.mustRead=true를 반환한다. 이후 텍스트 재조회/전체 snapshot 확대는 visual_review_required로 거부한다. view_image 등으로 이미지를 실제로 연 뒤 다음 조회에 `--visual-reviewed VISUAL_ID`를 함께 전달한다. 자동 캡처가 실패하면 수동 screenshot을 찍어 실제 열람한 뒤 반환된 visual ID를 확인 응답으로 쓴다. 이는 소비자의 열람 확인 응답이며 앱이 외부 이미지 열람을 증명하지는 않는다. 이미 받은 후보로 조작하거나 답변할 수 있으면 불필요한 재조회/이미지 확대는 하지 않는다. 실제 관찰된 조작 진전·문서/URL 전환은 새 단계이며, 검색어·scope 변경과 known 응답은 횟수 초기화 근거가 아니다. 자동 캡처는 유효한 scope-ref의 가시 영역 또는 viewport이며 full-page가 기본이 아니다.
 
 N… 읽기 대상도 발급 시점의 구조 식별 경계(id/data-key/data-id/href/role/type 및 조상)를 검증한다. 같은 DOM 객체가 다른 항목으로 재사용되면 옛 대상은 read_target_not_found로 거부하며 새 관찰은 새 N…을 발급한다. 본문·값의 단순 변경은 별개의 항목이라고 추정하지 않는다. 이 별칭은 실제 DOM 동일성을 추적하는 그래프 tracking.id와 별도이며, 전역·영구 식별자로 저장하지 않는다. content 차분에서 사라진 이름/접근성 선언 등 이미 전달한 선택 필드는 unavailableFields로 철회한다. 첫 지도 URL도 공통 마스킹을 거치며 마스킹한 경우 redacted:["url"]을 표시한다.
 
@@ -276,7 +280,7 @@ webctl fill --session ID --ref REF --value VALUE --then-file next.json
 
 `--headless-only`은 요청의 자동 headed 폴백을 막는다. 기본 정책은 그대로다. 실패한 계획은 모드를 전환해도 자동 재실행하지 않는다. 실행 예산은 새 동작의 시작을 제한하며 이미 시작된 동작을 취소·롤백했다고 주장하지 않는다.
 
-목표 파일: terms(최대8개), fields(name/text/label/placeholder/value/href), roles(선택), exact, scope(active/document 또는 {ref}), states(value/checked/selected/expanded/pressed/disabled), actionableOnly(기본true), limit(기본5/최대12), byteBudget(근거 기본4000/최대16000), maxVisits(기본12000/최대20000). `--content`는 actionableOnly=false다. 후보 접힘과 부분 수집은 다르다. 반환 status와 coverage를 함께 읽는다. 전송 receipt 등 작은 메타데이터는 근거 예산에 추가된다.
+목표 파일: terms(최대8개), fields(name/text/label/placeholder/value/href), roles(선택), exact, scope(active/document 또는 {ref}), states(value/checked/selected/expanded/pressed/disabled), actionableOnly(기본true), limit(기본5/최대12), byteBudget(근거 기본4000/최대16000), maxVisits(기본12000/최대20000). `--content`는 actionableOnly=false다. 후보 접힘과 부분 수집은 다르다. 반환 status와 coverage를 함께 읽는다. 새 ambiguous 후보 목록은 조회 실패 횟수에 넣지 않는다. 같은 목표에서 검색어를 바꿔도 이미 받은 후보 근거가 반복되면 이미지로 전환한다. 모호한 목표의 실제 실행은 계속 not_started로 멈춘다. 잘못된 목표는 invalid_goal·execution=not_started와 함께 validation(최대3개: path/code/hint/allowed)을 반환하며 입력한 값은 진단에 재출력하지 않는다. 전송 receipt 등 작은 메타데이터는 근거 예산에 추가된다.
 
 `task.json` 예시(이름은 현재 페이지에서 관찰한 값으로 작성):
 
@@ -286,11 +290,7 @@ webctl fill --session ID --ref REF --value VALUE --then-file next.json
     {
       "id": "type-place",
       "target": {"terms": ["Destination"], "fields": ["name"], "exact": true},
-      "action": {"op": "fill", "value": "Seoul"},
-      "expect": {
-        "fields": {"value": "Seoul"},
-        "introduced": {"terms": ["Seoul"], "roles": ["option"], "exact": true}
-      }
+      "action": {"op": "fill", "value": "Seoul"}
     },
     {
       "id": "choose-place",
@@ -304,7 +304,11 @@ webctl fill --session ID --ref REF --value VALUE --then-file next.json
 }
 ```
 
-선언한 조건은 AND다. action은 click/fill/press/select/hover이며 필요한 value/key/option을 명시한다. target은 목표 또는 {ref}다. 조회가 유일해도 부분 수집이면 자동 실행하지 않는다. 중간 expect 누락, 모호함, 확인 필요, 결과 불명, 새 세션은 다음 단계를 중지한다. 마지막 단계에서 expect를 생략하면 동작 완료까지만 보고한다.
+선언한 조건은 AND다. action은 click/fill/press/select/hover이며 필요한 value/key/option을 명시한다. target은 목표 또는 {ref}다. 중간 expect는 선택이며 없다는 이유로 중단하지 않는다. 기본은 알려진 조작을 이어가고 마지막 단계의 expect/follow 또는 별도 verify로 묶음 결과를 확인하는 것이다. 명시한 중간 expect는 계속 강제한다. 조회가 유일해도 부분 수집이면 실행하지 않으며, 대상 모호함·확인 필요·결과 불명·새 세션은 다음 단계를 중지한다. 마지막 단계에서도 expect가 없으면 동작 완료만 보고하며 업무 성공을 인증하지 않는다.
+
+목표 target은 매 단계 현재 DOM에서 찾는다. 뒤 단계의 목표가 완결된0건이거나 유일하지만 비활성이면 waitMs와 전체 timeoutMs 안에서 준비만 기다린다. 이것은 앞 행동의 사후 성공 검증이나 클릭 재실행이 아니다. 첫 단계의 대상 부재·모호함·불완전 관찰·stale ref는 자동 재선택하지 않는다. 준비 시간 만료 시 실행을 시작하지 않고 현재 finding/recovery를 반환한다. 명시 ref는 의미 목표로 몰래 바꾸지 않는다.
+
+더 입력·조정·자동완성 선택할 것이 없고 Enter로 제출하는 마지막 텍스트 입력은 `{"id":"search","target":{"ref":"실제REF"},"action":{"op":"fill","value":"검색어","submit":true},"follow":{"terms":["찾을 결과"]}}`로 보낸다. 입력 후 이름이 바뀌어도 확보한 동일 DOM 요소에 Enter를 보내며 별도로 이름을 재검색하지 않는다. 단일 CLI는 `fill --submit`이다. 모델이 현재 과업에서 마지막 입력인지 판단하고 명시하며 엔진은 폼의 완성을 추측하지 않는다. submit은 fill의 마지막 단계에서만 허용하고 Enter도 조작1개로 세어 한 run의 총 조작4개를 넘지 않는다. 제출 전 공통0.5~1초 간격 후 현재 값과 위험도를 다시 확인한다. 기한 만료·값 불일치·추가 승인 필요면 Enter를 보내지 않는다. 입력 완료와 Enter 실행은 다르며 `submitted`/`submissionExecution`을 확인한다. completed가 검색 결과 준비나 과업 성공을 뜻하지 않는다.
 
 expect.goal은 현재 유일 후보를 확인하며 갱신 증거가 아니다. expect.exists는 완결된 조회에서 전달 가능한 후보가 한 개 이상 존재하는지 확인한다. introduced도 복수 일치를 허용하되 실제 DOM 동일성을 사용해 이전 일치 대상과 다른 후보가 있어야 한다. 조상 변화로 ref 문자열만 바뀐 것은 새 대상이라고 간주하지 않는다. 존재 검증은 실행 대상의 유일성 검증을 대신하지 않는다. 다음 target은 여전히 새로 찾은 유일 후보 또는 명시한 ref여야 한다. changed={ref}는 같은 지정 DOM 영역의 내용·상태 변화와 aria-busy를 검사하며 분리/교체됐으면 미확인이다. 이 영역의 변경 자체가 업무 성공이라는 뜻은 아니다. fields는 현재 target의 value/checked/selected/expanded/pressed/disabled를 확인한다. url={pathname,includes}는 명시한 항목 모두를 검사한다.
 
@@ -312,7 +316,11 @@ expect.goal은 현재 유일 후보를 확인하며 갱신 증거가 아니다. 
 
 기본 `read --want content`는 완결된 정본에서 조작·명시 관계·독립 상태가 없는 `<pre>`를 `kind="code", tag="pre", source="pre-text-v1"` 항목으로 투영한다. 텍스트 조각을 순서대로 연결하며 빈 줄·들여쓰기를 보존한다. 정본/inspect의 조각과 관계는 유지한다. 코드 id는 원래 pre의 조회 ID이므로 `read --target ID`로 범위를 다시 읽을 수 있다. 일부 수집 또는 내부 경계가 있으면 합치지 않는다. query가 적용된 코드의 match.source는 실제 일치 원문 노드의 ID다. 기본 textLimit/byteBudget을 그대로 적용하고 textTruncated/textLength를 남긴다. 작은 명시적 textLimit도 적용하며, 더 큰 한도로 재조회하면 이전 잘림 필드는 unavailableFields로 철회한다.
 
-메뉴가 늦게 뜬다면 `{"expect":{"exists":{"terms":["관찰할 선택지"]}},"follow":{"terms":["관찰할 선택지"]}}`로 조건을 기다린 뒤 조회한다. follow만 지정하면 즉시 읽기다. 마지막 follow의 ambiguous/not_found/incomplete는 조회 결과로 반환하며 완료한 실행을 partial로 낮추지 않는다. 중간 follow의 모호함/불완전성은 다음 행동 전에 중단한다. 검증 finding은 follow가 없을 때도 최상위 finding으로 한 번만 전달한다.
+메뉴를 열고 그 구조를 읽어야 한다면 마지막 단계에 follow를 붙인다. 마지막 follow와 단일 명령의 then.follow는 요청 목표가 없거나 명시 연결 영역이 닫혀 있으면 waitMs 안에서 읽기만 기다린다. 기본 active 범위에서 aria-controls/native popover 연결이 있으면 사용 가능한 연결 영역 하나 안을 읽는다. 여러 연결 영역이 모호하면 대신 하나를 고르지 않는다. 명시 document/ref 범위는 유지한다. `finding.readiness.status`는 ready/unchanged/not_ready이며 basis는 requested-goal/linked-region이다. unchanged는 같은 요청 사실이 이전과 같았다는 뜻이고 ready도 과업 성공이 아니다. 기존 후보가 바뀌지 않았다면 추가 대기로 매번 지연하지 않고 unchanged로 반환한다. 중간 follow는 즉시 읽기다. 필요시 명시 expect를 추가할 수 있으나 알려진 다음 target의 준비와 중복하지 않는다. follow 후보의 ambiguous/not_found/incomplete는 읽기 결과이며 실제 다음 target의 유일성과 다르다.
+
+동일 Document의 pushState/replaceState/hash에서는 연결된 동일 DOM의 guard가 맞는 실행 ref를 유지한다. 실제 reload/문서 교체/데몬 재시작/노드 또는 의미 교체는 여전히 stale_ref다. 이전 지도·범위 핸들은 URL 변경 시 scope_stale로 거부해 옛 화면을 새 화면처럼 읽지 않는다. run의 입력 간격은 목표 탐색 전에 한 번 적용하며 이후 실제 실행의 현재 상태·위험·기한 검사는 유지한다.
+
+기본 content 투영의 projection은 숨은 비조작 장식 노드, aria-hidden 전용 아이콘, 컨트롤 이름과 동일한 자식 텍스트를 생략한 수와 종류다. 이름·상태·실행 대상·관계 종점·항목/행 구조는 유지한다. query나 state를 함께 요청하면 축약하지 않는다. 정본은 그대로 보관하며 details의 explain 경로에서 상세를 읽는다. projection 수는 미수집이나 결과 항목 수가 아니다. 출력 축약 때문에 coverage를 완결로 승격하지 않는다.
 
 `find --role combobox` 또는 `{"roles":["combobox"]}`는 이름 없는 입력을 포함해 역할로 조회한다. terms와 roles가 모두 없는 목표는 거부한다. 역할만 일치한 match는 field="role"로 표시한다. `find --text-limit N`/goal.textLimit는 기본500자, 상한4000자이며 byteBudget과 함께 적용한다. textTruncated/valueTruncated는 미리보기 잘림이다. 목록 항목·행·article의 owner.text는 최대160자의 같은 조상 원문이며 textTruncated가 있으면 일부다. `run ACTION --session ID`는 기존 저장 액션 실행, `run --input-file task.json --session ID`는 목표 계획 실행으로 구분한다.
 

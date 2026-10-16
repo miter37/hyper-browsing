@@ -4,6 +4,16 @@ import {chromium} from 'playwright';
 import {browserOptions} from './browser-options.mjs';
 import {findGoal} from '../src/runtime/task/observe.ts';
 import {executePrimitive} from '../src/engine/execute.ts';
+import {parseGoal} from '../src/runtime/task/schema.ts';
+
+test('invalid goal diagnostics identify the field and correction without echoing private input',()=>{
+ assert.throws(()=>parseGoal({terms:['secret search'],fields:['PRIVATE_VALUE']}),e=>{
+  assert.equal(e.code,'invalid_goal');assert.equal(e.execution,'not_started');
+  assert.equal(e.validation[0].path,'fields.0');assert.ok(e.validation[0].allowed.includes('name'));
+  assert.match(e.validation[0].hint,/states/);assert.doesNotMatch(JSON.stringify(e.validation),/PRIVATE_VALUE|secret search/);return true;
+ });
+ assert.throws(()=>parseGoal({}),e=>{assert.match(e.validation[0].hint,/terms.*roles/);return true;});
+});
 
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 

@@ -6,8 +6,9 @@ import { referencesFor, targetFor, type ActionTarget } from "../runtime/referenc
 import { resolveElement, LocatorResolutionError } from "./locators";
 import type { ElementDefinition } from "../schema/site";
 import { watchPopups } from './popups';
-import { waitBeforeInput } from './input-pacing';
+import { waitBeforeInput,inputAlreadyPaced } from './input-pacing';
 import { redactContent } from '../utils/strings';
+import {prepareActionRegion,observeActionRegion} from './action-region';
 
 /** Agent-driven actions fail fast instead of Playwright's 30 s default; `--timeout-ms` overrides. */
 export const DEFAULT_ACTION_TIMEOUT_MS = 5000;
@@ -192,8 +193,11 @@ export function unresolvedResult(target: Exclude<UniqueResolution, { locator: Lo
 export interface ActParams {
   /** Internal task runtime: observe the target here; requested goals replace global probes/settling. */
   goalDriven?:boolean;
+  inputPacing?:symbol;
   deadline?:number;
   targetStates?:Partial<Pick<TargetState,'value'|'checked'|'selected'|'expanded'|'pressed'|'disabled'>>;
+  /** Internal: only the terminal task action needs implicit local context. */
+  localContext?:boolean;
   locator?: LocatorStrategy;
   ref?: string;
   element?: ElementDefinition;
@@ -234,7 +238,7 @@ export async function actOn<T>(
   authorize?: (target: ActionTarget) => Promise<Record<string, any> | undefined>,
   pinnedTarget?: ActionTarget,
 ): Promise<Record<string, any>> {
-  if (kind !== 'extract') await waitBeforeInput();
+  if (kind !== 'extract'&&!inputAlreadyPaced(params.inputPacing)) await waitBeforeInput();
   if(params.deadline!==undefined&&Date.now()>=params.deadline)return {ok:false,execution:'not_started',reason:'task_budget'};
   const timeoutMs = Number(params.timeoutMs) > 0 ? Number(params.timeoutMs) : DEFAULT_ACTION_TIMEOUT_MS;
   let target: { locator: ActionTarget; resolvedBy?: string; equivalentMatches?: number };
@@ -307,6 +311,8 @@ export async function actOn<T>(
     };
   }
 
+  const local=kind==='extract'?undefined:await prepareActionRegion(page,target.locator,params.localContext!==false);
+  if(local?.obstructed&&kind!=='press'){const current=await observeActionRegion(page,local);return {ok:false,reason:'blocked_by_overlay',execution:'not_started',...resolved,obstruction:JSON.parse(redactContent(JSON.stringify(local.obstruction))),effect:{observed:true,current,page:{regions:[{id:local.id,role:current?.role??'dialog'}]}},hint:'The observed dialog covers the target. Use its local controls before continuing; no input was sent.'};}
   const probeBefore = kind === "extract" || params.goalDriven ? null : await probePage(page);
   if(params.targetStates){const current=await readTarget(page,target.locator,params.targetStates);if(!current.attached||!current.matchesExpected)return {ok:false,execution:'not_started',reason:'precondition_mismatch',...resolved};}
   if(params.deadline!==undefined&&Date.now()>=params.deadline)return {ok:false,execution:'not_started',reason:'task_budget'};
@@ -357,13 +363,16 @@ export async function actOn<T>(
   const urlChanged = before.url !== after.url;
   const targetGone = before.attached && !after.attached;
   const pageChange = urlChanged ? undefined : diffProbe(probeBefore, probeAfter);
+  const current=!urlChanged&&params.localContext!==false?await observeActionRegion(page,local):undefined;
+  if(current&&local){const previous=pageChange?.regions??[];if(pageChange)pageChange.regions=previous.length?previous:[{id:local.id,role:current.role}];}
   const effect: Record<string, any> = {
     ...(params.goalDriven?{scope:'target-and-requested-goals'}:{}),
     urlChanged,
     url: after.url,
     targetChanged: Object.keys(changes).length ? changes : undefined,
     targetGone: targetGone || undefined,
-    page: pageChange,
+    ...(current?{current}:{}),
+    page: pageChange??(current&&local?{regions:[{id:local.id,role:current.role}]}:undefined),
   };
   if (urlChanged) {
     effect.status = nav.status();
@@ -371,7 +380,7 @@ export async function actOn<T>(
     effect.h1 = probeAfter?.h1;
     effect.blocked = await detectBlock(page);
   }
-  effect.observed = urlChanged || targetGone || Object.keys(changes).length > 0 || Boolean(pageChange);
+  effect.observed = urlChanged || targetGone || Object.keys(changes).length > 0 || Boolean(pageChange)||Boolean(current);
   effect.pageState = await inspectPageState(page,undefined,params.goalDriven?0:3000);
   const newSessions=await popups.finish(Boolean(expectsPopup));
   if(newSessions.length){effect.newSessions=newSessions;effect.observed=true;}
@@ -464,14 +473,15 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
     }).catch(() => null);
     const matches=read && String(read.value).replace(/\s+/g,' ').trim()===wanted.replace(/\s+/g,' ').trim();
     if (params.submit && matches) {
+      if(params.deadline!==undefined&&Date.now()>=params.deadline)return {kind:element,actual:read?.value,secret:read?.secret,submissionRefusal:{ok:false,reason:'task_budget'}};
       const refused=authorize ? await authorize(locator) : undefined;
       if (refused) return {kind:element,actual:read?.value,secret:read?.secret,submissionRefusal:refused};
       await locator.press("Enter", { timeout });
     }
-    return { kind: element, actual: read?.value, secret: read?.secret,submissionSkipped:params.submit&&!matches };
+    return { kind: element, actual: read?.value, secret: read?.secret,submissionSkipped:params.submit&&!matches,submitted:params.submit&&!!matches };
   },authorize);
   if (!outcome.ok) return outcome;
-  const v = (outcome.value || {}) as { kind?: string; actual?: string; secret?: boolean; submissionSkipped?: boolean; submissionRefusal?: Record<string,any> };
+  const v = (outcome.value || {}) as { kind?: string; actual?: string; secret?: boolean; submitted?:boolean; submissionSkipped?: boolean; submissionRefusal?: Record<string,any> };
   const normalize = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
   const res: Record<string, any> = { ok: true };
   if (v.kind === "choice") res.selected = v.actual;
@@ -504,6 +514,7 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   res.resolvedBy = outcome.resolvedBy;
   res.execution = outcome.execution;
   if(v.submissionRefusal)return {...res,...v.submissionRefusal,execution:outcome.execution,submitted:false,submissionExecution:'not_started'};
+  if(v.submitted)return {...res,submitted:true,submissionExecution:'completed'};
   return res;
 }
 

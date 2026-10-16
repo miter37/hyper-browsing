@@ -28,7 +28,7 @@ test('daemon keeps requested overview when retention rejects, and never advertis
  daemon.observations=new ObservationService(new ObservationStore({maxObservationBytes:50}));
  const result=await daemon.dispatchUnlocked('page.snapshot',{sessionId:opened.id,format:'hwm',mode:'overview',nodeBudget:10});const v=parseHwm(result.hwm);
  assert.equal(v.header.view,'overview');assert.equal(v.header.retention.reason,'observation_too_large');
- assert.ok(v.entries.filter(e=>e.type==='node').length<result.snapshot.contextGraph.nodes.length);
+ assert.equal(result.snapshot.contextGraph,undefined);assert.ok(v.entries.filter(e=>e.type==='node').length<result.context.nodes);
  assert.ok(v.entries.some(e=>e.tag==='gap'&&e.attrs.kind==='unavailable'&&e.attrs.reason==='observation_too_large'));
  assert.ok(!v.entries.some(e=>e.tag==='gap'&&'expand' in e.attrs));
 });
