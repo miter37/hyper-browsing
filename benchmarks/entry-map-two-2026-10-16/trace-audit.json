@@ -1,0 +1,16 @@
+[
+  {
+    "agent": "/root/entrymap_booking",
+    "imageViews": 0,
+    "executionCalls": 52,
+    "allLimits30000": true,
+    "exceptions": []
+  },
+  {
+    "agent": "/root/entrymap_bestbuy",
+    "imageViews": 0,
+    "executionCalls": 25,
+    "allLimits30000": true,
+    "exceptions": []
+  }
+]

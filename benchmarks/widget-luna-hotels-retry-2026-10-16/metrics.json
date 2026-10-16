@@ -1,0 +1,11 @@
+{
+  "site": "Hotels.com",
+  "model": "gpt-6-luna",
+  "headed": true,
+  "elapsedMs": 249797.0,
+  "cliCalls": 39,
+  "cliDurationMs": 42441.0,
+  "stdoutBytes": 81936.0,
+  "result": "succeeded",
+  "skillNote": "Calendar sentence added at user request after agent initial skill read; not attributed to this trial outcome."
+}

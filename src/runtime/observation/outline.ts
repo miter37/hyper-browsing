@@ -32,7 +32,7 @@ const SCRIPT=`opts=>{
  return {items,complete:walkDiagnostics.complete,total:matches.length,retainedSections:Object.keys(opts.boundaries).filter(k=>opts.boundaries[k].section)};
 }`;
 /** Headings only: no prose graph, field values or per-node layout measurements. */
-export async function captureOutline(page:Page,root:ElementHandle,boundaries:JSHandle,options:{panel:string;query?:string;offset:number;limit:number;includeChildren?:boolean;section?:JSHandle}){
+export async function captureOutline(page:Page,root:ElementHandle,boundaries:JSHandle,options:{panel:string;query?:string;offset:number;limit:number;includeChildren?:boolean;section?:JSHandle;viewportOnly?:boolean}){
  const state=await referencesFor(page).snapshotState();
  const value=await page.evaluate(({script,opts})=>eval(`(${script})`)(opts),{script:SCRIPT,opts:{...options,root,boundaries,state:state.state}});
  return {...value,items:value.items.map((item:OutlineItem)=>({...item,name:redactContent(item.name)}))};

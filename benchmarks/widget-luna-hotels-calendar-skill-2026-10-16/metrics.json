@@ -1,0 +1,18 @@
+{
+  "elapsedMs": 89928.0,
+  "calls": 18,
+  "stdoutBytes": 32937.0,
+  "cliDurationMs": 21699.0,
+  "calendar": {
+    "elapsedMs": 63590.0,
+    "stdoutBytes": 25057.0,
+    "cliDurationMs": 12708.0,
+    "calls": 13
+  },
+  "previousCalendar": {
+    "elapsedMs": 72744,
+    "stdoutBytes": 29453,
+    "cliDurationMs": 14028,
+    "calls": 14
+  }
+}

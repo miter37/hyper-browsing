@@ -28,7 +28,7 @@ export async function runTask(page:Page,input:unknown,runtime:Runtime={}){
   else{let found;try{found=await findReadyGoal(page,step.target,steps.length?Math.min(deadline,Date.now()+task.waitMs):Date.now(),()=>hasNewLinkedRegion(page,recoveryBaseline));}catch{return await finish('target_observation_failed');}if(found.status!=='unique'||found.candidates[0]?.actionable!==true||found.candidates[0]?.disabled===true)return await finish('target_'+(found.candidates[0]?.disabled?'disabled':found.reason??found.status),{finding:found,...(found.pageState?{pageState:found.pageState}:{})});ref=found.candidates[0].ref!;}
   const metadata=referencesFor(page).metadata(ref);if(metadata?.actionable===false)return await finish('target_not_actionable');
   let baseline;try{baseline=await prepareTransition(page,step.expect);}catch{return await finish('baseline_unavailable');}
-  const followBaseline=step.follow&&step===task.steps.at(-1)?await prepareFollow(page,step.follow,ref):undefined;
+  const followBaseline=step.follow&&(step===task.steps.at(-1)||step.follow.scope==='origin')?await prepareFollow(page,step.follow,ref):undefined;
   try{
    if(!baseline.valid)return await finish('baseline_incomplete');
    if(Date.now()>=deadline)return await finish('task_budget');
@@ -38,7 +38,7 @@ export async function runTask(page:Page,input:unknown,runtime:Runtime={}){
    const record:any={id:step.id,...(runtime.requestId?{requestId:runtime.requestId,stepId:runtime.requestId+':'+step.id}:{}),ref,action:actionEvidence(action)};steps.push(record);
    lastFinding=undefined;
    if(action.execution!=='completed'||action.ok!==true){
-    let finding;if(step.follow)try{finding=await findGoal(page,step.follow);}catch{/* Preserve original action outcome. */}
+    let finding;if(step.follow)try{finding=followBaseline?await observeFollow(page,step.follow,followBaseline,Date.now()):await findGoal(page,step.follow);}catch{/* Preserve original action outcome. */}
     return await finish(action.confirmationRequired?'confirmation_required':action.reason??'action_not_completed',{...(finding?{finding}:{}),...(action.effect?.pageState?{pageState:action.effect.pageState}:{})});
    }
    if(action.effect?.newSessions?.length)return await finish('new_context_requires_selection');
@@ -66,7 +66,7 @@ export async function executeWithFollow(page:Page,params:PrimitiveParams,input:u
   const action=await execute();let verification,finding,observationError;
   try{
    if(action.ok===true&&action.execution==='completed'&&follow.expect){const observed=await waitForTransition(page,follow.expect,baseline,params.ref??'',Date.now()+follow.waitMs,()=>hasNewLinkedRegion(page,recoveryBaseline));const {finding:verifiedFinding,...status}=observed;verification=status;finding=verifiedFinding;}
-   if(follow.follow&&!(verification?.status==='unconfirmed'&&verification.reason==='new_linked_region'))finding=action.ok===true&&action.execution==='completed'&&verification?.status!=='unconfirmed'&&followBaseline?await observeFollow(page,follow.follow,followBaseline,Date.now()+follow.waitMs):await findGoal(page,follow.follow);
+   if(follow.follow&&!(verification?.status==='unconfirmed'&&verification.reason==='new_linked_region'))finding=followBaseline?await observeFollow(page,follow.follow,followBaseline,Date.now()+(action.ok===true&&action.execution==='completed'&&verification?.status!=='unconfirmed'?follow.waitMs:0)):await findGoal(page,follow.follow);
   }catch{observationError='follow_observation_failed';}
   const stalled=action.ok!==true||action.execution!=='completed'||verification?.status==='unconfirmed'||observationError||follow.follow&&['not_found','incomplete'].includes(finding?.status??'');
   return taskResult({...action,...(verification?{verification}:{}),...(finding?{finding}:{}),...(observationError?{observationError}:{}),...(stalled?{recovery:await observeRecovery(page,recoveryBaseline)}:{})});

@@ -22,7 +22,7 @@ import { verifyPage } from '../engine/verify';
 import { evidenceFor } from "../runtime/metrics";
 import { detectState } from "../engine/state";
 import path from "node:path";
-import { redactText } from "../utils/strings";
+import { redactText,redactContent,redactUrl } from "../utils/strings";
 import { recordLearningEvent, encodeObservedExtraction, learningStatus, learningContext, finishObservedLearning } from "../runtime/learning";
 import { finishLearning, readNotes, saveNotes } from "../runtime/learning-policy";
 import { saveObservedAction } from "../runtime/learning-assets";
@@ -120,7 +120,7 @@ export class BrowserDaemon {
         const output=params.format==='hb'?result:params.format==='hwm'?Object.fromEntries(Object.entries(result).filter(([key])=>!['snapshot','changes'].includes(key))):full?result:compactResult(result);
         json(res, 200, { ok: true, result: boundedObservationOutput(output) });
       } catch (error: any) {
-        json(res, 200, { ok: false, execution: error.execution === "not_started" ? "not_started" : "outcome_unknown", error: error?.message || String(error), ...(error.code==='invalid_goal'&&error.validation?{validation:error.validation}:{}), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
+        json(res, 200, { ok: false, execution: error.execution === "not_started" ? "not_started" : "outcome_unknown", error: error?.message || String(error), ...(['invalid_goal','invalid_task','invalid_follow'].includes(error.code)&&error.validation?{validation:error.validation}:{}), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
       }
     });
 
@@ -293,7 +293,7 @@ export class BrowserDaemon {
         const blocked = await detectBlock(this.store().get(opened.id));
         if (blocked) opened.blocked = blocked;
       }
-      return opened;
+      return params.url?this.withEntryMap(this.store().get(opened.id),opened.id,opened):opened;
     }
     if (method === "session.list") return this.store().list();
     const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
@@ -303,7 +303,7 @@ export class BrowserDaemon {
       if(method==='task.run'){const pending=await this.demand.beforeGoal(page,params.sessionId,params);if(pending)return pending;}
       return method==='task.find'?this.demand.find(page,params.sessionId,params.input,params):this.demand.goalResult(page,params.sessionId,await runTask(page,params.input,{requestId:params.observationRequestId}),params);
     }
-    if(params.at&&(!['page.read','page.explain','page.snapshot','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(method)||!['page.read','page.explain'].includes(method)&&params.format!=='hb'))throw Object.assign(new Error('continuation_requires_supported_hb_command'),{code:'continuation_requires_supported_hb_command',execution:'not_started'});
+    if(params.at&&(!['page.read','page.explain','page.snapshot','page.scroll','page.click','page.hover','page.fill','page.select','page.press','batch.run'].includes(method)||!['page.read','page.explain'].includes(method)&&params.format!=='hb'))throw Object.assign(new Error('continuation_requires_supported_hb_command'),{code:'continuation_requires_supported_hb_command',execution:'not_started'});
     if(['page.read','page.explain'].includes(method)){
       if(!page)throw Object.assign(new Error('sessionId required'),{execution:'not_started'});
       const pending=await this.demand.beforeGoal(page,params.sessionId,params);if(pending)return pending;
@@ -382,7 +382,7 @@ export class BrowserDaemon {
       if (params.observe) {
         res.snapshot = await captureSnapshot(page, { references: referencesFor(page) });
       }
-      return res;
+      return params.format===undefined||params.format==='hb'?this.withEntryMap(page,params.sessionId,res):res;
     }
     if (method === "page.snapshot") {
       if (!page) throw new Error("sessionId required");
@@ -410,7 +410,8 @@ export class BrowserDaemon {
     }
     if (method === "page.back" || method === "page.forward") {
       if (!page) throw new Error("sessionId required");
-      return await goHistory(page, method === "page.back" ? "back" : "forward");
+      const result=await goHistory(page, method === "page.back" ? "back" : "forward");
+      return result.ok&&(params.format===undefined||params.format==='hb')?this.withEntryMap(page,params.sessionId,result):result;
     }
     if (method === "page.extract") {
       if (!page) throw new Error("sessionId required");
@@ -515,13 +516,19 @@ export class BrowserDaemon {
     }
     if (method === "page.scroll") {
       if (!page) throw new Error("sessionId required");
-      return await scrollPage(page, {
+      if(params.format==='hb'){params=this.demand.prepare(page,params.sessionId,params);delete params.at;}
+      const scrollOptions={
+        ...params,
         direction: params.direction,
         distance: params.distance ? Number(params.distance) : undefined,
         times: params.times ? Number(params.times) : undefined,
         selector: params.selector,
         delayMs: params.delayMs ? Number(params.delayMs) : undefined,
-      });
+      };
+      const result=params.format==='hb'?await this.demand.scroll(page,params.sessionId,scrollOptions):await scrollPage(page,scrollOptions);
+      if(params.format!=='hb')return result;
+      try{return {...result,currentView:await this.demand.map(page,params.sessionId,{viewport:true,since:params.since,consumer:params.consumer})};}
+      catch(e:any){return {...result,observationError:e.code??'viewport-observation-failed'};}
     }
     if (method === "page.waitFor") {
       if (!page) throw new Error("sessionId required");
@@ -611,6 +618,14 @@ export class BrowserDaemon {
     }
 
     throw new Error(`Unknown RPC method: ${method}`);
+  }
+
+  /** One small orientation on entry; never turns observation failure into a navigation retry. */
+  private async withEntryMap(page:Page,session:string,result:any){
+    const safe={...result};for(const key of ['url','previousUrl'])if(typeof safe[key]==='string'){const value=redactUrl(safe[key]);if(value!==safe[key])safe.redacted=[...new Set([...(safe.redacted??[]),key])];safe[key]=value;}
+    if(typeof safe.title==='string')safe.title=redactContent(safe.title);
+    try{return {...await this.demand.map(page,session),...safe};}
+    catch(error:any){return {...safe,observationError:error.code??'initial_map_unavailable',next:`snapshot --session ${session}`};}
   }
 
   async stop(): Promise<void> {

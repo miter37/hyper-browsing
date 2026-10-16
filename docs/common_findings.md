@@ -1083,3 +1083,105 @@ invalid_goal은 validation 최대3개(path/code/hint/허용 enum)로 잘못된 �
 Booking 동일 조건 headed Luna 1회 재시험 전체완료4/4. 29호출/191.504초(첫CLI~마지막CLI),전체 에이전트254.187초,stdout46658B,실제 도구 전달 텍스트140116B(스킬/도움말 포함). 현재 프로젝트 스킬과 모델 확인,제품98개 동결 변경0개. 34개 실행 도구 호출 모두 내부/외부 출력 한도30000,실제 호스트 잘림0회. 이미지 실제 열람3회. 가격 폴백027에서 Min.ref/값을 이미지와 함께 전달→이미지 열람→추가조회 없이028에서100000 입력 및 URL가격조건 적용. 복수 날짜 후보와 --content 상품 질의는 불필요한 이미지 전환을 일으키지 않음.
 
 남은 병목: 초반 오버레이에서 전체뷰포트 컨트롤 표본이 배경 네이티브 입력을 우선해 닫기 버튼 누락. Luna가 Close/X 추측조회, goal-id를 dismiss-dialog→dismiss-close로 변경,배경fill(value_mismatch) 후 지도에서 실제닫기버튼을 발견함. 결과성공만으로 이 시행을 매끄럽다고 평가하면 안 된다. run묶음 없이 전부 단일조회/조작. 가격복구는 확인됐으나 오버레이 우선 관찰/컨트롤 예산 배분은 다음 일반 개선 검토 대상. 직전 부분완료265.988초/32호출 대비 짧지만 더 이전 전체완료170.673초보다 느림. N=1,인과적 성능향상 주장하지 않음. 기록 benchmarks/booking-delivery-fix-2026-10-16/report.ko.md.
+
+
+### 2026-10-16 16:59:19 +09:00 — GPT-6 Codex
+
+사용자 확정: 첫 사이트 진입에는 작은 패널 지도와 주요 컨트롤을 반드시 기본 제공한다. 작은 출력 최적화를 이유로 첫 방향잡기까지 생략한 이전 선택 정책을 정정. session.open --url 응답에 기존 경량 map/panels/at/delivery를 통합해 별도 지도조회 왕복을 없앴다. 기본 hb goto/back/forward의 실제 이동에도 새 지도를 포함한다. 같은 화면의 입력은 기존 국소 응답을 유지하고, URL 없는 빈 세션 생성과 명시적 json/hwm 이동의 기존 경로는 유지. 지도 수집 실패는 observationError와 별도 지도조회 안내로 처리하고 이미 열린 세션/이동을 재실행하지 않는다. URL 마스킹은 합친 응답에도 적용한다. SKILL/COMMANDS와 후속 실험 계약도 첫지도확인→열린창처리→받은ref행동 흐름으로 정리했다.
+
+새 회귀4개를 실패 재현 후 통과: 첫 응답 내 실제 팝업닫기/입력ref, 새 이동 지도와 국소입력 분리, 지도실패 시 세션보존, URL 민감값 마스킹. 타입검사 성공, HWM135/135·실행68/68 통과. 로컬 fixture의 긴 본문은 첫 응답에 없고 지도응답8KB미만을 확인했다. 실제 Booking에서의 시간 이득은 새로 측정하지 않음. 현재 수정은 직전739436e 커밋 이후 작업이며 아직 새 커밋하지 않았다.
+
+
+### 2026-10-16 17:19:50 +09:00 — GPT-6 Codex
+
+첫지도 도입 후 어려운2사이트를 Luna/medium으로 사이트별1회,한 에이전트씩 순차 재시험. current프로젝트SKILL 실독,학습OFF,headless 시작. Booking부분1/4:317.549초45호출stdout115019B;BestBuy부분2/4:184.706초23호출stdout74857B. 제품98개 동결 변경0개. 실제 도구 출력 한도내/외부30000 모두확인,호스트잘림0회. 두 세션 모두 이미지열람0회.
+
+Booking:first entry Loading문서에서 initial_map_unavailable(정확한예외미보존);별도지도002는 팝업닫기·입력ref를 제대로 제공했으나 Luna가 배경fill004부터 해value_mismatch,006에서닫음. 지도정보가있어도순서준수는별도문제. 달력run에서같은ref를3회재사용→부분stale_ref로안전중단→새ref로이어감. 날짜선택3회에도도시소개페이지로이동,마지막관찰CTA의조건없는검색URL은기본날짜·빈목적지를반환. 가격하한/조건숙소확인못함.
+
+BestBuy:첫지도1190B 자동제공성공. 국가선택초기href#→뒤관찰#?intl=nosplash,클릭2회에도정체. 명시적접근거부근거없이headed로전환한정책이탈,전환뒤홈검색성공. contents+controls를offset60/110/160으로훑음,list는상품대신sidebar-facets반환,ref복사오류는stale_ref로실행전거부. 실제관찰상품링크2개가오류문서로이동해상세미확인. 첫지도만으로깔끔해졌다고평가하지않는다. 다음검토는초기지도오류진단/열린모달우선/조건유지된검색근거/목적범위페이징/접근제한과정체구분이다. 사이트특정예외로고치지않는다. 과거성공시행과모드등조건이달라N=1인과회귀단정금지. 보고서 benchmarks/entry-map-two-2026-10-16/report.ko.md.
+
+
+### 2026-10-16 17:32:39 +09:00 — GPT-6 Codex
+
+사용자 요청으로 Luna대신 root가 같은Booking/BestBuy과업을 현재 HB로 직접1회씩 수행. 이전로그를봤으므로 블라인드모델비교 아님. Booking15호출부분완료: 첫지도실패,팝업먼저닫기+입력run성공,목표기반월이동·날짜선택run성공,실제Search클릭과복구후Search Enter모두도시페이지로이동/날짜초기화. 조건유실은root에서도재현. 작은읽기전용FormData진단은 ss만확인했고원인을확정하지않음. BestBuy8호출: USref갱신은복구ref로처리해headless홈진입;Enter타임아웃에앱이자동headed전환,현재결과를읽어재제출회피. 좁은Dell링크조회후실제상품상세는 Access Denied. Luna의순서·범위선택차이는있지만실패전체를Luna탓으로돌릴수없다. 더적은호출이지더높은성공으로보고하지않음. 동결98개변경0. 상세 benchmarks/direct-two-2026-10-16/report.ko.md.
+
+### 2026-10-16 19:07:34 +09:00 — GPT-6 Codex
+
+지도 제작/갱신 전략을 찾기 위해 root가 현재 프로젝트 HB로 30개 사이트를 직접 관찰했다. eBay 오류/Reuters 검증을 제외한28개 실제 구조 확인. 첫화면30+후속33=63상태,226CLI,63스크린샷;첫화면 이미지는30개 모두 실제 열람,후속이미지는주요사례선별열람. headless시작,npm중기존복구가headed로전환했으므로성능비교나단일모드시험아님.학습OFF,사이트별자산사용/생성없음,제품/스킬코드수정없음,전용브라우저정리완료.원문.runtime/map-study-2026-10-16/study,색인benchmarks/map-study-2026-10-16/evidence-index.json.
+
+공통결함:1)landmark후보가2개이상이면body기하폴백이작동하지않아main안좌우분할을놓침.2)내부첫제목을전체name으로승격:PyPI검색main='Filter by classifier',Booking달력열림후main='October 2026',DuckDuckGo결과document=첫장소명.3)nested header는독립후보에서제외하면서그아래H1은이름계산에서도제외해Wikipedia Apollo11/W3C Tutorials대신다음H2를전체main이름으로선택;실제DOM조상조회로확인.4)React검색/IKEA·NASA메뉴/Airbnb달력처럼role이일정하지않은작업면은전체지도만으로놓침.5)현재viewport와DOMoffset은별개;스크롤뒤기존지도/앞쪽필터읽기문제는단순한LLM착오만아님.6)Archive는shadow본문이풍부하지만lightDOM본문길이0/상태unknown이므로본문부재로추론하면안됨.
+
+제안:단일관찰모델에서전체구조/현재화면/현재작업면을구분.명시경계안에서도보수적구조·기하분할;name과내부headings분리;scroll-owner/clip에맞는현재화면읽기주소;역할뿐아니라명시연결·focus·expanded·추가/노출근거로작업면안내;새문서·큰구조변화에는지도,메뉴/값변화에는국소정보,스크롤에는현재구역진입점.모든변화마다전체지도나HWM을보내지않음.사이트별분기없이로컬구조fixture와새사이트holdout으로검증할계획.이번관찰은새알고리즘효과를입증한A/B가아님.상세 docs/MAP-STRATEGY-STUDY-2026-10-16.md.
+
+
+## 2026-10-16 19:24:52 KST — GPT-6 Codex — 지도 전략의 공통 구현
+
+- 연구의 첫 필터/기사/달 제목을 전체 영역 이름으로 올리는 문제를 name(명시적 aria-labelledby/aria-label)과 headings(내부 제목 단서) 분리로 고쳤다. 이름 없는 영역을 정상적으로 허용한다. 중첩 HTML header와 숨은 제목도 일반 DOM 규칙으로 처리한다.
+- 기존 landmark에 큰 수평 형제 열, 반복 자식 묶음, 실제 독립 스크롤 경계를 더했다. 사이트 URL/상품/달력 문구 분기는 없다. 탐색과 패널/컨트롤 출력에 상한을 두고 부모 소속을 보존한다.
+- read --visible은 DOM offset과 별개의 현재 viewport/clipping 범위다. 화면 밖 문단을 모두 정본 노드로 만들면 노드 예산이 먼저 소진되는 문제를 재현했다. 보이는 데이터로 이어지는 경로만 지연 보존하도록 고쳤다.
+- scroll은 요청 거리 대신 실제 owner/offset/이동을 보고하고 작은 currentView 진입점을 준다. 명시적 펼침/제어 관계가 있는 역할 없는 작업면도 기존 action probe/focus에 연결했다. 단순 값 변경은 전체 지도를 갱신하지 않고 실제 기존 경계가 끊긴 때 새 지도를 준다.
+- SKILL은 적용 직전 4,203자에서 4,335자로 132자(+3.1%)만 늘렸다. 상세 계약은 docs/PANEL-MAP.md에 두었다. 회귀 검증은 일반 HTML/실제 Chromium과 실제 daemon/RPC 경로로 진행한다. live 30개 사이트의 새 버전 성공률을 측정한 것은 아니다.
+
+
+## 2026-10-16 19:35:03 KST — GPT-6 Codex — 새 지도 SKILL Luna 헤디드 Booking 1회
+
+- 현재 프로젝트 SKILL을 읽은 gpt-6-luna medium이 기존 Sydney 2027-01-10~12/2성인1객실/1박KRW100000이상 과업을 1회 수행했다. 완료: Shangri-La Sydney 평점8.7/2박2인KRW595933/세금포함. 첫 CLI~종료185944ms, 39CLI, stdout101212B. 코드 변경 없이 headed/학습비활성.
+- 새 지도 P3는 필터, P4는 결과 목록으로 나뉘었고 P4 outline→숙소 section at→본문 읽기가 실제 성공했다. 과거 필터 offset60/120 반복은 없었다.
+- 실전 공백: scroll --at/--panel은 해당 패널이 아닌 document를 스크롤했다. 실제 owner는 응답에 드러났으나 루나는2회 잘못 이동했다. 패널을 관찰범위로만 취급하는 현재 실행 계약이 혼란을 유발한다. 달력의 scroll패널만으로 외부 제어 버튼까지 설명되지 않았고 generic Next의 radiogroup 소속도 LLM이 놓쳤다.
+- 초기 빈 지도는 missing document인데 kind=map/complete=true로 나와 잘못된 read를 유도했다. 작은 query read도 구조 wrapper가 내용 예산을 소진했다. read --visible은 이번 미사용으로 실전 효과 판정하지 않는다.
+- 이전35CLI/208523ms/98770B보다 시간은 줄고 호출/출력은 늘었다. 이번 숙소1개/이전2개, UI 차이와 가격 조작 차이가 있어 단일 실험 인과를 주장하지 않는다. 상세 원문 대조: benchmarks/map-skill-booking-2026-10-16/report.ko.md.
+
+
+## 2026-10-16 20:01:03 KST — GPT-6 Codex — 헤디드 달력·가격 필터 10개 사이트 직접 연구
+
+- Booking/Airbnb/Expedia/KAYAK/Google Flights/Trip/Agoda/Hilton의 실제 달력과 Booking/IKEA/Best Buy 가격 필터를 조작했다(고유10곳). 13사이트 방문 중 Walmart는 CAPTCHA로 중단, Newegg는 가격 범위 미확인, Amazon은 가격 정렬만 확인해 주 조사 수에 넣지 않았다. 학습 비활성, 제품 코드·SKILL 수정 없음. 상세: docs/CALENDAR-PRICE-FILTER-STUDY-2026-10-16.md.
+- 핵심은 위젯별 state/commit 차이였다. Google fill→Tab 후에야 정규화/selected와 Done 이름이 바뀜. Best Buy Min/Max 입력만으로 적용 안 됐고 Set 뒤 칩/URL 생성. Hilton 임시13일→Cancel로 기존10~12일 복원. Expedia Escape는 선택값을 유지. 닫기=적용/취소를 일반화하면 안 됨.
+- Booking900px에서 내부 scrollTop296→516 이동을 올바른 소유자 selector로 확인. 화면 밖 January10의 clipped=scroll ref 클릭은 기존 실행기의 자동 스크롤로 offset867/실제 선택 성공. 월 이동버튼 반복이 필수 아님. 이때 currentView.visibleHeadings는 December 이미지에 October/November를 반환해 조상 clipping 누락을 발견했다.
+- Booking range는1×1px native input, step10000, ArrowRight로30000→40000 및 URL/필터 확인. Max.min도40000→50000으로 연동. 화면600000+를 raw max600000과 혼동하면 상한을 거짓으로 주장함. 통화/박당/열린상한 원문 보존 필요.
+- Airbnb 전체 날짜 이름 순서 때문에 부분문자열 검색 실패; checkout 날짜를 external_write로 오탐. Expedia/Agoda 숫자만 있는 셀에는 월 소속이 부족했고 실제 이미지/disabled/좌표를 함께 봐야 했다. Kayak/Trip은 상시 메뉴/다른 안내가 active focus를 차지했다. 사이트 예외 대신 소유권·명시 연결·현재 적용값·실제 입력 제약을 좁게 주는 공통 보완이 필요하다.
+- UI조사 종료까지222CLI/약19분/473498B는 진단·이미지 포함 연구량이고 실사용 비용 비교가 아니다. 4개 screenshot의30초 타임아웃은 로그만으로 폰트나 백그라운드탭 원인으로 확정하지 않는다.
+
+## 2026-10-16 20:19:09 +09:00 — GPT-6 Codex — 복합 입력의 관찰 기반 적응 전략 반영
+
+- 사용자 승인한 방향: 보편적 달력/가격 클릭 공식을 만들지 않고, 관찰한 입력 방식 선택 → 예상 가능한 최대4개 조작과 마지막 follow → 막힌 지점에서 남은 단계만 복구한다. SKILL은 기존 문장 교체로 4,335→4,448자(+113, 약2.6%). 상세는 docs/UI-INTERACTION.md에 분리했다.
+- 좁은 find/패널 controls·state 조회와 조작 후 focus에 native type/readonly/min/max/step/aria-valuetext/aria-invalid 사실을 보강했다. 문자열은 마스킹·길이 제한한다. 기본 지도에는 native 상세를 싣지 않는다. 통화·열린 상한·적용 의미는 추론하지 않는다.
+- HB scroll의 panel/at 범위를 실제 ElementHandle 소유자로 연결했다. 자체 또는 유일한 내부 세로 스크롤 요소만 선택하며 소유자 부재/여럿/탐색 불완전/section 범위는 명시적 실행 전 오류다. 조용한 문서 fallback을 금지했다. 핸들은 finally에서 해제한다.
+- viewport 제목은 조상 overflow clipping까지 반영한다. 작은 컨트롤 표본은 이름 있는 활성 입력/버튼을 무명 비활성 장식보다 앞에 둔다. 신규 사이트/도메인/날짜 문자열별 조건 없음.
+- 사이트 없는 실제 브라우저 fixture에서 관련 114개 테스트와 typecheck 통과. 이후 state/native 전달·소유자 부재·표본 우선순위 보강 테스트4개 및 typecheck도 통과. 이번에는 실전 사이트 재탐색/성능 비교를 하지 않았으므로 속도 개선 수치는 주장하지 않는다.
+
+## 2026-10-16 20:27:14 +09:00 — GPT-6 Codex — Hotels.com Luna 헤디드 1회
+
+- 미방문 조사 대상 Hotels.com, 현재 프로젝트 SKILL/launcher, 학습 비활성. 전체 과업 미완료: Paris 선택/달력 열기까지만 성공. 날짜·가격·숙소는 미확인, 차단은 없었다. 21CLI/104048ms/46515B, CLI합계22702ms. run 배치는0회였다.
+- 달력 controls,content의 offset0/60/120 세 응답22810B(약49%). 비활성 날짜·요일·래퍼가 조작 단서를 가렸다. 신규 native 사실은 전달됐지만 날짜 선택은 이 사실만으로 해결되지 않았다.
+- 열린 내부 달력 이미지(#14)를 보고도 루나는 panel/at 없이 scroll했다. 실제 document0→1091. 새 panel-scroll API 자체는 호출하지 않았다. stale ref는 실행 전 거부됐다. API 구현과 적시에 사용할 수 있는 응답 안내 사이가 여전히 병목이다.
+- #20에서는 현재 Dates 버튼 unique를 재발견했으나 Luna가 남은 예산에도 종료했다. 사후 확인에서 성급한 종료 판단이라고 인정했다. 앱만의 불가피한 실패로 기록하지 않는다. 다단어 query 인자 분리/invalid goal-id도 별도 호출 생성 오류였다.
+- root는 #14 열린 달력 이미지를 직접 대조했고, Luna는 #14와 #17 홈페이지 fallback 둘 다 열람했다고 확인했다. result-agent.json의 첫 이미지 경로와 사후 설명 시점 혼합은 보고서에서 정정했다. 상세 benchmarks/widget-luna-hotels-2026-10-16/report.ko.md. 제품 수정 없이 실험환경 정리 완료.
+
+## 2026-10-16 20:35:28 +09:00 — GPT-6 Codex — Hotels.com Luna 재시도와 달력 한 문장
+
+- 사용자 요청으로 SKILL에 달력 한 문장만 추가: 현재 월·연도/실제 이동·내부 스크롤 확인, 동일 숫자는 월 소속 구별, 모호하면 반복 목록 대신 해당 이미지. 재시도 Luna 최초 스킬 읽기 이후 변경이므로 이번 성공 원인으로 주장하지 않는다.
+- Luna 헤디드 재시도 성공: 파리2027-01-05~08,성인2/객실1, 가격 칩 Less than KRW250000,203곳. 기본Min112430 유지(시도한150000하한은 적용 안 됨). Hôtel Be Onrii 표시167166/총액601540세금포함, 광고카드임도 보존. root가 결과 이미지를 직접 확인했다.
+- 39CLI/249797ms/81936B, CLI합계42441ms. 첫 실패보다 범위가 넓어 단순속도비교 불가. 이번은 넓은 레이아웃/Next month가 있어 이전 좁은 달력과 UI도 달랐다. effect.current.status의 현재 두 달 문구가 유용했고 문서scroll은 없었다.
+- 통화기호 포함 입력은valueMatches=true뒤blur에서 원복, 숫자만입력+Tab은정규화/슬라이더값/필터칩으로적용됐다. native 사실·묶음끝 적용근거 구분 유지. 요일/래퍼 과다와 카드조회 진입점은 남은 보완점. 상세 benchmarks/widget-luna-hotels-retry-2026-10-16/report.ko.md.
+
+## 2026-10-16 20:40:48 +09:00 — GPT-6 Codex — 달력 한 문장 적용 새 Luna 세션
+
+- 이전 기록/해결책을 주지 않은 새 gpt-6-luna가 현재 SKILL로 Hotels.com 달력만 수행. 2027-01-05~08 선택 후 Dates버튼을 눌러 닫고 요약 유지 성공, 검색·가격 없이 종료. 목적지는 광역Paris 대신Paris City Center를 골라 전체 동일과업 성공으로 확대하지 않음.
+- 달력 구간 직전성공72.744초/14CLI/29453B→이번63.590초/13CLI/25057B. 월이동2개를run배치로, 날짜명실패→숫자후보→실제이미지로월구분. 단일시행·프롬프트/후보차이 있어 문장의 인과효과 단정금지.
+- outline과다른want혼합오류1회,60노드요일/래퍼출력,닫을때dialog밖날짜버튼찾기재조회는 남았다. 짧은문장 유지하면서 응답의 조작진입점/범위계약을 개선할 근거. 상세 benchmarks/widget-luna-hotels-calendar-skill-2026-10-16/report.ko.md.
+
+## 2026-10-16 21:02:17 +09:00 — GPT-6 Codex — 조작 문맥·부분 조회·follow 연결 보완
+
+- 사용자가 승인한1~5방향을 기존read/run/follow에 반영. controls,state는 본문그래프 없이 실제컨트롤+작은current 값/제목/status. 단독state는 그룹전체상태 그래프경로 유지, content는본문. SKILL4544→4629자(+85,1.9%), 긴 예시는 UI-INTERACTION에 분리.
+- related는 명시적ARIA/HTML 제어기·제어대상·폼·실제overflow 스크롤만최대4개. ancestor/descendant경유는via로 한정. at은 실제현재범위registry/guard/TTL을사용해바로read/scroll가능. 부가범위는기존지도동일성비교에서분리하고 unchangedmap갱신뒤에도기존at이엉뚱한대상으로바뀌지않음회귀확인.
+- 원래폼 조회는follow.scope=origin으로명시. 동작전폼/범위WeakRef보존, 포털은명시적제어기폼연결을사용. 다중폼·불완전탐색·문서교체/원본교체는origin_region_stale이며document로조용히확대하지않음. 기존active linked follow와실행단계별semantic대상조회유지.
+- parseTask/parseFollow도private한필드경로·허용값validation을제공. 명령실행전교정이며완료된조작재전송허가는아님. 새로운사이트명/URL/달력/가격단어별실행예외없음.
+- 관련회귀149개통과, 이후관계한정표식추가검증포함work-surface11개통과, typecheck/diffcheck통과. 로그 .runtime/work-surface-tests-final.log. 실전속도향상은미측정. 이어서사용자요청의Luna헤디드Airbnb미션진행(제품/SKILL고정).
+
+## 2026-10-16 21:17:41 +09:00 — GPT-6 Codex — Airbnb HB / 로컬 browser-use Luna 비교
+
+- 같은 요청(런던2027-01-05~08,성인2,박당10만원이상)을 gpt-6-luna medium 새 문맥으로 순차 headed 수행. HB 최초36CLI/191999ms/65884B는 가격 단위 오해가 있어 전체 성공이 아니었다. root 단위 감사 뒤 `Trip price, includes all fees` 확인, 총액100000→300000 보정. 전체53CLI/389322ms/113555B, 세 수행 구간만 합하면283698ms. 개별 매일 요금 하한이 아니라 수수료 포함 평균박당10만원이라는 한정 유지.
+- 사용자 요청으로 이번 비교만 D:/APPs/browser-use 로컬 스킬을 사용. browser-use0.13.11/browser-harness0.1.13 CLI helper 경로. 최초 관찰하지 않은 검색URL 조립은 root가 거부하고 홈페이지 UI부터 재수행. 전체38CLI/201385ms/75073B, UI재수행32CLI/170260ms/31785B. 재수행이 앞선 관찰을 기억하므로 독립적 첫시행으로 비교하지 않는다. 가격 단위 계산 해법은 알려주지 않았으며 #30 실제 본문에서 단위 확인→300000 적용, #36 URL/#38 칩 확인. browser-use 코드는 수정하지 않았다.
+- HB current/related는 입력과 실제 내부 스크롤 접근에 유용했으나 가격 단위 본문이 첫 판단에 빠졌다. browser-use의 짧은 본문 발췌에는 단위가 포함됐다. 최소 출력은 입력값만 줄이는 것이 아니라 값과 단위/설명 원문을 함께 보존해야 한다는 근거. 사이트별 가격 문구/URL 예외로 고치지 않는다.
+- 실험 뒤 두 공통 결함 보완: display:contents 경계의 자기 box 부재가 가시 자손 현재값까지 없애던 순회 수정(숨긴 자손 제외 유지), invalid_task/invalid_follow 교정정보가 HTTP에서 사라지던 경계 수정(private validation만 허용). 먼저 두 실패 fixture를 확인했고 수정 뒤 대상2개 및 관련37/37, typecheck/diffcheck 통과. 사후 수정을 위 실전 성적에 소급하지 않는다.
+- 호출은 CLI 수, stdout은 UTF-8 바이트이며 실제 모델 토큰/사고 시간은 미수집. root 개입·대기·초기 URL 우회와 사이트 상태가 달라 1회 결과의 인과적 우열을 주장하지 않는다. 상세 benchmarks/browseruse-airbnb-2026-10-16/report.ko.md 및 metrics.json. 두 전용 브라우저/daemon 정리 완료.

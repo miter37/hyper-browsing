@@ -13,10 +13,21 @@ import {SessionStore} from '../src/browserd/session-store.ts';
 import {getConfig} from '../src/config.ts';
 import {needsHeadedFallback} from '../src/browserd/headed-fallback.ts';
 import {boundedObservationOutput} from '../src/runtime/observation/bounded-snapshot.ts';
-import {parseGoal} from '../src/runtime/task/schema.ts';
+import {parseGoal,parseTask,parseFollow} from '../src/runtime/task/schema.ts';
 import {runTask} from '../src/runtime/task/run.ts';
 
 async function fixture(t,html){const b=await chromium.launch(browserOptions());t.after(()=>b.close());const page=await b.newPage();await page.setContent(html);return page;}
+
+test('batch and follow correction details survive the daemon HTTP boundary',async t=>{
+ const page=await fixture(t,'<button>Known</button>'),dir=await fs.mkdtemp(path.join(os.tmpdir(),'hb-invalid-task-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ const daemon=new BrowserDaemon({...getConfig(),runtimeDir:dir,host:'127.0.0.1',port:0,learningDisabled:true});
+ daemon.chrome.start=async()=>({context:page.context()});daemon.chrome.stop=async()=>{};
+ daemon.dispatch=async(method,params)=>method==='task.run'?parseTask(params.input):parseFollow(params.input);await daemon.start();t.after(()=>daemon.stop());
+ for(const [method,input] of [['task.run',{steps:[{id:'x',target:{terms:['PRIVATE_SEARCH']},action:{op:'click'},follow:{terms:['PRIVATE_RESULT'],fields:['role']}}]}],['page.click',{follow:{terms:['PRIVATE_RESULT'],fields:['role']}}]]){
+  const response=await fetch(`http://127.0.0.1:${daemon.server.address().port}/rpc`,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${daemon.token}`},body:JSON.stringify({method,params:{input}})});
+  const result=await response.json();assert.equal(result.execution,'not_started');assert.ok(result.validation?.length);assert.ok(result.validation[0].allowed.includes('name'));assert.doesNotMatch(JSON.stringify(result),/PRIVATE_SEARCH|PRIVATE_RESULT/);
+ }
+});
 
 test('goal validation correction survives the daemon HTTP error boundary',async t=>{
  const page=await fixture(t,'<button>Known</button>'),dir=await fs.mkdtemp(path.join(os.tmpdir(),'hb-invalid-goal-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));

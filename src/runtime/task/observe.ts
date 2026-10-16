@@ -10,7 +10,7 @@ export interface GoalFinding {
  document?:string;capturedAt?:string;url?:string;scope?:any;
  urlPreview?:string;urlTruncated?:boolean;
  pageState?:any;
- readiness?:{status:'ready'|'unchanged'|'not_ready';basis:'requested-goal'|'linked-region'};
+ readiness?:{status:'ready'|'unchanged'|'not_ready';basis:'requested-goal'|'linked-region'|'origin-region'};
  coverage?:{complete:boolean;matched:number;shown:number;truncated:boolean};candidates:SnapshotElement[];
 }
 /** Uses the same collector, naming and guarded references as ordinary HB observations. */

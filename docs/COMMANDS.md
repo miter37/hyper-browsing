@@ -178,7 +178,7 @@ webctl verify --session ID --input-file checks.json
 최대 20개 명시 조건, 전체 기본 5초. 조건별 기대값·관찰값과 APPLIED/NOT_APPLIED/UNKNOWN을 반환한다. 실행이나 자산 저장은 하지 않는다. 입력 형식과 예시는 [VERIFICATION.md](VERIFICATION.md). 기존 @e27 참조를 PowerShell에 직접 전달할 때는 `--ref '@e27'`처럼 감싼다.
 ## 요청 중심 관찰과 HWM 상세
 
-`webctl snapshot --session ID`는 본문 그래프 없이 패널 지도와 주요 컨트롤을 반환한다. 지도 응답의 `at`으로 `read --at HANDLE --panel PANEL --want outline`을 요청하면 제목·하위 패널을 읽는다. 해당 항목의 `at`으로 `read --at HANDLE --want content,controls,state`를 요청하면 그 범위만 현재 DOM에서 읽는다. outline은 다른 want와 묶지 않는다. 기본 read는 controls(12개, byteBudget3500, textLimit240)이며 일반 래퍼를 제외한 실제 조작 요소를 페이지 나누기 전에 추린다. content/state를 포함한 읽기의 기존 기본 예산은 유지한다. 본문 검색에는 content를 명시한다.
+`session open --url URL`은 세션 정보와 함께 본문 그래프 없는 작은 패널 지도·주요 컨트롤·map/at/delivery를 기본 반환한다. 각 panel.at으로 바로 해당 범위를 읽는다. 기본 hb goto/back/forward도 실제 이동 뒤 새 지도를 포함하며 같은 화면의 입력에는 전체 지도를 반복하지 않는다. 지도 오류는 observationError로 표시하고 기존 세션·이동 결과를 보존한다. URL 없는 빈 세션 생성에는 지도를 붙이지 않는다. 명시적 json/hwm 페이지 이동 경로는 유지한다. 지도 갱신은 `webctl snapshot --session ID`다. 조작 준비는 `read --at HANDLE --want controls,state`로 실제 컨트롤(기본12개/3500B/240자)과 작은 current 사실·related 진입점을 받는다. 본문은 `read --want content`, 선택 그룹 전체 상태는 `read --want state`, 제목·하위 패널은 `read --want outline`이다. outline은 단독 조회한다. content나 단독 state의 그래프 읽기 예산은 유지하며 controls,state는 본문 그래프를 만들지 않는다. current/related의 작은 문맥과 전송 메타데이터는 컨트롤 근거 예산에 추가된다. 관련 근거·한도·예시는 [UI 탐색](UI-INTERACTION.md)을 따른다.
 
 `at`은 지도·범위·전달 receipt·consumer를 묶은 불변 핸들이다. 다음 호출에는 실제 받은 최신 응답의 at을 사용한다. 지도 루트 핸들에는 panel을 지정할 수 있지만 패널에 묶인 핸들로 다른 panel을 고를 수 없다. `--at`과 `--map`/`--since`/`--consumer`를 함께 쓰면 conflicting_continuation이다. 기존 `--map MAP --panel PANEL --since DELIVERY` 호환 경로는 유지한다. --repeat는 알고 있는 필드도 다시 전달한다.
 
@@ -333,3 +333,9 @@ RPC: `task.find`는 {sessionId,input:goal,since?,consumer?,repeat?}, `task.run`�
 후보 소속은 `owner`(가장 가까운 구조적 조상)와 선택적 `owner.ancestors`(바깥 폼/랜드마크 최대2개)로 표시한다. 이름 없는 실제 컨트롤에는 선택적으로 `local`을 붙인다. `local`은 최대4단계 조상 안의 작은 공통 영역을 대상으로, 컨트롤 바깥 DOM 문구 최대96자, 인접 필드 최대2개/값80자, DOM 순서 `controlIndex`(0부터)/`controlCount`를 제공한다. 조상당 방문은64노드, 같은 영역의 컨트롤이4개를 넘으면 합치지 않는다. `basis="dom-ancestor"`는 소속 사실이며 행의 업무 의미나 버튼의 증가/감소 기능을 보장하지 않는다. `textTruncated`/`valueTruncated`/`complete=false`는 제한을 표시하고 비밀 필드는 `redacted=true`로 처리한다. 보이는 이름을 새로 만들거나 주변 문구를 검색 이름으로 승격하지 않는다. 일반 `find`와 복구 응답은 같은 수집 규칙을 쓴다.
 
 조기 복구는 추가 요청 플래그 없이 제한적으로 작동한다. 기대 목표 조회가 모두 완결된0건이고 `fields`/`url`/`changed` 검증이 없을 때, 실행 대상의 `aria-controls` 또는 네이티브 `popoverTargetElement`로 명시 연결된 새 영역을 확인한다. 완결된 실행 전 기준과 동일 문서가 필요하다. 영역 안에 사용 가능한 컨트롤이 있고 관찰되는 `aria-busy`/progressbar가 없으며 짧은 안정 구간을 통과하면 `verification.status="unconfirmed", reason="new_linked_region"`으로 남은 행동을 멈추고 복구 정보를 준다. 성공 확인을 대신하지 않는다. 전체 대기250ms 이후 검사하고 같은 영역이100ms 이상 유지돼야 하며, 해당 영역의 검사는512개 요소로 제한한다. 명시 연결이 없거나 무관한 새 UI만 등장하면 기존 제한시간/검증을 유지한다. 조기 중단 시 원래 follow 조회를 중복 실행하지 않는다.
+
+### 패널 지도·현재 viewport 읽기
+
+`name`은 명시적 ARIA 이름이며 `headings`는 내부 제목 단서다. 큰 형제 열·반복 목록·독립 스크롤 경계를 DOM 기준으로 보존한다. `horizontal`과 `position`은 서로 다른 축의 위치다. `coverage.structureComplete=false`면 구조 후보 탐색 예산으로 모든 구역을 검사하지 못했다.
+
+`read --at AT --panel PANEL --want content,controls --visible`은 현재 viewport/조상 clipping과 교차하는 내용만 읽는다. offset은 이 범위의 DOM 페이지 나누기다. `--visible` 없이 읽는 기존 DOM 범위는 유지한다. `scroll --at AT`도 지원하며 실제 owner 전후 offset과 작은 `currentView` 읽기 진입점을 반환한다. 스크롤 뒤 상단 지도나 본문 전체를 반복하지 않는다. 자세한 경계·갱신·예산은 [패널 지도 계약](PANEL-MAP.md)을 참조한다.

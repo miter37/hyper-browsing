@@ -36,5 +36,16 @@ export const SCOPING_JS=`
   return !scopeNodes||scopeNodes.has(node)||(node.nodeType===1&&scopeAncestors.has(el));
  }
  // Traversal ancestors are needed for structure, but cannot widen a section read.
- function scopeSelected(node){return scopeAllows(node)&&(!scopeNodes||(scopeNodes.has(node)&&!(scopeEnd&&scopeContains(node,scopeEnd))));}
+ function scopeInView(node){
+  if(!opts.viewportOnly)return true;
+  const el=node.nodeType===1?node:node.parentElement;if(!el)return false;
+  let rects;if(node.nodeType===3){const range=document.createRange();range.selectNodeContents(node);rects=Array.from(range.getClientRects());}else rects=Array.from(el.getClientRects());
+  let left=0,top=0,right=innerWidth,bottom=innerHeight;
+  for(let p=el.parentElement||el.getRootNode().host;p;p=p.parentElement||p.getRootNode().host){const s=getComputedStyle(p),r=p.getBoundingClientRect();
+   if(/^(auto|scroll|hidden|clip)$/.test(s.overflowX)){left=Math.max(left,r.left+p.clientLeft);right=Math.min(right,r.left+p.clientLeft+p.clientWidth);}
+   if(/^(auto|scroll|hidden|clip)$/.test(s.overflowY)){top=Math.max(top,r.top+p.clientTop);bottom=Math.min(bottom,r.top+p.clientTop+p.clientHeight);}
+  }
+  return rects.some(r=>r.width>0&&r.height>0&&r.right>left&&r.left<right&&r.bottom>top&&r.top<bottom);
+ }
+ function scopeSelected(node){return scopeAllows(node)&&scopeInView(node)&&(!scopeNodes||(scopeNodes.has(node)&&!(scopeEnd&&scopeContains(node,scopeEnd))));}
 `;

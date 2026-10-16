@@ -127,12 +127,15 @@ const PROBE_SCRIPT = `(state => {
     const tag = el.tagName;
     if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEMPLATE") return false;
     if (!h1 && tag === "H1" && shown(el)) h1 = clean(el.innerText).slice(0, 120);
-    if (el.matches(OPEN) && shown(el) && open.length < 6) {
-      const name = clean(el.getAttribute("aria-label")) || clean((el.querySelector("h1, h2, h3, [role=heading]") || {}).innerText) || "";
-      open.push((el.getAttribute("role") || tag.toLowerCase()) + (name ? " " + name.slice(0, 60) : ""));
-      if(state){let id=state.observedIds.get(el);if(!id){id=state.observedNext++;state.observedIds.set(el,id);}
-       state.regionTargets.set(id,{ref:new WeakRef(el),guard:(${REGION_GUARD})(el)});while(state.regionTargets.size>64)state.regionTargets.delete(state.regionTargets.keys().next().value);
-       regions.push({id,role:el.getAttribute('role')||tag.toLowerCase()});}
+    const surfaces=el.matches(OPEN)||el.matches('[popover]:popover-open')?[el]:[];
+    if(el.getAttribute('aria-expanded')==='true'&&shown(el))for(const id of (el.getAttribute('aria-controls')||'').split(/\\s+/)){const target=el.getRootNode().getElementById?.(id);if(target&&!surfaces.includes(target))surfaces.push(target);}
+    for(const surface of surfaces)if(shown(surface)&&open.length<6){
+      if(state&&regions.some(r=>state.observedIds.get(surface)===r.id))continue;
+      const name=clean(surface.getAttribute('aria-label'))||clean((surface.querySelector('h1,h2,h3,[role=heading]')||{}).innerText)||'';
+      open.push((surface.getAttribute('role')||surface.tagName.toLowerCase())+(name?' '+name.slice(0,60):''));
+      if(state){let id=state.observedIds.get(surface);if(!id){id=state.observedNext++;state.observedIds.set(surface,id);}
+       state.regionTargets.set(id,{ref:new WeakRef(surface),guard:(${REGION_GUARD})(surface)});while(state.regionTargets.size>64)state.regionTargets.delete(state.regionTargets.keys().next().value);
+       regions.push({id,role:surface.getAttribute('role')||surface.tagName.toLowerCase()});}
     }
     if (el.matches(CONTROL) && shown(el)) {
       interactive++;

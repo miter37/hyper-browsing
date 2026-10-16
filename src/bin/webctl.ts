@@ -17,7 +17,7 @@ import {outputFormat} from '../../scripts/hwm-policy.mjs';
 
 const config = getConfig();
 const nativeClient = new BrowserdClient(config);
-const client={call:async(method:string,params:any={})=>nativeClient.call(method,{...params,...(flag('then-file')?{then:JSON.parse(await fs.readFile(flag('then-file')!,'utf8'))}:{}),...(boolFlag('headless-only')?{allowHeadedFallback:false}:{}),format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children'),goalId:flag('goal-id'),visualReviewed:flag('visual-reviewed')})};
+const client={call:async(method:string,params:any={})=>nativeClient.call(method,{...params,...(flag('then-file')?{then:JSON.parse(await fs.readFile(flag('then-file')!,'utf8'))}:{}),...(boolFlag('headless-only')?{allowHeadedFallback:false}:{}),format:outputFormat(argv[0],flag('format')),at:flag('at'),since:flag('since'),consumer:flag('consumer'),repeat:boolFlag('repeat'),map:flag('map'),panel:flag('panel'),includeChildren:boolFlag('include-children'),visible:boolFlag('visible'),goalId:flag('goal-id'),visualReviewed:flag('visual-reviewed')})};
 const argv = process.argv.slice(2);
 
 function flag(name: string): string | undefined {

@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-16T11:01:03.912Z",
+  "hashes": {
+    "SKILL.md": "ac9f156900d84df725b6c6d93c01f1df9fc4e9cdd194f88bb005871836e98668",
+    "src/runtime/observation/map.ts": "a162d72f46b2de9c4907a7cc10792b31eb85939cdef62ebc98b8ca0bc981ae83",
+    "src/runtime/observation/panel-facts.ts": "d82d438b947ba2c3a1ad76e3942ce8b32eec7d74b5fa083eea93c2d25f5b184a",
+    "src/runtime/observation/service.ts": "6c0f2a6453ee1d71c36c7a4089181721c41b2888e9291b181afef34e7cc040a0",
+    "src/runtime/observation/scoping.ts": "c2cc09256944b822c38c72960db9de744de802b1bc884df9538ff551b7bbf19e",
+    "src/engine/page-state.ts": "75bf544373e239bcf2891d66d062ed50245112c2e4b052365fcb5a8fb04aac9c"
+  },
+  "changedSincePreviousTrial": [],
+  "headless": false
+}

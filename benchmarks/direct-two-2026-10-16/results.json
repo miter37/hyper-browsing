@@ -1,0 +1,103 @@
+[
+  {
+    "site": "booking",
+    "status": "partial",
+    "score": 1,
+    "calls": 15,
+    "taskWallMs": 215014,
+    "cliMs": 27818,
+    "stdoutBytes": 33497,
+    "initialHeadless": true,
+    "finalHeadless": true,
+    "model": "GPT-6 Codex (root)",
+    "priorKnowledge": true,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "003–004 actual Sydney Australia autocomplete selected"
+      },
+      {
+        "passed": false,
+        "evidence": "008 datesselected,009 Search→city URL;013 reselection and015 Enter→samecity newdocument datesreset"
+      },
+      {
+        "passed": false,
+        "evidence": "Filtered results not reached; minimum not applied"
+      },
+      {
+        "passed": false,
+        "evidence": "No matching property-price evidence"
+      }
+    ],
+    "difficulties": [
+      {
+        "stage": "initial map",
+        "issue": "initial_map_unavailable onLoadingdocument",
+        "handling": "002 map recovery succeeded"
+      },
+      {
+        "stage": "search submission",
+        "issue": "Both actual Search click and later Enter reset dates/landed city URL",
+        "handling": "One date recovery sequence then stopped rather than repeating"
+      },
+      {
+        "stage": "diagnostic",
+        "issue": "014 read-only scoped form-data eval found only ss=Sydney among requested condition keys",
+        "handling": "Not proof of root cause; kept separate from task evidence"
+      }
+    ]
+  },
+  {
+    "site": "bestbuy",
+    "status": "blocked",
+    "score": 2,
+    "calls": 8,
+    "taskWallMs": 165728,
+    "cliMs": 69774,
+    "stdoutBytes": 15879,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "model": "GPT-6 Codex (root)",
+    "priorKnowledge": true,
+    "checkpoints": [
+      {
+        "passed": true,
+        "evidence": "005 fill+submit reached search results,006 actualsearch map after automatic headed repair"
+      },
+      {
+        "passed": true,
+        "evidence": "007 observed Dell laptop title link and its item text"
+      },
+      {
+        "passed": false,
+        "evidence": "008 actual product title link opened Access Denied page in headed mode"
+      },
+      {
+        "passed": false,
+        "evidence": "No exact detail price/rating/review evidence obtained"
+      }
+    ],
+    "difficulties": [
+      {
+        "stage": "country",
+        "issue": "Initial href# changed; oldref rejectedstale",
+        "handling": "Used fresh observedUSref supplied by recovery"
+      },
+      {
+        "stage": "country navigation",
+        "issue": "Click timedout/outcome_unknown but home actuallyopened",
+        "handling": "Observed currentmap;didnotreplay"
+      },
+      {
+        "stage": "search",
+        "issue": "Enter press timedout and app automatically switchedheadedwithoutreplay",
+        "handling": "Observed actualsearchresults map;didnotsubmitagain"
+      },
+      {
+        "stage": "detail",
+        "issue": "Access Denied",
+        "handling": "Stopped alreadyheaded; nobypass"
+      }
+    ]
+  }
+]

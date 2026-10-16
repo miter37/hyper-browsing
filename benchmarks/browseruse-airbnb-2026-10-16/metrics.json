@@ -1,0 +1,81 @@
+{
+  "hb": {
+    "initial": {
+      "calls": 36,
+      "wallMs": 191999,
+      "cliMs": 44856,
+      "stdoutBytes": 65884,
+      "nonzeroExits": [
+        3,
+        7,
+        12,
+        19,
+        34
+      ]
+    },
+    "unitAudit": {
+      "calls": 6,
+      "wallMs": 28793,
+      "cliMs": 7669,
+      "stdoutBytes": 20305,
+      "nonzeroExits": []
+    },
+    "correction": {
+      "calls": 11,
+      "wallMs": 62906,
+      "cliMs": 13691,
+      "stdoutBytes": 27366,
+      "nonzeroExits": []
+    },
+    "full": {
+      "calls": 53,
+      "wallMs": 389322,
+      "cliMs": 66216,
+      "stdoutBytes": 113555,
+      "nonzeroExits": [
+        3,
+        7,
+        12,
+        19,
+        34
+      ]
+    }
+  },
+  "browserUse": {
+    "all": {
+      "calls": 38,
+      "wallMs": 201385,
+      "cliMs": 19693,
+      "stdoutBytes": 75073,
+      "nonzeroExits": [
+        37
+      ]
+    },
+    "discardedURLShortcut": {
+      "calls": 6,
+      "wallMs": 27596,
+      "cliMs": 4397,
+      "stdoutBytes": 43288,
+      "nonzeroExits": []
+    },
+    "uiRestart": {
+      "calls": 32,
+      "wallMs": 170260,
+      "cliMs": 15296,
+      "stdoutBytes": 31785,
+      "nonzeroExits": [
+        37
+      ]
+    },
+    "helperCalls": {
+      "new_tab": 1,
+      "wait_for_load": 4,
+      "page_info": 4,
+      "js": 45,
+      "cdp": 1,
+      "click_at_xy": 17,
+      "fill_input": 3,
+      "goto_url": 1
+    }
+  }
+}

@@ -72,6 +72,9 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
     return ({p:'paragraph',ul:'list',ol:'list',li:'item',table:'table',tr:'row',td:'cell',th:'cell',form:'form',fieldset:'fieldset',dialog:'dialog',img:'image',figure:'figure',iframe:'frame',main:'region',section:'region',article:'region',nav:'region',header:'region',footer:'region',aside:'region'})[tag]||'group';
   };
   const add=(data,parent)=>{const order=orders.get(parent)||0;orders.set(parent,order+1);const node={id:'n'+(nodes.length+1),parent,order,...data};nodes.push(node);return node;};
+  // Invisible traversal ancestors are materialized only if they lead to visible
+  // data. Thousands of earlier offscreen paragraphs must not consume the budget.
+  const materialize=work=>{for(const el of work.pending||[]){let id=ids.get(el);if(!id){const node=add({kind:'group',tag:el.localName,tracking:track(el),attrs:{}},work.parent);id=node.id;ids.set(el,id);}work.parent=id;}work.pending=undefined;};
   const start=opts.root||document.body;
   const stack=start?[{dom:start,parent:'n1',pre:false}]:[];
   if(!start)gap('n1','document-not-available','unavailable');
@@ -86,6 +89,8 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
     if(nodes.length>=limit&&!required.has(dom)){if(!gaps.some(g=>g.reason==='budget'&&g.parent===work.parent))gap(work.parent,'budget');continue;}
     try{
       if(dom.nodeType===3){
+        if(opts.viewportOnly&&typeof scopeSelected==='function'&&!scopeSelected(dom))continue;
+        materialize(work);
         let text=work.pre?dom.data:dom.data.replace(/\\s+/g,' ');if(!text.length||!work.pre&&!text.trim())continue;
         if(textCount+text.length>textLimit){gap(work.parent,'text-budget');break;}textCount+=text.length;
         add({kind:'text',text,textSource:'dom-text',tracking:track(dom),attrs:work.via?.length?{'via-dom':work.via}:{}},work.parent);continue;
@@ -93,11 +98,12 @@ export const CONTEXT_COLLECTOR = `(opts, picked, queryNodes=[]) => {
       if(dom.nodeType!==1)continue;
       const el=dom,tag=el.localName;if(/^(script|style|noscript|template)$/.test(tag))continue;
       if(typeof scopeSelected==='function'&&!scopeSelected(el)){
-        const node=add({kind:'group',tag,tracking:track(el),attrs:{}},work.parent);
+        const node=opts.viewportOnly?null:add({kind:'group',tag,tracking:track(el),attrs:{}},work.parent);
         const children=el.shadowRoot?Array.from(el.shadowRoot.childNodes):tag==='slot'?(el.assignedNodes({flatten:true}).length?el.assignedNodes({flatten:true}):Array.from(el.childNodes)):Array.from(el.childNodes);
-        for(let i=children.length-1;i>=0;i--)stack.push({dom:children[i],parent:node.id,pre:work.pre});
+        for(let i=children.length-1;i>=0;i--)stack.push({dom:children[i],parent:node?.id||work.parent,pre:work.pre,...(opts.viewportOnly?{pending:[...(work.pending||[]),el]}:{})});
         continue;
       }
+      materialize(work);
       const style=styleOf(el);
       const role=el.getAttribute('role')||implicitRole(el,tag);
       const significant=/^(body|main|section|article|nav|header|footer|aside|h[1-6]|p|ul|ol|li|dl|dt|dd|table|thead|tbody|tr|td|th|form|fieldset|legend|label|dialog|input|button|select|option|textarea|a|summary|details|img|iframe|slot|pre|code)$/.test(tag)||role||required.has(el)||el.attributes.length||el.childElementCount>1||style.overflowX!=='visible'||style.overflowY!=='visible';

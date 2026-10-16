@@ -1,0 +1,118 @@
+[
+  {
+    "site": "booking",
+    "status": "partial",
+    "claimedStatus": "partial",
+    "audited": true,
+    "score": 1,
+    "calls": 45,
+    "completedInputs": 19,
+    "taskWallMs": 317549,
+    "cliMs": 54498,
+    "stdoutBytes": 115019,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": true,
+    "failedCalls": 3,
+    "revealCalls": 0,
+    "setupMs": 2959,
+    "trace": {
+      "agent": "/root/entrymap_booking",
+      "sessionFile": "rollout-2026-10-16T17-06-13-01a143bf-4fd6-76f3-9fca-62887c9c0864.jsonl",
+      "startedAt": "2026-10-16T08:06:14.192Z",
+      "completedAt": "2026-10-16T08:12:09.986Z",
+      "wallMs": 355794,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 52,
+      "deliveredToolTextBytes": 200732,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 3327023,
+        "cached_input_tokens": 3239424,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 12111,
+        "reasoning_output_tokens": 4924,
+        "total_tokens": 3339134
+      }
+    },
+    "difficulties": [
+      "The wrapper returned trial_budget before another UI action could be performed."
+    ],
+    "processFindings": [
+      "First entry map001 failed with initial_map_unavailable during initial Loading document; exact exception not retained, cause not established. Manual recovery map002 succeeded with observed dismiss and destination refs.",
+      "Luna filled background input004 while known sign-in dialog was open; value_mismatch, then empty Sydney lookup005, then observed dismiss ref006. Map information was available before the wrong-order action.",
+      "014 reused the same monthly button ref three times in a batch: stopped partial at stale_ref after one completed action; recovery supplied a fresh Next month ref and015 continued without replaying the completed action.",
+      "Dates were selected repeatedly019,030,044. Homepage Search023 and city Search033 navigated to city/au/sydney.html without applied query dates. No root evidence establishes why the site did this.",
+      "After new-document navigation023/033/045, map focus was automatically delivered. Some additional maps020/031 were requested on same document despite earlier map handles.",
+      "045 clicked a property Check availability link whose observed href was plain /searchresults.html; it did not encode requested city/date. Landing map showed empty destination andOct16–17 defaults. This is target/intent mismatch, not successful search.",
+      "Final references to command046/047 are beyond logged budget; actual default-date evidence is command045. Wrapper rejects further browser calls after45; final report correctly does not claim completion."
+    ],
+    "output": []
+  },
+  {
+    "site": "bestbuy",
+    "status": "partial",
+    "claimedStatus": "partial",
+    "audited": true,
+    "score": 2,
+    "calls": 23,
+    "completedInputs": 6,
+    "taskWallMs": 184706,
+    "cliMs": 62492,
+    "stdoutBytes": 74857,
+    "stderrBytes": 0,
+    "initialHeadless": true,
+    "finalHeadless": false,
+    "failedCalls": 3,
+    "revealCalls": 1,
+    "setupMs": 2997,
+    "trace": {
+      "agent": "/root/entrymap_bestbuy",
+      "sessionFile": "rollout-2026-10-16T17-12-57-01a143c5-76a4-7871-bd6f-53b0d8c492ff.jsonl",
+      "startedAt": "2026-10-16T08:12:57.305Z",
+      "completedAt": "2026-10-16T08:16:35.434Z",
+      "wallMs": 218129,
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "projectSkillReadObserved": true,
+      "prohibitedToolObserved": false,
+      "toolCalls": 25,
+      "deliveredToolTextBytes": 116721,
+      "truncatedToolResponses": 0,
+      "tokenUsage": {
+        "input_tokens": 1163440,
+        "cached_input_tokens": 1117952,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5910,
+        "reasoning_output_tokens": 2245,
+        "total_tokens": 1169350
+      }
+    },
+    "difficulties": [
+      "초기 국가 선택 화면이 headless에서 유지되어 미국 선택을 재확인했으나 화면이 바뀌지 않음. browser status에서 headless=true 확인 후 browser reveal을 1회 호출했고, 이미 headed 상태가 된 뒤 홈이 열림.",
+      "상세 링크를 두 차례 관찰 후 눌렀으나 모두 브라우저 네트워크 오류 문서로 이동함."
+    ],
+    "processFindings": [
+      "001 first entry map succeeded: country selector and actual United States ref in same response,1190B. No separate initial-map call required.",
+      "Early US link href was# in001; later map003 reported href#?intl=nosplash. Two observed clicks002/004 did not leave country selector. This is observed link/document evolution; hydration timing as a cause is not established.",
+      "009 manual reveal after country selector stagnation; no explicit access-denied/CAPTCHA evidence in001–008. Display changed to headed and010 actual home appeared, but this does not prove headless blocking. Mark policy deviation/weak justification for switching.",
+      "011 one fill+submit reached results and returned fresh map focus, meeting initial/new-page orientation contract.",
+      "012/013/014/016 broad content+controls pagination used offsets60/110/160 before narrow Dell target query019. This remains inefficient despite small initial map.",
+      "017 passed a mistyped/shortened opaque ref and was refused stale_ref before execution. Root did not intervene.",
+      "020 product click→error document,021 Back auto returned a fresh map,022 refreshed candidates,023 a different observed product target also opened error document. Not a proven access restriction; no product-specific workaround added.",
+      "No root coaching or product edits during trial.",
+      "015 list --query Dell selected div.sidebar-facets and returned filter groups, not product cards. The response disclosed its container, but it did not answer the intended product-listing need."
+    ],
+    "output": {
+      "search": "dell laptop",
+      "identifiedProductCandidate": "Dell - 15.6\" 2K Touchscreen Laptop - Intel 13th Generation Core i7 1355U 2023 - 16GB Memory - 512 GB Storage - Carbon Black",
+      "price": null,
+      "rating": null,
+      "reviewCount": null,
+      "detailPage": "unavailable: browser navigation error"
+    }
+  }
+]

@@ -57,6 +57,7 @@ export interface SnapshotElement {
   // opacity:0 control lying on top of its visible look (e.g. a menu checkbox over its label): the real click target.
   transparent?: true;
   interaction?:{keyboard?:'native-control';pointer?:'target-center-hit'|'target-center-covered'|'unobserved';small?:boolean;custom?:true};
+  native?:{type?:string;readonly?:boolean;min?:string;max?:string;step?:string;valueText?:string;invalid?:string};
 }
 
 export interface HiddenMatch {
@@ -451,6 +452,13 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       label: label && label !== name ? label : undefined,
       href: cleanStr(el.getAttribute("href")),
       current: el.getAttribute('aria-current')??undefined,
+      ...((opts.goal||opts.root&&!opts.viewportOnly)&&!secret(el)&&/^(INPUT|SELECT|TEXTAREA)$/.test(tagU)?{native:{
+        ...(tagU==='INPUT'?{type:el.type}:{}),
+        ...('readOnly' in el&&el.readOnly?{readonly:true}:{}),
+        ...Object.fromEntries(['min','max','step'].filter(k=>el.hasAttribute(k)).map(k=>[k,el.getAttribute(k)])),
+        ...(el.hasAttribute('aria-valuetext')?{valueText:el.getAttribute('aria-valuetext')}:{}),
+        ...(el.hasAttribute('aria-invalid')?{invalid:el.getAttribute('aria-invalid')}:{}),
+      }}:{}),
       ...(interaction?{interaction}:{}),
       ...(!CONTROL_TAGS[tagU]&&!explicitRole&&!container&&(el.isContentEditable||styleOf(el).cursor==='pointer')?{interaction:{custom:true}}:{}),
       ...(hiddenControl ? stateOf(hiddenControl, "input") : stateOf(el, tag)),
@@ -668,6 +676,7 @@ export async function captureSnapshot(
     selectedText: e.selectedText ? redactText(e.selectedText) : undefined,
     context: e.context ? redactText(e.context) : undefined,
     ...(e.local?{local:sanitizeLocalContext(e.local)}:{}),
+    ...(e.native?{native:Object.fromEntries(Object.entries(e.native).map(([k,v])=>[k,typeof v==='string'?redactContent(v).slice(0,160):v]))}:{}),
   }));
 
   const stateStart = new Date().toISOString(), stateDocument = references?.documentIdentity();

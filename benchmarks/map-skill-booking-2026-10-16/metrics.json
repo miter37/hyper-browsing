@@ -1,0 +1,51 @@
+{
+  "calls": 39,
+  "wallMs": 185944,
+  "cliMs": 39759,
+  "stdoutBytes": 101212,
+  "counts": {
+    "session": 2,
+    "read": 6,
+    "snapshot": 5,
+    "click": 8,
+    "fill": 2,
+    "find": 9,
+    "screenshot": 2,
+    "scroll": 4,
+    "run": 1
+  },
+  "actions": {
+    "click": 10,
+    "fill": 2,
+    "scroll": 3
+  },
+  "first": "2026-10-16T10:29:41.301Z",
+  "last": "2026-10-16T10:32:47.245Z",
+  "largest": [
+    {
+      "n": 38,
+      "command": "read",
+      "bytes": 11684
+    },
+    {
+      "n": 35,
+      "command": "fill",
+      "bytes": 6527
+    },
+    {
+      "n": 32,
+      "command": "click",
+      "bytes": 6471
+    },
+    {
+      "n": 7,
+      "command": "click",
+      "bytes": 6071
+    },
+    {
+      "n": 34,
+      "command": "snapshot",
+      "bytes": 5546
+    }
+  ]
+}

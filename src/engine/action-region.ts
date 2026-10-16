@@ -8,14 +8,15 @@ import {redactContent} from '../utils/strings';
 // Local facts only: no site names, calendar interpretation or guessed action semantics.
 const HELPERS=`${DEEP_WALK_JS}${PRIVATE_FIELD_SCRIPT}
  const parent=el=>el.parentElement||el.getRootNode()?.host;
- const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};
+ // display:contents has no own box; its visible descendants still carry local facts.
+ const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return (s.display==='contents'||r.width>0&&r.height>0)&&s.display!=='none'&&s.visibility!=='hidden';};
  const clean=s=>String(s||'').replace(/\\s+/g,' ').trim().slice(0,120);
  const contains=(root,node)=>{for(let n=node;n;n=parent(n))if(n===root)return true;return false;};
- const describe=root=>{
+ const describe=(root,allows=()=>true)=>{
   const headings=[],values=[],status=[],choices=[];let controlCount=0,valueCount=0,statusCount=0,textTruncated=false;
-  deepWalk(el=>{if(/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT)$/.test(el.tagName)||secret(el)||!visible(el))return false;
+  deepWalk(el=>{if(!allows(el)||/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT)$/.test(el.tagName)||secret(el)||!visible(el))return false;
    if(el.matches('h1,h2,h3,h4,h5,h6,legend,[role=heading],[role=grid],[role=table]')){const raw=el.getAttribute('aria-label')||(/^(TABLE)$/.test(el.tagName)?el.querySelector('caption')?.textContent:el.matches('[role=grid],[role=table]')?'':el.textContent);const text=clean(raw);if(text&&!headings.includes(text))headings.push(text);if(String(raw||'').trim().length>120)textTruncated=true;}
-   if(el.matches('[role=status],[aria-live]')){const text=clean(el.textContent);if(text){statusCount++;if(status.length<2)status.push(text);}}
+   if(el.matches('[role=status],[aria-live]')){const text=clean(el.textContent);if(text){statusCount++;if(status.length<2)status.push(text);if(String(el.textContent||'').replace(/\\s+/g,' ').trim().length>120)textTruncated=true;}}
    if(el.matches('input:not([type=hidden]),textarea,select')&&(!(el.type==='checkbox'||el.type==='radio')||el.checked)){valueCount++;if(values.length<3){const source=el.hasAttribute('aria-label')?'aria-label':el.labels?.length?'native-label':'placeholder',name=clean(el.getAttribute('aria-label')||el.labels?.[0]?.textContent||el.getAttribute('placeholder')),value=el.type==='checkbox'||el.type==='radio'?el.checked:String(el.value??'').slice(0,80);if(String(el.value??'').length>80)textTruncated=true;values.push({name,source,value});}}
    if(el.matches('button,input:not([type=hidden]),select,textarea,a[href],summary,[role=button],[role=option],[role=gridcell],[role=tab]')){controlCount++;if(choices.length<128)choices.push([el.localName,clean(el.getAttribute('aria-label')||el.textContent),el.getAttribute('aria-selected'),el.getAttribute('aria-expanded'),el.disabled,el.getAttribute('aria-disabled')]);}
   },512,root);
@@ -23,6 +24,7 @@ const HELPERS=`${DEEP_WALK_JS}${PRIVATE_FIELD_SCRIPT}
   return {current:result,signature:JSON.stringify([result,choices])};
  };
 `;
+export const REGION_FACTS_JS=HELPERS;
 export interface ActionRegion {document:string;id:number;signature:string;obstructed?:boolean;obstruction?:any}
 /** Bind a weak local boundary before mutation so detached controls do not cause guessed rebinding. */
 export async function prepareActionRegion(page:Page,target:ActionTarget,capture=true):Promise<ActionRegion|undefined>{

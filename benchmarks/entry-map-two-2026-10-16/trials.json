@@ -1,0 +1,14 @@
+[
+  {
+    "site": "booking",
+    "sequence": 1,
+    "agent": "/root/entrymap_booking",
+    "status": "partial"
+  },
+  {
+    "site": "bestbuy",
+    "sequence": 2,
+    "agent": "/root/entrymap_bestbuy",
+    "status": "partial"
+  }
+]

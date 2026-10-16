@@ -200,8 +200,9 @@ test('panel outline does not promote article headers or borrow a nested navigati
  const service=new DemandObservationService();t.after(()=>service.close());const map=await service.map(page,'s');
  assert.equal(map.panels.filter(p=>p.role==='banner').length,1);
  assert.equal(map.panels.filter(p=>p.role==='contentinfo').length,1);
- assert.equal(map.panels.find(p=>p.role==='main')?.name,'Reference document');
- assert.ok(map.panels.some(p=>p.role==='navigation'&&p.name==='Contents'));
+ assert.equal(map.panels.find(p=>p.role==='main')?.name,undefined);
+ assert.ok(map.panels.find(p=>p.role==='main')?.headings.includes('Reference document'));
+ assert.ok(map.panels.some(p=>p.role==='navigation'&&p.headings?.includes('Contents')));
 });
 test('small map prioritizes observed form inputs and excludes passive dialog containers from its control samples',async t=>{
  const {DemandObservationService}=await import('../src/runtime/observation/service.ts');

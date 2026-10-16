@@ -1,5 +1,5 @@
 import { waitBeforeInput } from '../engine/input-pacing';
-import type { Page } from "playwright";
+import type { Page, ElementHandle } from "playwright";
 import { captureSnapshot, type PageSnapshot, type SnapshotElement } from "./snapshot";
 import { DEEP_WALK_JS, settle } from "../engine/page-state";
 import { PRIVATE_FIELD_SCRIPT } from './private-fields';
@@ -465,8 +465,8 @@ export async function waitForIdle(page: Page, timeoutMs = 10000, minQuietMs = 50
  */
 export async function scrollPage(
   page: Page,
-  options: { direction?: "down" | "up"; distance?: number; times?: number; selector?: string; delayMs?: number } = {}
-): Promise<{ scrolled: boolean; times: number; totalDistance: number }> {
+  options: { direction?: "down" | "up"; distance?: number; times?: number; selector?: string; delayMs?: number; element?:ElementHandle<Element> } = {}
+){
   const direction = options.direction === "up" ? -1 : 1;
   const distance = (options.distance || 800) * direction;
   const times = Math.max(1, Math.min(options.times || 1, 20));
@@ -474,15 +474,18 @@ export async function scrollPage(
   const selector = options.selector;
 
   let totalDistance = 0;
+  const target=options.element??null;
+  const owner=await page.evaluate(({sel,target})=>{const el=target??(sel?document.querySelector(sel):document.scrollingElement);if(!el?.isConnected)return null;return {kind:el===document.scrollingElement?'document':'element',...(sel?{selector:sel}:{}),before:[el.scrollLeft,el.scrollTop]};},{sel:selector,target});
+  if(!owner)return {scrolled:false,times:0,totalDistance:0,reason:'scroll_target_not_found'};
   for (let i = 0; i < times; i++) {
-    await page.evaluate(({ dist, sel }) => {
-      if (sel) {
-        const el = document.querySelector(sel);
+    await page.evaluate(({ dist, sel, target }) => {
+      if (target || sel) {
+        const el = target??document.querySelector(sel!);
         if (el) el.scrollTop += dist;
       } else {
         window.scrollBy(0, dist);
       }
-    }, { dist: distance, sel: selector });
+    }, { dist: distance, sel: selector, target });
 
     totalDistance += Math.abs(distance);
     if (i < times - 1 && delayMs > 0) {
@@ -492,7 +495,9 @@ export async function scrollPage(
 
   // Small settle wait
   await page.waitForTimeout(200);
-  return { scrolled: true, times, totalDistance };
+  const after=await page.evaluate(({sel,target})=>{const el=target??(sel?document.querySelector(sel):document.scrollingElement);return el?.isConnected?[el.scrollLeft,el.scrollTop]:null;},{sel:selector,target});
+  const actual=after?Math.abs(after[1]-owner.before[1]):0;
+  return { scrolled:actual>0,times,totalDistance:actual,requestedDistance:totalDistance,owner:{...owner,after},...(!after?{reason:'scroll_target_detached'}:{}) };
 }
 
 /**

@@ -2,6 +2,30 @@
 
 이 문서는 LLM의 탐색 지식이다. 엔진이 특정 사이트의 메뉴 의미나 다음 행동을 자동 결정하는 규칙이 아니다. 아래 패턴은 가설을 세우는 데 사용하고 현재 응답의 DOM/ARIA 상태·역할·이름·소속으로 확인한다.
 
+## 달력·가격 등 복합 입력의 공통 전략
+
+조작 준비는 `read --at AT --want controls,state`로 조회한다. 본문 그래프를 만들지 않고 실제 컨트롤과 `current`의 작은 제목·입력값·상태 문구를 준다. 이 요약은 최대3개 제목/값,2개 상태 문구와512노드 범위이며 `complete=false`면 전체 상태가 아니다. 본문·상품 가격 문구는 해당 항목의 `read --want content`로 따로 읽고, 선택 그룹 전체 상태는 `read --want state`로 확인한다. `outline`은 단독 조회다. 본문을 무조건 덜 주는 것이 아니라 조작과 내용의 투영을 구분한다.
+
+`related`는 현재 범위와 연결된 바깥 제어기(controlled-by), 제어 대상(controls), 폼(form-owner), 실제 세로 스크롤(scroll-owner)의 작은 진입점이다. 명시적 ARIA/HTML 연결·DOM 폼 소속·overflow 근거만 사용한다. 연결 조회는 최대4개이며 관련 범위는 자동으로 실행하지 않는다. 각 항목의 `at`으로 `read`하며 scroll-owner의 `at`은 `scroll`에 쓸 수 있다. 지도 패널 자체도 `at`을 제공한다. 범위 밖이라는 이유로 중요한 컨트롤을 버리지 않으며, 무관한 이웃 버튼을 의미로 추측해 붙이지 않는다. 현재 정보는 전달 영수증을 통해 변경된 경우에만 다시 준다.
+
+`follow.scope="origin"`은 동작 전에 보존한 실제 소유 폼을 읽는다. 포털 안의 완료 컨트롤이면 그 작업면을 가리키는 명시적 제어기의 폼을 사용하며, 여러 폼이 연결됐거나 탐색이 불완전하면 선택하지 않는다. 폼이 없으면 가장 가까운 dialog/menu/listbox/fieldset/group/section이다. root가 교체됐거나 문서가 바뀌면 origin_region_stale로 돌아오며 다른 폼이나 document로 자동 확대하지 않는다. 이는 follow 전용이며 target/일반 find/expect의 scope로 쓰지 않는다. 새로 열린 작업면 조회는 기존 기본 active/명시적 연결 follow, 전체 문서 조회는 기존 document를 쓴다.
+
+```json
+{"steps":[{"id":"lower","target":{"ref":"OBSERVED_INPUT_REF"},"action":{"op":"fill","value":"20"}},{"id":"apply","target":{"terms":["OBSERVED_BUTTON_NAME"],"roles":["button"],"exact":true},"action":{"op":"click"},"follow":{"terms":["OBSERVED_SUMMARY_TERM"],"scope":"origin","actionableOnly":false}}]}
+```
+
+위 이름·문구는 실제 관찰값으로 바꾼다. 앞선 입력으로 바뀌는 적용 버튼은 해당 단계에서 다시 찾는다. 후속 조회는 기본적으로 마지막 단계에 둔다. 오류의 `validation`은 값 내용을 되풀이하지 않고 필드 경로·허용값을 주므로, 잘못된 요청만 고친다. 실행된 행동을 다시 보내는 근거가 아니다.
+
+고정된 클릭 순서를 외우지 않는다. 모르는 위젯은 열기와 해당 범위 조회를 묶고, 현재 입력·선택값·제목·실제 컨트롤로 다음 행동을 정한다. `read --want controls`나 `find`의 `native`는 관찰한 입력 type, readonly=true, 명시적 min/max/step, aria-valuetext(valueText), aria-invalid(invalid)다. 숫자 경계는 원문 문자열이며 날짜·통화·선형 비율을 추론하지 않는다. 기본 지도에는 이 상세 묶음을 추가하지 않는다.
+
+- 편집 가능한 입력이 있으면 그 방식을 우선 고려한다. readonly 입력에 fill을 반복하지 않는다. native range는 관찰한 step과 현재 값을 기준으로 표준 키보드 조작을 고려한다. 필요한 blur/완료 컨트롤도 현재 근거로 정한다.
+- 정확한 연결된 ref가 clipped=scroll이면 기존 조작기의 자동 스크롤 경로를 사용한다. 아직 대상이 없으면 현재 작업면의 실제 이동 컨트롤이나 스크롤 소유자를 사용한다. 숫자가 같은 날짜는 월·연도 소속 없이 선택하지 않는다.
+- `scroll --at HANDLE --panel PANEL --distance 200`은 패널 자체 또는 그 안의 유일한 세로 스크롤 요소를 조작한다. 소유자가 여러 개거나 수집 한도를 넘으면 scroll_owner_ambiguous/incomplete, 없으면 scroll_owner_not_found로 실행 전에 중단한다. section 범위는 scroll_owner_requires_panel이다. 문서로 조용히 대체하지 않는다. 관찰한 실제 스크롤 패널로 좁히거나 현재 DOM에서 확인한 selector를 별도 요청한다. selector와 panel은 함께 지정하지 않는다. 범위 없는 scroll만 문서 스크롤이다.
+- 다음 상황을 예상할 수 있을 때만 최대4개 조작을 묶고 마지막 follow로 필요한 요약을 읽는다. 값 변경 뒤 이름/ref가 바뀌는 완료 버튼은 그 단계의 target goal로 다시 찾는다. 현재 값을 채웠다는 사실과 확정·검색 적용을 구분하며 매 클릭마다 별도 검증하지 않는다.
+- 예상과 다르면 완료한 부분을 보존하고 남은 행동을 중단한다. 현재 응답의 새 값·선택지·막힌 지점을 이용한다. 같은 목표 탐색은 근거를 바꿔 한 번 재조회한 뒤에도 안 되면 실제 스크린샷을 본다. 불명확한 쓰기를 재전송하지 않는다.
+
+닫기·Escape·Cancel·완료의 효과는 위젯마다 다르다. 닫혔다는 사실만으로 저장을 주장하지 않는다. 가격은 원문 단위·통화·박당/전체·열린 상한(+)을 함께 읽는다. 상세 조사 근거는 [달력·가격 필터 연구](CALENDAR-PRICE-FILTER-STUDY-2026-10-16.md)에 있다.
+
 ## 추가 메뉴와 팝오버
 
 점 세 개, 더보기, 펼침 화살표는 추가 선택지를 여는 경우가 많다. 클릭 응답에 `focus.items`와 실행 ref가 있으면 그 정보로 선택한다. 메뉴 전체를 다시 묻거나 페이지 지도를 새로 받을 필요가 없다. 실제 역할이 menuitem인 요소를 이름만 보고 link로 호출하지 않는다.

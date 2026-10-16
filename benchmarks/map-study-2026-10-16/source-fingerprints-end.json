@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-16T10:08:11.063Z",
+  "note": "End-of-study fingerprints only; no before/after freeze claim",
+  "files": [
+    {
+      "file": "src/runtime/observation/map.ts",
+      "sha256": "26c4af04fff250ddbf4face4fb519cd6b71bcdc608f34f52222be3177e89b328"
+    },
+    {
+      "file": "src/runtime/observation/service.ts",
+      "sha256": "12365727743cd9410a1179620d2aa85267542d990e2d85227451cdecb69ee22f"
+    },
+    {
+      "file": "src/runtime/observation/outline.ts",
+      "sha256": "8c018a516aeb406463f19237f28664edef9c72236935e80bdf6b7893cbbe1dc7"
+    },
+    {
+      "file": "SKILL.md",
+      "sha256": "118ea15ea27d0a5909f0c4bf041d9b2f1a2437476d87488033e0f8dea205e982"
+    }
+  ]
+}

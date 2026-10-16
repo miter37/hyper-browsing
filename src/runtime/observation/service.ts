@@ -17,16 +17,19 @@ import {compactCodeBlocks} from './code-blocks';
 import {compactReading} from './compact-reading';
 import {VisualRetry} from './visual-retry';
 import {isActionControl} from './action-control';
+import {PANEL_FACTS_JS} from './panel-facts';
+import {scrollPage} from '../discovery-tools';
+import {captureWorkSurface} from './work-surface';
 
 interface Scope {session:string;document:string;url:string;navigation:number;page:Page;roots:JSHandle;panels:Panel[];expires:number}
-export interface ReadOptions extends DeliveryOptions {at?:string;map?:string;panel?:string;want?:string;query?:string;item?:number;target?:string;offset?:number;limit?:number;textLimit?:number;byteBudget?:number;includeChildren?:boolean}
+export interface ReadOptions extends DeliveryOptions {at?:string;map?:string;panel?:string;want?:string;query?:string;item?:number;target?:string;offset?:number;limit?:number;textLimit?:number;byteBudget?:number;includeChildren?:boolean;visible?:boolean}
 type ScopedOptions=ReadOptions&{map:string;panel:string};
 const number=(value:unknown,fallback:number,max:number)=>{if(value===undefined)return fallback;const n=Number(value);if(!Number.isSafeInteger(n)||n<0||n>max)throw observationError('invalid_read_budget');return n;};
 const publicId=(n:ObservationGraph['nodes'][number])=>n.actionRef??n.tracking?.readTarget??'N'+(n.tracking?.id.split(':').at(-1)??n.id);
-const controlCollected=['role','tag','name','nameTruncated','label','placeholder','href','redacted','value','valueTruncated','valuePreview','checked','selected','current','expanded','pressed','disabled','popup','clipped','context','hint','hintSource','viewportBox','interaction'];
+const controlCollected=['role','tag','name','nameTruncated','label','placeholder','href','redacted','value','valueTruncated','valuePreview','checked','selected','current','expanded','pressed','disabled','popup','clipped','context','hint','hintSource','viewportBox','interaction','native'];
 const compactControl=(e:SnapshotElement)=>{const value=Object.fromEntries(Object.entries(e).filter(([k,v])=>v!==undefined&&['ref',...controlCollected].includes(k)));if(e.hint)value.hintSource='snapshot-nearby-text-v1';if(typeof e.value==='string'&&e.value.length===60)value.valuePreview=true;return value;};
 const mapControl=isActionControl;
-const mapPriority=(e:SnapshotElement)=>e.current&&e.current!=='false'?-1:['searchbox','textbox','combobox'].includes(e.role??'')?0:e.role==='button'?1:2;
+const mapPriority=(e:SnapshotElement)=>e.disabled?10:!e.name&&!e.label&&!e.placeholder?9:e.current&&e.current!=='false'?-1:['searchbox','textbox','combobox','slider','spinbutton'].includes(e.role??'')?0:e.role==='button'?1:2;
 /** Live selective reads plus scoped, explicit delivery receipts; no learning dependency. */
 export class DemandObservationService {
  private scopes=new Map<string,Scope>();private ledger:DeliveryLedger;private continuations:Continuations;private ttl:number;private clock:()=>number;
@@ -80,35 +83,87 @@ export class DemandObservationService {
   return {...value,...input,map:value.map,panel:input.panel??value.panel,target:input.target??value.target,item:input.item??value.item,since:value.since,consumer:value.consumer,_deliveryDocument:referencesFor(page).documentIdentity()};
  }
  private scoped(page:Page,session:string,input:ReadOptions):ScopedOptions{const value=this.prepare(page,session,input);if(!value.map||!value.panel)throw observationError('scope_required');return value;}
+ async scroll(page:Page,session:string,input:any){
+  const options=this.prepare(page,session,input);
+  if(!options.panel){if(options.target||options.item)throw observationError('scope_required');return scrollPage(page,options);}
+  if(options.selector)throw observationError('conflicting_scroll_target');
+  if(!options.map)throw observationError('scope_required');
+  const {root,section}=await this.root(page,session,options as ScopedOptions);
+  let owner:JSHandle|undefined;
+  try{
+   if(section)throw observationError('scroll_owner_requires_panel');
+   owner=await root.evaluateHandle((el,script)=>eval(script)(el),`el=>{
+    const scrollable=n=>{const s=getComputedStyle(n);return n.clientHeight>0&&/^(auto|scroll)$/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+1;};
+    if(scrollable(el))return el;
+    const found=[],stack=Array.from(el.shadowRoot?.children??el.children);let seen=0;
+    while(stack.length&&seen++<512){const n=stack.pop();if(scrollable(n))found.push(n);if(found.length>1)throw new Error('scroll_owner_ambiguous');stack.push(...Array.from(n.shadowRoot?.children??n.children));}
+    if(stack.length)throw new Error('scroll_owner_incomplete');
+    if(found.length===1)return found[0];
+    if(el===document.body||el===document.documentElement)return document.scrollingElement;
+    throw new Error('scroll_owner_not_found');
+   }`);
+   const element=owner.asElement();if(!element)throw observationError('scroll_owner_not_found');
+   return await scrollPage(page,{...options,element:element as ElementHandle<Element>});
+  }catch(e:any){const code=['scroll_owner_ambiguous','scroll_owner_incomplete','scroll_owner_not_found'].find(code=>e.message?.includes(code));if(code)throw observationError(code);throw e;}
+  finally{await owner?.dispose();await section?.dispose();await root.dispose();}
+ }
  private at(page:Page,session:string,value:{map:string;panel?:string;target?:string;item?:number;delivery?:string;consumer?:string}){return this.continuations.issue(page,session,referencesFor(page).documentIdentity(),{map:value.map,panel:value.panel,target:value.target,item:value.item,since:value.delivery,consumer:value.consumer});}
- async map(page:Page,session:string,input:DeliveryOptions&{at?:string;offset?:number}={}){
+ async map(page:Page,session:string,input:DeliveryOptions&{at?:string;offset?:number;viewport?:boolean}={}){
   await referencesFor(page).settleNavigation();
   const options=this.prepare(page,session,input);
-  await this.prune();const document=referencesFor(page).documentIdentity(),navigation=referencesFor(page).navigationRevision(),captured=await captureMap(page,number(options.offset,0,10000));
+  await this.prune();const document=referencesFor(page).documentIdentity(),navigation=referencesFor(page).navigationRevision(),captured=await captureMap(page,number(options.offset,0,10000),options.viewport);
   if(document!==referencesFor(page).documentIdentity()||navigation!==referencesFor(page).navigationRevision()){await captured.roots.dispose();throw observationError('scope_stale');}
   while(this.scopes.size>=16){const key=this.scopes.keys().next().value!;await this.scopes.get(key)!.roots.dispose().catch(()=>{});this.scopes.delete(key);}
-  const same=[...this.scopes].find(([,s])=>s.page===page&&s.session===session&&s.document===document&&s.url===page.url()&&s.navigation===referencesFor(page).navigationRevision()&&JSON.stringify(s.panels.filter(p=>!p.section).map(p=>[p.id,p.identity,p.role,p.parent]))===JSON.stringify(captured.allPanels.map((p:Panel)=>[p.id,p.identity,p.role,p.parent])));
+  const same=[...this.scopes].find(([,s])=>s.page===page&&s.session===session&&s.document===document&&s.url===page.url()&&s.navigation===referencesFor(page).navigationRevision()&&JSON.stringify(s.panels.filter(p=>!p.section&&!p.auxiliary).map(p=>[p.id,p.identity,p.role,p.parent]))===JSON.stringify(captured.allPanels.map((p:Panel)=>[p.id,p.identity,p.role,p.parent])));
   const map=same?.[0]??'M'+randomBytes(6).toString('hex');
-  if(same){const sections=same[1].panels.filter(p=>p.section);await captured.roots.evaluate((fresh:any,old:any)=>{for(const [id,e]of Object.entries(old) as [string,any][])if(e.section&&e.ref?.deref()?.isConnected)fresh[id]=e;},same[1].roots);captured.allPanels.push(...sections);await same[1].roots.dispose().catch(()=>{});}
+  if(same){const sections=same[1].panels.filter(p=>p.section||p.auxiliary);await captured.roots.evaluate((fresh:any,old:any)=>{for(const [id,e]of Object.entries(old) as [string,any][])if((e.section||e.auxiliary)&&e.ref?.deref()?.isConnected&&!fresh[id])fresh[id]=e;},same[1].roots);captured.allPanels.push(...sections.filter(p=>!captured.allPanels.some((n:Panel)=>n.id===p.id)));await same[1].roots.dispose().catch(()=>{});}
   this.scopes.set(map,{page,session,document,url:page.url(),navigation,roots:captured.roots,panels:captured.allPanels,expires:this.clock()+this.ttl});
   try{
    const panels:any[]=[],units:Unit[]=[],seenRefs=new Set<string>();let remaining=12;
-   for(const p of captured.panels){const root=await panelRoot(captured.roots,p.id);try{
-    const snap=await captureSnapshot(page,{root,boundaries:captured.roots,context:false,controlsOnly:true,lightweight:true,maxVisits:160,limit:12,waitMs:0});
-    const controls=remaining>0?snap.elements.filter(e=>mapControl(e)&&!seenRefs.has(e.ref!)).sort((a,b)=>mapPriority(a)-mapPriority(b)).slice(0,Math.min(2,remaining)).map(compactControl):[];for(const c of controls)seenRefs.add(c.ref as string);remaining-=controls.length;
+   const shownPanels=options.viewport?captured.allPanels.filter((p:Panel)=>p.position!=='above'&&p.position!=='below').slice(0,8):captured.panels;
+   for(const p of shownPanels){const root=options.viewport?undefined:await panelRoot(captured.roots,p.id);try{
+    const snap=options.viewport?{elements:[]}:await captureSnapshot(page,{root,boundaries:captured.roots,viewportOnly:true,context:false,controlsOnly:true,lightweight:true,maxVisits:160,limit:12,waitMs:0});
+    const controls=!options.viewport&&remaining>0?snap.elements.filter(e=>mapControl(e)&&!seenRefs.has(e.ref!)).sort((a,b)=>mapPriority(a)-mapPriority(b)).slice(0,Math.min(2,remaining)).map(compactControl):[];for(const c of controls)seenRefs.add(c.ref as string);remaining-=controls.length;
     const {identity,...panel}=p;panels.push({...panel,...(controls.length?{controls}:{}),more:'read'});
-    units.push({key:map+'/'+p.id,data:{id:p.id,...panel,more:'read'},collected:['name','boundary']});
-    for(const control of controls)units.push({key:document+'/'+control.ref,data:{id:control.ref,kind:'control',...control,parent:p.id},collected:controlCollected});
-   }finally{await root.dispose();}}
+    units.push({key:map+'/'+p.id,data:{id:p.id,...panel,more:'read'},collected:['name','nameSource',...(options.viewport?['visibleHeadings']:['headings']),'boundary','parent','horizontal','position']});
+    for(const control of controls)units.push({key:document+'/'+control.ref,data:{id:control.ref,kind:'control',...control,parent:p.id},collected:controlCollected.filter(k=>k!=='native')});
+   }finally{await root?.dispose();}}
    if(navigation!==referencesFor(page).navigationRevision())throw observationError('scope_stale');
    const url=new URL(page.url()),rawUrl=url.origin==='null'?url.href:url.origin+url.pathname,safeUrl=redactUrl(rawUrl),pageFacts={id:'PAGE',title:captured.title,url:safeUrl,queryAvailable:Boolean(url.search),...(safeUrl!==rawUrl?{redacted:['url']}:{})};
    units.push({key:map+'/PAGE',data:pageFacts,collected:['redacted']});const delivered=this.receipt(session,document,units,options);
    const changed=delivered.data,outputPanels=panels.flatMap(p=>{const patch=changed.find(d=>d.id===p.id),controls=(p.controls??[]).flatMap((c:any)=>{const d=changed.find(d=>d.id===c.ref);return d?[d]:[];});if(!patch&&!controls.length)return [];return [{id:p.id,...patch,...(controls.length?{controls}:{} )}];});
+   for(const p of outputPanels)(p as any).at=this.at(page,session,{map,panel:p.id,...delivered});
    const facts=changed.find(d=>d.id==='PAGE');const {data,...receipt}=delivered;
-   return {ok:true,kind:'map',map,at:this.at(page,session,{map,...receipt}),source:'live',document,...(facts?Object.fromEntries(Object.entries(facts).filter(([k])=>k!=='id')):{}),coverage:captured.coverage,panels:outputPanels,...receipt,...(!options.since?{next:['read --at HANDLE --panel PANEL --want outline|controls|content|state','explain: scoped HWM']}:{})};
+   return {ok:true,kind:'map',map,at:this.at(page,session,{map,...receipt}),source:'live',document,...(facts?Object.fromEntries(Object.entries(facts).filter(([k])=>k!=='id')):{}),coverage:options.viewport?{complete:false,scope:'viewport-intersection',shown:shownPanels.length}:captured.coverage,...(options.viewport?{range:'viewport',nextRead:'Use the chosen panel.at with read --visible --want content'}:{}),panels:outputPanels,...receipt,...(!options.since?{next:['Use panel.at: read --want controls,state for actions; content for prose; outline separately','explain: scoped HWM']}:{})};
   }catch(e){await captured.roots.dispose().catch(()=>{});this.scopes.delete(map);throw e;}
  }
  private receipt(session:string,document:string,units:Unit[],options:DeliveryOptions){return this.ledger.publish(session,document,units,options);}
+ private async work(page:Page,session:string,scope:Scope,root:ElementHandle,options:ScopedOptions,section?:JSHandle){
+  const state=await referencesFor(page).snapshotState();
+  const surface=await captureWorkSurface(page,root,scope.roots,state.state,{section,includeChildren:options.includeChildren});
+  const units:Unit[]=[],related:any[]=[];
+  const current=surface.current;
+  units.push({key:options.map+'/'+options.panel+'/work',data:{id:'WORK',current}});
+  for(const item of surface.related){
+   if(!scope.panels.some(p=>p.id===item.id))scope.panels.push({...item,auxiliary:true});
+   const {identity,...entry}=item;const controls:any[]=[];
+   if(item.relation==='controlled-by'){
+    const controller=await panelRoot(scope.roots,item.id);try{
+     const snapshot=await captureSnapshot(page,{root:controller,context:false,controlsOnly:true,lightweight:true,limit:1,maxVisits:1,waitMs:0});
+     controls.push(...snapshot.elements.filter(mapControl).map(compactControl));
+    }finally{await controller.dispose();}
+   }
+   const key=options.map+'/'+options.panel+'/related/'+item.relation+'/'+item.id;
+   units.push({key,data:{...entry},collected:['boundary']});
+   for(const c of controls)units.push({key:scope.document+'/'+c.ref,data:{id:c.ref,...c},collected:controlCollected});
+   related.push({...entry,controls});
+  }
+  if(scope.document!==referencesFor(page).documentIdentity()||scope.navigation!==referencesFor(page).navigationRevision()||!await root.evaluate(el=>el.isConnected))throw observationError('scope_stale');
+  const {data,...receipt}=this.receipt(session,scope.document,units,options);
+  const shown=related.flatMap(entry=>{const facts=data.find(d=>d.id===entry.id),controls=entry.controls.flatMap((c:any)=>{const patch=data.find(d=>d.id===c.ref);return patch?[{ref:c.ref,...patch}]:[];});const {controls:all,...meta}=entry;return facts||controls.length?[{...meta,...(controls.length?{controls}:{}),at:this.at(page,session,{map:options.map,panel:entry.id,...receipt})}]:[];});
+  for(const entry of shown)if(!entry.controls?.length)delete entry.controls;
+  return {...receipt,...(data.find(d=>d.id==='WORK')?{current:data.find(d=>d.id==='WORK')!.current}:{}),...(shown.length?{related:shown,relatedCoverage:surface.coverage}:{})};
+ }
  private async root(page:Page,session:string,options:ScopedOptions){
   const scope=await this.scope(page,session,options.map);if(!scope.panels.some(p=>p.id===options.panel))throw observationError('panel_not_found');
   const panel=scope.panels.find(p=>p.id===options.panel)!;
@@ -135,17 +190,17 @@ export class DemandObservationService {
   const pending=await this.beforeGoal(page,session,input);if(pending)return pending;
   const options=this.scoped(page,session,input),want=(options.want??'controls').split(',');if(want.some(w=>!['outline','controls','content','state'].includes(w)))throw observationError('invalid_read_fields');
   if(want.includes('outline')){if(want.length!==1)throw observationError('outline_requires_separate_read');return this.outline(page,session,options);}
-  const controlsOnly=want.length===1&&want[0]==='controls';
+  const controlsOnly=want.includes('controls')&&!want.includes('content');
   const limit=number(options.limit,controlsOnly?12:60,2000),offset=number(options.offset,0,10000);if(!limit)throw observationError('invalid_read_budget');
   const {root,scope,section}=await this.root(page,session,options);
   try{
-   const graphNeeded=want.includes('content')||want.includes('state');
-   const snapshot=await captureSnapshot(page,{root,section,boundaries:scope.roots,includeChildren:options.includeChildren,context:graphNeeded,controlsOnly,lightweight:true,limit:Math.min(600,graphNeeded?limit+offset:limit),...(graphNeeded?{}:{controlOffset:offset}),contextLimit:Math.min(6000,Math.max(300,(limit+offset)*4)),scope:options.map+'/'+options.panel,query:options.query,waitMs:0});
+   const graphNeeded=!controlsOnly&&(want.includes('content')||want.includes('state'));
+   const snapshot=await captureSnapshot(page,{root,section,boundaries:scope.roots,includeChildren:options.includeChildren,viewportOnly:options.visible,context:graphNeeded,controlsOnly,lightweight:true,limit:Math.min(600,graphNeeded?limit+offset:limit),...(graphNeeded?{}:{controlOffset:offset}),contextLimit:Math.min(6000,Math.max(300,(limit+offset)*4)),scope:options.map+'/'+options.panel+(options.visible?'/viewport':''),query:options.query,waitMs:0});
    if(scope.document!==referencesFor(page).documentIdentity()||scope.navigation!==referencesFor(page).navigationRevision()||scope.url!==page.url()||!await root.evaluate(el=>el.isConnected))throw observationError('scope_stale');
    let units:Unit[]=[];let complete=snapshot.observation?.complete!==false&&!snapshot.truncated;
    if(snapshot.contextGraph){const g=snapshot.contextGraph;this.detailed.remember(session,g);complete=complete&&g.scan.complete;units=this.units(g,want,Boolean(options.query));
-    const interactions=new Map(snapshot.elements.filter(e=>e.ref).map(e=>[e.ref,e.interaction]));
-    for(const unit of units)if(unit.data.ref){unit.collected=[...new Set([...(unit.collected??[]),'interaction'])];const interaction=interactions.get(unit.data.ref);if(interaction)unit.data.interaction=interaction;}
+    const facts=new Map(snapshot.elements.filter(e=>e.ref).map(e=>[e.ref,e]));
+    for(const unit of units)if(unit.data.ref){const fact=facts.get(unit.data.ref);unit.collected=[...new Set([...(unit.collected??[]),'interaction',...(fact?['native']:[])])];if(fact?.interaction)unit.data.interaction=fact.interaction;if(fact?.native)unit.data.native=fact.native;}
     if(options.query){const byId=new Map(g.nodes.map(n=>[n.id,n])),children=new Map<string,typeof g.nodes>(),textCounts=new Map<string,number>(),textLengths=new Map<string,number>();
      for(const n of g.nodes)if(n.parent){const list=children.get(n.parent)??[];list.push(n);children.set(n.parent,list);}
      for(const n of [...g.nodes].reverse()){const count=(textCounts.get(n.id)??0)+(n.text?1:0),length=(textLengths.get(n.id)??0)+(n.text?.length??0);textCounts.set(n.id,count);textLengths.set(n.id,length);if(n.parent){textCounts.set(n.parent,(textCounts.get(n.parent)??0)+count);textLengths.set(n.parent,(textLengths.get(n.parent)??0)+length);}}
@@ -172,10 +227,11 @@ export class DemandObservationService {
     }const cost=Buffer.byteLength(JSON.stringify(unit.data));if(used+cost>byteBudget){if(!shown.length)requiredByteBudget=1000+cost;break;}used+=cost;shown.push(unit);
    }
    const coverage={complete:complete&&!textTruncated&&offset===0&&total<=shown.length,observed:total,shown:shown.length,...(textTruncated?{textTruncated:true,detail:'read target with larger textLimit/byteBudget'}:{}),...(requiredByteBudget?{requiredByteBudget,target:units[graphNeeded?offset:0]?.data.id,detail:'increase byteBudget or reduce textLimit'}:total>offset+shown.length?{nextOffset:offset+shown.length}:{})};
-   const delivered=this.receipt(session,scope.document,shown,options);
+   let delivered:any=this.receipt(session,scope.document,shown,options);let work:any={};
+   if(controlsOnly){work=await this.work(page,session,scope,root,{...options,since:delivered.delivery,consumer:delivered.consumer},section);const {delivery,consumer,known,...facts}=work;work=facts;delivered={...delivered,delivery,consumer,...(known||delivered.known?{known:(known??0)+(delivered.known??0)}:{})};}
    const children=scope.panels.filter(p=>!p.section&&p.parent===options.panel).map(({identity,...p})=>p);
    const at=this.at(page,session,{map:options.map,panel:options.panel,target:options.target,item:options.item,...delivered});
-   const result={ok:true,kind:'read',map:options.map,panel:options.panel,at,source:'live',want,extent:options.includeChildren?'subtree':'own',...(children.length&&!options.includeChildren?{boundaries:{excludedPanels:children.length,next:'read --at HANDLE --want outline'}}:{}),...(options.query?{query:options.query}:{}),capturedAt:snapshot.capturedAt,coverage,...(projected?.omitted?{projection:{omitted:projected.omitted,...projected.counts,details:'explain --at HANDLE'}}:{}),...delivered,...(snapshot.hidden?.length?{hidden:snapshot.hidden}:{}),...(snapshot.collapsed?.length?{collapsed:snapshot.collapsed}:{}),...(delivered.known?{comparison:'same-delivered-fields-read-now'}:{}),...('nextOffset' in coverage?{nextRead:{at,want:want.join(','),query:options.query,item:options.item,offset:coverage.nextOffset,includeChildren:options.includeChildren,source:'live'}}:{})};
+   const result={ok:true,kind:'read',map:options.map,panel:options.panel,at,source:'live',want,range:options.visible?'viewport':'dom',extent:options.includeChildren?'subtree':'own',...(children.length&&!options.includeChildren?{boundaries:{excludedPanels:children.length,next:'read --at HANDLE --want outline'}}:{}),...(options.query?{query:options.query}:{}),capturedAt:snapshot.capturedAt,coverage,...(projected?.omitted?{projection:{omitted:projected.omitted,...projected.counts,details:'explain --at HANDLE'}}:{}),...delivered,...work,...(snapshot.hidden?.length?{hidden:snapshot.hidden}:{}),...(snapshot.collapsed?.length?{collapsed:snapshot.collapsed}:{}),...(delivered.known?{comparison:'same-delivered-fields-read-now'}:{}),...('nextOffset' in coverage?{nextRead:{at,want:want.join(','),query:options.query,item:options.item,offset:coverage.nextOffset,visible:options.visible,includeChildren:options.includeChildren,source:'live'}}:{})};
    return options.query?await this.visualRetry.result(page,session,result,options,root):result;
   }finally{await section?.dispose();await root.dispose();}
  }
@@ -217,7 +273,7 @@ export class DemandObservationService {
   const {root,scope,section}=await this.root(page,session,options);
   try{
    const offset=number(options.offset,0,10000),limit=number(options.limit,24,24);if(!limit)throw observationError('invalid_read_budget');
-   const captured=await captureOutline(page,root,scope.roots,{panel:options.panel,query:options.query,offset,limit,includeChildren:options.includeChildren,section});
+   const captured=await captureOutline(page,root,scope.roots,{panel:options.panel,query:options.query,offset,limit,includeChildren:options.includeChildren,section,viewportOnly:options.visible});
    if(scope.document!==referencesFor(page).documentIdentity())throw observationError('scope_stale');
    const retained=new Set(captured.retainedSections);scope.panels=scope.panels.filter(p=>!p.section||retained.has(p.id));
    for(const h of captured.items)if(h.level!==null&&!scope.panels.some(p=>p.id===h.id))scope.panels.push({id:h.id,role:'section',section:true,name:h.name,parent:options.panel,basis:'heading-outline-v1',position:'unknown'});
@@ -240,30 +296,37 @@ export class DemandObservationService {
    if(output.execution==='not_started'&&!regions?.length)return output;
    const document=referencesFor(page).documentIdentity();
    if(options._deliveryDocument&&options._deliveryDocument!==document){const map=await this.map(page,session,{consumer:options.consumer});return {...output,delivery:map.delivery,consumer:map.consumer,at:map.at,focus:map};}
+   if(!regions?.length&&output.execution!=='not_started'){
+    const previous=options.map?this.scopes.get(options.map):[...this.scopes.values()].reverse().find(s=>s.page===page&&s.session===session&&s.expires>this.clock());
+    if(previous){const stale=previous.document!==document||previous.url!==page.url()||previous.navigation!==referencesFor(page).navigationRevision()||await previous.roots.evaluate((entries:any)=>Object.values(entries).some((e:any)=>!e.section&&!e.ref?.deref()?.isConnected));
+     if(stale){const map=await this.map(page,session,{consumer:options.consumer});return {...output,delivery:map.delivery,consumer:map.consumer,at:map.at,focus:map};}
+    }
+   }
    if(regions?.length){
     const state=await referencesFor(page).snapshotState();
     const roots=await state.state.evaluateHandle((s:any,{regions,guard})=>{const entries:any={};for(const [i,r]of regions.entries()){const e=s.regionTargets?.get(r.id),el=e?.ref.deref();if(el?.isConnected&&eval(`(${guard})`)(el)===e.guard)entries['P'+(i+1)]={ref:new WeakRef(el),guard:e.guard};}return entries;},{regions,guard:REGION_GUARD});
     temporaryRoots=roots;
     const valid=await roots.evaluate((entries:any)=>Object.keys(entries));if(!valid.length){await roots.dispose();return output;}
-    const panels:Panel[]=await roots.evaluate((entries:any)=>Object.entries(entries).map(([id,e]:[string,any])=>{const el=e.ref.deref();return {id,role:el.getAttribute('role')||el.localName,name:el.getAttribute('aria-label')||el.querySelector('h1,h2,h3,[role=heading]')?.textContent||'',basis:el.hasAttribute('role')?'aria':'html',position:'observed-after'};}));
-    for(const p of panels){p.identity=regions[Number(p.id.slice(1))-1].id;p.name=redactContent(p.name??'').slice(0,120);}
+    const panels:Panel[]=await roots.evaluate((entries:any,script)=>eval(`(entries)=>{${script};return Object.entries(entries).map(([id,e])=>{const el=e.ref.deref();return {id,role:el.getAttribute('role')||el.localName,...panelFacts(el),basis:el.hasAttribute('role')?'aria':'html',position:'observed-after'};});}`)(entries),PANEL_FACTS_JS);
+    for(const p of panels){p.identity=regions[Number(p.id.slice(1))-1].id;p.name=p.name?redactContent(p.name).slice(0,120):undefined;if(p.headings)p.headings=p.headings.map(redactContent);}
     const origin=options.map?this.scopes.get(options.map):undefined;
     const compatible=(s:Scope)=>s.page===page&&s.session===session&&s.document===document&&s.url===page.url()&&s.navigation===referencesFor(page).navigationRevision()&&s.expires>this.clock();
     const originMatches=origin&&compatible(origin)&&panels.every(p=>origin.panels.some(old=>!old.section&&old.identity===p.identity));
-    const same=originMatches?[options.map,origin] as [string,Scope]:[...this.scopes].find(([,s])=>{const base=s.panels.filter(p=>!p.section);return compatible(s)&&base.length===panels.length&&base.every((p,i)=>p.identity===panels[i].identity);});
+    const same=originMatches?[options.map,origin] as [string,Scope]:[...this.scopes].find(([,s])=>{const base=s.panels.filter(p=>!p.section&&!p.auxiliary);return compatible(s)&&base.length===panels.length&&base.every((p,i)=>p.identity===panels[i].identity);});
     let map:string;
-    if(same){map=same[0];await roots.dispose();}else{while(this.scopes.size>=16){const key=this.scopes.keys().next().value!;await this.scopes.get(key)!.roots.dispose().catch(()=>{});this.scopes.delete(key);}map='M'+randomBytes(6).toString('hex');this.scopes.set(map,{page,session,document,url:page.url(),navigation:referencesFor(page).navigationRevision(),roots,panels,expires:this.clock()+this.ttl});}temporaryRoots=undefined;
+    if(same){map=same[0];await roots.dispose();}else{while(this.scopes.size>=16){const key=this.scopes.keys().next().value!;await this.scopes.get(key)!.roots.dispose().catch(()=>{});this.scopes.delete(key);}map='M'+randomBytes(6).toString('hex');this.scopes.set(map,{page,session,document,url:page.url(),navigation:referencesFor(page).navigationRevision(),roots,panels:[...panels],expires:this.clock()+this.ttl});}temporaryRoots=undefined;
     if(same)for(const p of panels)p.id=same[1].panels.find(old=>!old.section&&old.identity===p.identity)!.id;
     const focused=this.scopes.get(map)!;const foci:any[]=[];
     for(const p of panels){
      const base={map,panel:p.id,since:output.delivery,consumer:output.consumer};
-     if(map===options.map&&p.id===options.panel){const read=await this.read(page,session,{...base,want:'content,controls,state',limit:60,byteBudget:4000});output.delivery=read.delivery;output.consumer=read.consumer;foci.push({role:p.role,name:p.name,...read});continue;}
+     if(map===options.map&&p.id===options.panel){const read=await this.read(page,session,{...base,want:'controls,state',limit:12,byteBudget:4000});output.delivery=read.delivery;output.consumer=read.consumer;foci.push({role:p.role,name:p.name,...read});continue;}
      const root=await panelRoot(focused.roots,p.id);try{
       const snapshot=await captureSnapshot(page,{root,context:false,controlsOnly:true,lightweight:true,limit:9,maxVisits:512,waitMs:0});
       const controls=snapshot.elements.filter(e=>mapControl(e)).sort((a,b)=>mapPriority(a)-mapPriority(b));const small=panels.length===1&&['menu','listbox'].includes(p.role)&&controls.length<=8&&!snapshot.truncated&&snapshot.observation?.complete!==false&&Buffer.byteLength(JSON.stringify(controls.map(compactControl)))<=2000;
       const selected=(small?controls:controls.slice(0,2)).map(compactControl);
       const delivered=this.receipt(session,document,selected.map(c=>({key:document+'/'+c.ref,data:{id:c.ref,kind:'control',...c},collected:controlCollected})),{since:output.delivery,consumer:output.consumer});output.delivery=delivered.delivery;output.consumer=delivered.consumer;
-      const at=this.at(page,session,{map,panel:p.id,...delivered});foci.push({map,panel:p.id,at,role:p.role,...(p.name?{name:p.name}:{}),source:'observed-after',...(small?{items:delivered.data}:{controls:delivered.data,next:'read --at HANDLE --want controls|content|state'}),coverage:{complete:small,shown:selected.length,observed:snapshot.controlPage?.total??controls.length}});
+      let work:any={};if(!small){const {delivery,consumer,known,...facts}=await this.work(page,session,focused,root,{...base,since:output.delivery,consumer:output.consumer});output.delivery=delivery;output.consumer=consumer;work=facts;}
+      const at=this.at(page,session,{map,panel:p.id,delivery:output.delivery,consumer:output.consumer});foci.push({map,panel:p.id,at,role:p.role,...(p.name?{name:p.name,nameSource:p.nameSource}:{}),...(p.headings?{headings:p.headings}:{}),source:'observed-after',...work,...(small?{items:delivered.data}:{controls:delivered.data,next:{read:{at,want:'controls,state'},content:{at,want:'content'}}}),coverage:{complete:small,shown:selected.length,observed:snapshot.controlPage?.total??controls.length}});
      }finally{await root.dispose();}
     }
     output.focus=foci.length===1?foci[0]:foci;output.at=foci.length===1?this.at(page,session,{map,panel:panels[0].id,delivery:output.delivery,consumer:output.consumer}):this.at(page,session,{map,delivery:output.delivery,consumer:output.consumer});

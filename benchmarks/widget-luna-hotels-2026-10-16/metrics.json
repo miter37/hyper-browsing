@@ -1,0 +1,47 @@
+{
+  "site": "Hotels.com",
+  "model": "gpt-6-luna",
+  "headed": true,
+  "firstCommandAt": "2026-10-16T11:23:25.72Z",
+  "lastCommandAt": "2026-10-16T11:25:09.768Z",
+  "elapsedMs": 104048.0,
+  "cliCalls": 21,
+  "cliDurationMs": 22702.0,
+  "stdoutBytes": 46515.0,
+  "operations": [
+    {
+      "calls": 5,
+      "operation": "click"
+    },
+    {
+      "calls": 1,
+      "operation": "fill"
+    },
+    {
+      "calls": 5,
+      "operation": "find"
+    },
+    {
+      "calls": 4,
+      "operation": "read"
+    },
+    {
+      "calls": 1,
+      "operation": "screenshot"
+    },
+    {
+      "calls": 2,
+      "operation": "scroll"
+    },
+    {
+      "calls": 2,
+      "operation": "session"
+    },
+    {
+      "calls": 1,
+      "operation": "snapshot"
+    }
+  ],
+  "result": "incomplete",
+  "limitation": "Dates and price were not applied; agent ended early despite available recovery and budget."
+}
