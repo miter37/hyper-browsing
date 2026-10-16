@@ -8,6 +8,76 @@ import {executePrimitive} from '../src/engine/execute.ts';
 
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 
+test('a newly linked local region yields early with actual context, without confirming the missing goal',async t=>{
+ const page=await fixture(t,`${'<div class="notice" hidden><button>Unrelated</button></div>'.repeat(4)}<button aria-controls="choices" onclick="document.querySelector('#choices').hidden=false;document.querySelectorAll('.notice').forEach(el=>el.hidden=false)">Open</button><div id="choices" hidden><div><span>Adults</span><input type="range" value="1"><button><span aria-hidden="true">+</span></button></div><button>Apply</button></div><button onclick="window.bad=true">Continue</button>`);
+ const result=await runTask(page,{waitMs:2500,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{exists:{terms:['Guessed name'],exact:true}}},{id:'continue',target:{terms:['Continue'],exact:true},action:{op:'click'}}]});
+ assert.equal(result.reason,'postcondition_unconfirmed');assert.equal(result.steps[0].verification.status,'unconfirmed');assert.equal(result.steps[0].verification.reason,'new_linked_region');assert.ok(result.steps[0].verification.checks<12);
+ assert.equal(await page.evaluate(()=>window.bad),undefined);
+ const plus=result.recovery.regions[0].controls.find(c=>!c.name&&c.tag==='button');assert.equal(plus.local.text,'Adults');assert.equal(plus.local.values[0].value,'1');
+});
+
+test('unrelated new UI and explicitly busy linked UI do not prematurely stop a valid wait',async t=>{
+ for(const busy of [false,true]){
+  const page=await fixture(t,`<button aria-controls="panel" onclick="document.querySelector('#ad').hidden=false;${busy?"document.querySelector('#panel').hidden=false;document.querySelector('#panel').setAttribute('aria-busy','true');":""}setTimeout(()=>{document.querySelector('#panel').hidden=false;document.querySelector('#panel').removeAttribute('aria-busy');document.querySelector('#panel').innerHTML='<button>Expected choice</button>';},650)">Open</button><div id="ad" role="dialog" hidden><button>Unrelated action</button></div><div id="panel" hidden><button>Other choice</button></div>`);
+  const result=await runTask(page,{waitMs:1800,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{exists:{terms:['Expected choice'],scope:'document'}}}]});
+  assert.equal(result.ok,true,JSON.stringify(result));assert.equal(result.recovery,undefined);
+ }
+});
+
+test('single-command early yield preserves execution and skips the obsolete follow query',async t=>{
+ const page=await fixture(t,'<button aria-controls="panel" onclick="document.querySelector(\'#panel\').hidden=false">Open</button><div id="panel" hidden><button>Actual choice</button></div>');
+ const ref=(await findGoal(page,{terms:['Open'],exact:true})).candidates[0].ref;
+ const result=await executeWithFollow(page,{ref},{expect:{exists:{terms:['Expected choice']}},follow:{terms:['Actual choice']},waitMs:2000},()=>executePrimitive(page,'click',{ref,goalDriven:true}));
+ assert.equal(result.execution,'completed');assert.equal(result.verification.reason,'new_linked_region');assert.equal(result.finding.status,'not_found');assert.equal(result.recovery.regions[0].controls[0].name,'Actual choice');
+});
+
+test('Plan B returns an unexpected local popup and stops remaining actions without replay',async t=>{
+ const page=await fixture(t,`<button onclick="window.opens=(window.opens||0)+1;document.querySelector('#popup').hidden=false">Guests</button>
+ <div id="popup" hidden><h2>Travellers</h2><label>Adults <input value="1"></label><button aria-hidden="true">+</button><button>Apply</button></div><button onclick="window.bad=true">Continue</button>`);
+ const result=await runTask(page,{waitMs:0,steps:[{id:'open',target:{terms:['Guests'],exact:true},action:{op:'click'},expect:{exists:{terms:['Expected choice'],exact:true}}},{id:'continue',target:{terms:['Continue'],exact:true},action:{op:'click'}}]});
+ assert.equal(result.reason,'postcondition_unconfirmed');assert.equal(result.execution,'partial');assert.equal(result.remaining,1);
+ assert.equal(result.recovery.kind,'local-observation');assert.equal(result.recovery.regions[0].basis,'newly-visible');
+ assert.match(result.recovery.regions[0].text,/Travellers/);
+ assert.ok(result.recovery.regions[0].controls.some(c=>c.name==='Apply'&&c.ref));
+ assert.ok(result.recovery.regions[0].controls.some(c=>c.value==='1'));
+ assert.equal(await page.evaluate(()=>window.opens),1);assert.equal(await page.evaluate(()=>window.bad),undefined);
+});
+
+test('single command verification failure returns Plan B while preserving completed execution',async t=>{
+ const page=await fixture(t,`<button onclick="document.querySelector('section').hidden=false">Open</button><section hidden><button>Actual choice</button></section>`);
+ const ref=(await findGoal(page,{terms:['Open'],exact:true})).candidates[0].ref;
+ const result=await executeWithFollow(page,{ref},{expect:{exists:{terms:['Wrong choice']}},waitMs:0},()=>executePrimitive(page,'click',{ref,goalDriven:true}));
+ assert.equal(result.execution,'completed');assert.equal(result.verification.status,'unconfirmed');assert.ok(result.recovery.regions[0].controls.some(c=>c.name==='Actual choice'));
+});
+
+test('Plan B is bounded, private and absent from successful responses',async t=>{
+ const page=await fixture(t,`<button onclick="document.querySelector('section').hidden=false">Open</button><section hidden><input type="password" value="DO_NOT_LEAK"><input autocomplete="one-time-code" value="PRIVATE_OTP">${Array.from({length:30},(_,i)=>`<button>Option ${i}</button>`).join('')}</section>`);
+ const result=await runTask(page,{waitMs:0,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{exists:{terms:['Missing']}}}]});
+ assert.ok(result.recovery);assert.ok(Buffer.byteLength(JSON.stringify(result.recovery))<=4000);assert.equal(result.recovery.complete,false);
+ assert.doesNotMatch(JSON.stringify(result.recovery),/DO_NOT_LEAK|PRIVATE_OTP/);
+ const success=await runTask(page,{steps:[{id:'choose',target:{terms:['Option 0'],exact:true},action:{op:'click'}}]});assert.equal(success.ok,true);assert.equal(success.recovery,undefined);
+});
+
+test('Plan B handles unexpected information before a missing next target and preserves unknown outcomes',async t=>{
+ const page=await fixture(t,'<button>Open</button><section hidden><h2>Account prompt</h2><button>Dismiss</button></section>');let calls=0;
+ const result=await runTask(page,{waitMs:0,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{exists:{terms:['Dismiss']}}},{id:'next',target:{terms:['Expected next'],exact:true},action:{op:'click'}}]}, {execute:async()=>{calls++;await page.locator('section').evaluate(el=>el.hidden=false);return {ok:true,execution:'completed'};}});
+ assert.equal(calls,1);assert.equal(result.reason,'target_not_found');assert.match(result.recovery.regions[0].text,/Account prompt/);
+ await page.locator('section').evaluate(el=>el.hidden=true);
+ const unknown=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'}}]}, {execute:async()=>{calls++;await page.locator('section').evaluate(el=>el.hidden=false);return {ok:false,execution:'outcome_unknown',reason:'timeout'};}});
+ assert.equal(calls,2);assert.equal(unknown.execution,'outcome_unknown');assert.ok(unknown.recovery.regions[0].controls.some(c=>c.name==='Dismiss'));
+});
+
+test('Plan B falls back to current popup or target surroundings without asserting newness',async t=>{
+ const page=await fixture(t,'<div role="dialog" aria-label="Existing popup"><button>Choose</button><p>Current instructions</p></div>');
+ const missing=await runTask(page,{steps:[{id:'missing',target:{terms:['Not present'],exact:true},action:{op:'click'}}]});
+ assert.equal(missing.execution,'not_started');assert.equal(missing.recovery.regions[0].basis,'current-open-region');
+ const result=await runTask(page,{waitMs:0,steps:[{id:'choose',target:{terms:['Choose'],exact:true},action:{op:'click'},expect:{exists:{terms:['Missing']}}}]});
+ assert.equal(result.recovery.regions[0].basis,'current-open-region');assert.match(result.recovery.regions[0].text,/Current instructions/);
+ await page.setContent('<section><button>Choose</button><p>Nearby instructions</p></section>');
+ const nearby=await runTask(page,{waitMs:0,steps:[{id:'choose',target:{terms:['Choose'],exact:true},action:{op:'click'},expect:{exists:{terms:['Missing']}}}]});
+ assert.equal(nearby.recovery.regions[0].basis,'target-surroundings');
+});
+
 test('terminal follow is a read, not a demand for a unique next action',async t=>{
  const page=await fixture(t,'<button>Open</button><button>Choice A</button><button>Choice B</button>');
  const result=await runTask(page,{steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},follow:{terms:['Choice']}}]});

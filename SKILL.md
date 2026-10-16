@@ -19,12 +19,12 @@ metadata:
 
 1. 이미 대상 ref를 받았으면 바로 사용한다. 아직 모르면 `find --query`로 현재 목표만 찾는다. 첫 동작 전 전체 snapshot·본문·HWM을 의무적으로 요청하지 않는다. 목표가 넓어 구조가 필요할 때 작은 패널 지도를 사용한다.
 2. `find`의 기본 scope는 현재 열린 dialog/menu/listbox이며 없으면 문서다. 조회 범위는 main document와 열린 shadow이고 전체 프레임이 아니다. 0건은 그 범위에서의 결과다. 범위가 잘못됐다는 근거가 있으면 `--scope document`나 관찰한 `--scope-ref`로 한 번 조정한다.
-3. `status=unique`, `coverage.complete=true`와 실제 후보 ref를 확인한다. `ambiguous`는 소속·목적지·상태를 보고 선택하고, `incomplete`는 유일성을 확정하지 않는다. 검색 순위나 같은 href를 이유로 첫 후보를 누르지 않는다. 반환된 역할을 쓰며 button/link/combobox를 미리 단정하지 않는다. 이름 검색이 0건인데 입력창이 열린 근거가 있으면 `find --role combobox`처럼 역할만 조회할 수 있다. 후보가 여럿이면 tag·소속·상태로 구별한다. 이름이 없는 것을 요소가 없는 것으로 판단하지 않는다.
-4. `match`는 실제 일치 필드와 검색어다. name, 보이는 text, placeholder, value, href는 서로 다르다. `nameSource=placeholder-fallback`은 기존 수집기의 대체 이름이며 브라우저가 계산한 접근 가능한 이름이라는 보장이 아니다. text만 있는 이름 없는 컨트롤도 발급된 ref로 실행할 수 있다. `owner`는 실제 DOM 조상이며 의미 추론이 아니다.
+3. `status=unique`, `coverage.complete=true`와 실제 후보 ref를 확인한다. 후보가 여럿이면 `owner`·`ancestors`의 그룹/폼/패널 소속이 현재 작업에 맞는지 보고 목적지·상태와 함께 구별한다. 같은 문구라도 다른 영역의 컨트롤일 수 있다. `incomplete`는 유일성을 확정하지 않으며 검색 순위나 같은 href로 첫 후보를 고르지 않는다. 역할도 반환된 값을 쓴다. 이름 검색이 0건이어도 입력창이 열린 근거가 있으면 `find --role combobox`처럼 역할로 조회한다.
+4. `match`는 실제 일치 필드와 검색어다. name, text, placeholder, value, href는 다르며 `nameSource=placeholder-fallback`은 브라우저의 계산된 이름이라는 보장이 없다. `owner`·`ancestors`는 DOM 소속, `local`은 무명 컨트롤의 작은 공통 조상 안 문구·값·컨트롤 순서다. 주변 문구를 버튼 이름이나 기능으로 바꾸지 말고, 근거가 충분하면 실제 ref로 조작한다.
 5. 기존 click/fill/press/select/hover에는 `--then-file`로 검증과 다음 목표를 붙일 수 있다. 입력 후 자동완성, 메뉴 열기 후 선택지 같은 정보를 한 응답에서 받는다. `finding`이나 `focus`에 이미 답이 있으면 다시 묻지 않는다.
 6. `run`은 최대 4개 행동, 기본/상한20초 예산이다. 중간 단계에는 `expect`가 필요하며 없으면 다음 행동 전에 `verification_required`로 멈춘다. 각 단계는 새로 찾은 유일 후보 또는 명시한 ref를 공통 실행기로 조작한다. 전체 계획에 confirmed를 붙이지 않는다. 필요한 승인은 해당 단계 action에만 한정한다.
 7. 검증은 직접 관찰할 사실로 선언한다. `fields`는 해당 ref의 현재 값/선택 상태, `goal`은 현재 유일 후보 존재, `exists`는 한 개 이상 존재, `introduced`는 이전에 일치하던 DOM 대상과 다른 새 후보의 존재, `changed.ref`는 지정 영역의 관찰 내용 변화, `url`은 URL 조건이다. 여러 조건은 모두 충족해야 한다. 메뉴·자동완성·상세 창을 열 때에는 기대한 선택지/창에 대한 `expect.exists` 또는 `expect.introduced`와 `follow`를 함께 보낸다. 열림 직후 즉시 조회해서 이전 본문을 받거나 고정 sleep을 추가하는 일을 줄인다. 목록이 갱신돼야 한다면 `goal/exists`만으로 진행하지 말고 `introduced` 또는 관련 범위 `changed`를 함께 쓴다. 선택 후 사라지는 옵션 자체의 selected 검증보다 지속하는 바깥 입력값·선택 요약을 확인한다. 실제 업무 성공 판단은 LLM이 한다.
-8. 멈추면 reason·steps·remaining·finding을 읽고 필요한 부분만 보완한다. completed는 실행 완료, verification은 선언 조건 확인이며 사용자 과업 성공이 아니다. partial은 이미 실행한 단계를 되풀이하지 않는다. outcome_unknown은 request status로 적용 여부부터 확인한다. 새 탭이면 자동 선택하지 않고 실제 세션을 확인한다.
+8. 멈추면 실행 상태·완료 단계·남은 단계를 확인하고 `recovery.regions`의 실제 원문·값·ref로 남은 행동만 다시 계획한다. 복구 정보에 답이 있으면 예상 문구를 재검색하지 않는다. 필요한 근거가 부족할 때만 국소 read/explain → screenshot으로 확대한다. completed는 실행 완료, verification은 선언 조건 확인이며 과업 성공이 아니다. partial의 완료 단계는 반복하지 않고 outcome_unknown은 request status와 현재 적용 여부부터 확인한다. 새 탭은 실제 세션을 확인해 선택한다.
 9. 전달 기준이 있는 추가 `find`에는 실제 `delivery`/`consumer`를 `--since`/`--consumer`로 넘긴다. `known`이면 이미 전달된 동일 필드이며 candidates가 비어도 전체 0건이 아니다. 필요할 때만 `--repeat`한다. at은 기존 read 범위 핸들이고 find/run의 목표 scope와 혼용하지 않는다.
 
 ```text

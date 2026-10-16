@@ -56,3 +56,23 @@ test('a goal delivery failure after a successful action cannot erase known execu
  const result=await daemon.dispatchUnlocked('page.fill',{sessionId:id,format:'hb',ref:found.candidates[0].ref,value:'Busan',then:{follow:{terms:['Open'],exact:true}}});
  assert.equal(result.execution,'completed');assert.equal(result.ok,true);assert.equal(result.observationError,'goal_delivery_unavailable');assert.equal(await page.locator('input').inputValue(),'Busan');
 });
+
+test('daemon delivers Plan B controls with usable guarded refs, without rerunning the opener',async t=>{
+ const {daemon,id,page}=await fixture(t);
+ await page.setContent(`<button onclick="window.opens=(window.opens||0)+1;document.querySelector('section').hidden=false">Open</button><section hidden><h2>Unexpected options</h2><button onclick="window.applied=true">Apply</button></section>`);
+ const result=await daemon.dispatchUnlocked('task.run',{sessionId:id,format:'hb',input:{waitMs:0,steps:[{id:'open',target:{terms:['Open'],exact:true},action:{op:'click'},expect:{exists:{terms:['Missing choice']}}}]}});
+ assert.equal(result.execution,'partial');assert.equal(result.recovery.kind,'local-observation');
+ const apply=result.recovery.regions[0].controls.find(c=>c.name==='Apply');assert.ok(apply?.ref);
+ const next=await daemon.dispatchUnlocked('task.run',{sessionId:id,format:'hb',input:{steps:[{id:'apply',target:{ref:apply.ref},action:{op:'click'}}]}});
+ assert.equal(next.execution,'completed');assert.equal(next.recovery,undefined);assert.equal(await page.evaluate(()=>window.opens),1);assert.equal(await page.evaluate(()=>window.applied),true);
+});
+
+test('local context is part of delivery receipts and is retracted when no longer observed',async t=>{
+ const {daemon,id,page}=await fixture(t);await page.setContent('<section><span>Adults</span><input value="1"><button><span aria-hidden="true">+</span></button></section>');
+ const params={sessionId:id,input:{roles:['button']}};
+ const first=await daemon.dispatchUnlocked('task.find',params);assert.equal(first.candidates[0].local.text,'Adults');
+ const known=await daemon.dispatchUnlocked('task.find',{...params,since:first.delivery,consumer:first.consumer});assert.equal(known.known,1);
+ await page.locator('section > span').evaluate(el=>el.textContent='');
+ const changed=await daemon.dispatchUnlocked('task.find',{...params,since:known.delivery,consumer:known.consumer});
+ assert.equal(changed.candidates[0].ref,first.candidates[0].ref);assert.ok(changed.candidates[0].unavailableFields.includes('local'),JSON.stringify(changed));
+});

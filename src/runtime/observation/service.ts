@@ -35,7 +35,7 @@ export class DemandObservationService {
   return this.deliverGoal(session,found,options);
  }
  private deliverGoal(session:string,found:GoalFinding,options:DeliveryOptions={}){
-  const units=found.candidates.map(c=>({key:found.document+'/'+c.ref,data:{id:c.ref!,...c},collected:[...controlCollected,'text','textTruncated','nameSource','owner','match','actionable']}));
+  const units=found.candidates.map(c=>({key:found.document+'/'+c.ref,data:{id:c.ref!,...c},collected:[...controlCollected,'text','textTruncated','nameSource','owner','local','match','actionable']}));
   const {data,...receipt}=this.receipt(session,found.document!,units,options);
   return {...found,...receipt,candidates:data.map(({id,...c})=>({ref:id,...c}))};
  }

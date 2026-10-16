@@ -5,6 +5,14 @@ import {browserOptions} from './browser-options.mjs';
 import {captureSnapshot} from '../src/runtime/snapshot.ts';
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 
+test('delivery retracts explicitly undefined collected fields while preserving null observations',async()=>{
+ const {DeliveryLedger}=await import('../src/runtime/observation/delivery.ts');const ledger=new DeliveryLedger();
+ const first=ledger.publish('s','d',[{key:'e',data:{id:'e',local:{text:'Adults'},value:'1'},collected:['local','value']}]);
+ const next=ledger.publish('s','d',[{key:'e',data:{id:'e',local:undefined,value:null},collected:['local','value']}],{since:first.delivery});
+ assert.deepEqual(next.data[0].unavailableFields,['local']);assert.equal(next.data[0].value,null);
+ const known=ledger.publish('s','d',[{key:'e',data:{id:'e',value:null},collected:['local','value']}],{since:next.delivery});assert.equal(known.known,1);
+});
+
 test('highlighted pre becomes one exact code block and can be read again with a larger text limit',async t=>{
  const {DemandObservationService}=await import('../src/runtime/observation/service.ts');
  const expected='const numbers = [1, 4, 9];\n\n  const roots = numbers.map(Math.sqrt);\n';

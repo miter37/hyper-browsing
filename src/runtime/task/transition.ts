@@ -42,8 +42,8 @@ export async function prepareTransition(page:Page,expect?:Expect):Promise<Transi
   return baseline;
  }catch{await baseline.dispose();throw Object.assign(new Error('transition_baseline_unavailable'),{execution:'not_started'});}
 }
-export async function waitForTransition(page:Page,expect:Expect,baseline:TransitionBaseline,targetRef:string,deadline:number){
- let finding:GoalFinding|undefined,reason='condition_not_observed';let checks=0;
+export async function waitForTransition(page:Page,expect:Expect,baseline:TransitionBaseline,targetRef:string,deadline:number,onUnexpected?:()=>Promise<boolean>){
+ let finding:GoalFinding|undefined,reason='condition_not_observed';let checks=0;const started=Date.now();
  do{
   checks++;let confirmed=baseline.valid;const iterationDocument=referencesFor(page).documentIdentity();
   if(expect.fields){const resolved=await referencesFor(page).resolve(targetRef);
@@ -54,7 +54,9 @@ export async function waitForTransition(page:Page,expect:Expect,baseline:Transit
    const changed=state?.attached&&state.complete&&!state.busy&&state.signature!==baseline.signature;
    confirmed=confirmed&&!!changed;if(!state?.attached)reason='scope_replaced';
   }
-  for(const goal of [expect.goal,expect.exists,expect.introduced])if(goal){const observed=await findGoal(page,goal);finding=observed;
+  let missingGoals=true,goalCount=0;
+  for(const goal of [expect.goal,expect.exists,expect.introduced])if(goal){const observed=await findGoal(page,goal);finding=observed;goalCount++;
+   missingGoals=missingGoals&&observed.ok&&observed.coverage?.complete===true&&observed.coverage.matched===0;
    // Existence is a witness, not permission to choose among multiple targets.
    confirmed=confirmed&&observed.ok&&observed.coverage?.complete===true&&observed.candidates.length>0&&(goal!==expect.goal||observed.status==='unique');
    if(goal===expect.introduced){let introduced=baseline.document!==observed.document;
@@ -65,6 +67,9 @@ export async function waitForTransition(page:Page,expect:Expect,baseline:Transit
   if(iterationDocument!==referencesFor(page).documentIdentity()){confirmed=false;reason='document_changed_during_verification';}
   if(confirmed)return {status:'confirmed' as const,checks,...(finding?{finding}:{})};
   if(Date.now()>=deadline)break;
+  if(onUnexpected&&goalCount&&missingGoals&&!expect.fields&&!expect.url&&!expect.changed&&Date.now()-started>=250&&await onUnexpected()){
+   return {status:'unconfirmed' as const,reason:'new_linked_region',checks,...(finding?{finding}:{})};
+  }
   await new Promise(resolve=>setTimeout(resolve,Math.min(100,Math.max(0,deadline-Date.now()))));
  }while(Date.now()<=deadline);
  return {status:'unconfirmed' as const,reason,checks,...(finding?{finding}:{})};

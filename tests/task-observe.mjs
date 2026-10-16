@@ -7,6 +7,36 @@ import {executePrimitive} from '../src/engine/execute.ts';
 
 async function fixture(t,html){const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());const page=await browser.newPage();await page.setContent(html);return page;}
 
+test('unnamed controls preserve their own local row text, values and control order',async t=>{
+ const row=(name,value)=>`<div><span>${name}</span><div><button><span aria-hidden="true">−</span></button><input type="range" role="spinbutton" value="${value}" min="0" max="9" style="width:1px;opacity:0"><button><span aria-hidden="true">+</span></button></div></div>`;
+ const page=await fixture(t,`<div role="dialog" aria-label="Guests">${row('Adults',1)}${row('Children',0)}</div>`);
+ const result=await findGoal(page,{roles:['button'],limit:8,byteBudget:8000});
+ assert.equal(result.candidates.length,4);
+ const [minus,plus,childMinus,childPlus]=result.candidates;
+ assert.equal(plus.name,undefined);assert.equal(plus.local.basis,'dom-ancestor');assert.equal(plus.local.text,'Adults');
+ assert.equal(plus.local.values[0].value,'1');assert.equal(plus.local.controlIndex,2);assert.equal(minus.local.controlIndex,0);
+ assert.equal(childPlus.local.text,'Children');assert.equal(childMinus.local.values[0].value,'0');
+ assert.doesNotMatch(JSON.stringify(plus.local),/Children/);
+ const scoped=await findGoal(page,{roles:['button'],scope:{ref:plus.ref}});assert.equal(scoped.candidates[0].local,undefined);
+});
+
+test('same words retain the enclosing form or landmark instead of losing it at a group',async t=>{
+ const page=await fixture(t,'<main><form aria-label="Search form"><fieldset><legend>Route</legend><button>Direct</button></fieldset></form><aside aria-label="Result options"><fieldset><legend>Stops</legend><button>Direct</button></fieldset></aside></main>');
+ const result=await findGoal(page,{terms:['Direct'],exact:true});
+ assert.equal(result.status,'ambiguous');
+ assert.equal(result.candidates[0].owner.name,'Route');assert.equal(result.candidates[0].owner.ancestors[0].role,'form');assert.equal(result.candidates[0].owner.ancestors[0].name,'Search form');
+ assert.equal(result.candidates[1].owner.name,'Stops');assert.equal(result.candidates[1].owner.ancestors[0].role,'complementary');assert.equal(result.candidates[1].owner.ancestors[0].name,'Result options');
+ assert.equal(result.candidates[0].local,undefined);
+});
+
+test('local context masks private field values and marks capped values without widening matches',async t=>{
+ const page=await fixture(t,`<section><span>Credentials</span><input type="password" value="NEVER_PUBLISH_ME"><button><span aria-hidden="true">+</span></button></section><section><span>Person</span><input value="${'z'.repeat(90)}"><button><span aria-hidden="true">+</span></button></section>`);
+ const result=await findGoal(page,{roles:['button'],limit:4});
+ assert.ok(result.candidates[0].local);assert.doesNotMatch(JSON.stringify(result),/NEVER_PUBLISH_ME/);
+ assert.equal(result.candidates[0].local.values[0].redacted,true);assert.equal(result.candidates[1].local.values[0].valueTruncated,true);
+ const notName=await findGoal(page,{terms:['Credentials'],roles:['button'],fields:['name']});assert.equal(notName.status,'not_found');
+});
+
 test('explicit role-only lookup discovers unnamed inputs without treating an empty goal as all controls',async t=>{
  const page=await fixture(t,'<input role="combobox"><button>Other</button>');
  const found=await findGoal(page,{roles:['combobox']});

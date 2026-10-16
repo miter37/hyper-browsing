@@ -19,7 +19,7 @@ export class DeliveryLedger {
   if(prior&&(prior.session!==session||prior.document!==document||options.consumer&&options.consumer!==prior.consumer))throw observationError('delivery_scope_mismatch');
   const consumer=options.consumer??prior?.consumer??'C'+randomBytes(6).toString('hex'),fields=new Map(prior?.fields),data:Record<string,any>[]=[];let known=0;
   for(const unit of units){const changed:Record<string,any>={id:unit.data.id};let added=false;
-   for(const field of unit.collected??[])if(!(field in unit.data)&&fields.has(unit.key+'|'+field)){
+   for(const field of unit.collected??[])if(unit.data[field]===undefined&&fields.has(unit.key+'|'+field)){
     (changed.unavailableFields??=[]).push(field);fields.delete(unit.key+'|'+field);added=true;
    }
    for(const [field,value]of Object.entries(unit.data)){if(field==='id'||value===undefined)continue;const key=unit.key+'|'+field,hash=createHash('sha256').update(JSON.stringify(value)).digest('hex');

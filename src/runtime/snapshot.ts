@@ -10,11 +10,13 @@ import { randomUUID } from 'node:crypto';
 import { CONTEXT_COLLECTOR, sanitizeObservation, type ObservationGraph } from './hwm/observation';
 import { PRIVATE_FIELD_SCRIPT } from './private-fields';
 import type {Goal} from './task/schema';
+import {CONTROL_CONTEXT_JS,sanitizeLocalContext,type LocalControlContext} from './observation/control-context';
 
 export interface SnapshotElement {
   match?:Array<{field:string;term:string}>;
   nameSource?:string;
-  owner?:{role:string;name?:string;text?:string;textTruncated?:boolean;basis:string};
+  owner?:{role:string;name?:string;text?:string;textTruncated?:boolean;basis:string;ancestors?:Array<{role:string;name?:string}>};
+  local?:LocalControlContext;
   actionable?:boolean;
   ref?: string;
   tag: string;
@@ -231,6 +233,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     return undefined;
   }
   ${PRIVATE_FIELD_SCRIPT}
+  ${CONTROL_CONTEXT_JS}
   function ariaState(el, attr) {
     const v = el.getAttribute(attr);
     if (v === "true") return true;
@@ -309,13 +312,15 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     return el.querySelector('img[alt]')?'alt':'title';
   }
   function goalOwner(el){
+    const owners=[];
     for(let p=el.parentElement||el.getRootNode().host;p;p=p.parentElement||p.getRootNode().host){
-      const role=p.getAttribute('role')||({FORM:'form',NAV:'navigation',MAIN:'main',DIALOG:'dialog',LI:'listitem',ARTICLE:'article',FIELDSET:'group',TR:'row'})[p.tagName];
-      if(role&&/^(form|navigation|main|dialog|alertdialog|listitem|article|group|row|menu|listbox|radiogroup)$/.test(role)){
-        const text=/^(listitem|article|row)$/.test(role)?textOf(p):undefined;
-        return {role,name:cleanStr(p.getAttribute('aria-label'))||byIds(p,'aria-labelledby')||(p.tagName==='FIELDSET'?cleanStr(p.querySelector(':scope > legend')?.textContent):undefined),...(text?{text:text.slice(0,160),...(text.length>160?{textTruncated:true}:{})}:{}),basis:'dom-ancestor'};
+      const role=p.getAttribute('role')||({FORM:'form',NAV:'navigation',MAIN:'main',ASIDE:'complementary',DIALOG:'dialog',LI:'listitem',ARTICLE:'article',FIELDSET:'group',TR:'row'})[p.tagName];
+      if(role&&/^(form|search|navigation|main|complementary|banner|contentinfo|dialog|alertdialog|listitem|article|group|row|menu|listbox|radiogroup)$/.test(role)){
+        const text=!owners.length&&/^(listitem|article|row)$/.test(role)?textOf(p):undefined;
+        owners.push({role,name:cleanStr(p.getAttribute('aria-label'))||byIds(p,'aria-labelledby')||(p.tagName==='FIELDSET'?cleanStr(p.querySelector(':scope > legend')?.textContent):undefined),...(!owners.length&&text?{text:text.slice(0,160),...(text.length>160?{textTruncated:true}:{})}:{}),basis:'dom-ancestor'});
       }
     }
+    if(owners.length){const ancestors=owners.slice(1).filter(p=>/^(form|search|navigation|main|complementary|banner|contentinfo|dialog|alertdialog)$/.test(p.role)).slice(0,2).map(({role,name})=>({role,name}));return {...owners[0],...(ancestors.length?{ancestors}:{})};}
   }
   function ownHeading(el) {
     let node = el.parentElement;
@@ -459,6 +464,10 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       if(visual?.length>opts.goal.textLimit)entry.textTruncated=true;
       if(value?.length>240)entry.valueTruncated=true;
     }
+    if(opts.goal||opts.localContext){
+      if(!opts.goal)entry.owner=goalOwner(el);
+      if(!fullName)entry.local=localControlContext(el,opts.root);
+    }
     if (opts.refs) {
       const guard = (${REFERENCE_GUARD})(el);
       let saved = opts.refs.ids.get(el);
@@ -593,11 +602,11 @@ const SNAPSHOT_SCRIPT = `(opts) => {
 
 export async function captureSnapshot(
   page: Page,
-  options: { goal?:Goal;query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
+  options: { goal?:Goal;localContext?:boolean;query?: string; selector?: string; limit?: number; references?: ElementReferences; waitMs?: number; context?: boolean; contextLimit?: number; root?:ElementHandle; lightweight?:boolean; maxVisits?:number; scope?:string;controlOffset?:number;boundaries?:JSHandle;section?:JSHandle;includeChildren?:boolean } = {}
 ): Promise<PageSnapshot> {
   const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT));
   // The query is applied in the page before the element limit, so a match deep in a long page is not cut off.
-  const opts = { goal:options.goal,query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,
+  const opts = { goal:options.goal,localContext:options.localContext,query: options.query || "", limit, context: options.context!==false,lightweight:options.lightweight,maxVisits:options.maxVisits,scope:options.scope,controlOffset:options.controlOffset,
     contextLimit: Math.max(1, Math.min(Number(options.contextLimit) || 2000, 6000)), observation: 'p' + randomUUID().replace(/-/g,'') };
   const references = options.references ?? referencesFor(page);
   let collectionTiming: PageSnapshot['collectionTiming'];
@@ -646,6 +655,7 @@ export async function captureSnapshot(
     value: e.value ? redactText(e.value) : undefined,
     selectedText: e.selectedText ? redactText(e.selectedText) : undefined,
     context: e.context ? redactText(e.context) : undefined,
+    ...(e.local?{local:sanitizeLocalContext(e.local)}:{}),
   }));
 
   const stateStart = new Date().toISOString(), stateDocument = references?.documentIdentity();
