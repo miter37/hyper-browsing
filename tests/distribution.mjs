@@ -13,6 +13,7 @@ test('npm package is publish-ready, CLI is bundled, tsx stays in production depe
   assert.equal(pkg.bin['hyper-browsing'],'./bin/hyper-browsing.mjs');
   assert.ok(pkg.files.includes('sites'));
   assert.ok(pkg.files.includes('scripts'));
+  assert.ok(pkg.files.includes('docs'));
   assert.ok(pkg.dependencies.tsx);
   assert.equal(pkg.devDependencies.tsx,undefined);
   assert.equal(lock.packages[''].dependencies.tsx,pkg.dependencies.tsx);

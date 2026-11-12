@@ -32,7 +32,7 @@ For Claude Desktop or Cursor, add a local stdio MCP server entry and replace the
 }
 ```
 
-On Windows, use a full path such as `C:\\\\work\\\\hyper-browsing\\\\bin\\\\hyper-browsing.mjs` (JSON strings require doubled backslashes). The MCP settings location differs by client; use its current "Add MCP server" interface.
+On Windows, use a full path such as `C:\\work\\hyper-browsing\\bin\\hyper-browsing.mjs` (JSON strings require doubled backslashes). The MCP settings location differs by client; use its current "Add MCP server" interface.
 
 **After the npm package is actually published**, an npm-based configuration becomes possible:
 

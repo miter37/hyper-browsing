@@ -104,11 +104,11 @@ MCP는 별도의 브라우저 엔진이 아니라 **기존 데몬의 안전한 �
 
 **방문했던 사이트: 준비된 Airbnb 러너로 재사용**
 
-![Airbnb 자동화 데모](assets/rec_airbnb.gif)
+![Airbnb 자동화 데모](https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_airbnb.gif)
 
 **새 사이트: Investing.com에서 기본 도구로 탐색**
 
-![Investing.com 최초 방문 데모](assets/rec_investing.gif)
+![Investing.com 최초 방문 데모](https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_investing.gif)
 
 위 영상은 기존 CLI·스킬 흐름의 예시입니다. 실제 사이트 응답시간과 로그인·접근 가능 여부는 환경에 따라 다르며, 모든 과업의 속도 향상을 보장하지 않습니다.
 

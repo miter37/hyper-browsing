@@ -104,11 +104,11 @@ MCP is an **adapter to the existing daemon**, not a second automation engine. Th
 
 **Known site — execute a previously prepared workflow**
 
-![Airbnb ready-made workflow](assets/rec_airbnb.gif)
+![Airbnb ready-made workflow](https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_airbnb.gif)
 
 **New site — explore with built-in inspection tools**
 
-![First-time Investing.com exploration](assets/rec_investing.gif)
+![First-time Investing.com exploration](https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_investing.gif)
 
 These are examples of the legacy CLI/skill workflow. Actual latency, site compatibility and account requirements vary; no universal speedup is claimed.
 

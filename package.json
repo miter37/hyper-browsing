@@ -66,6 +66,7 @@
     "README.ko.md",
     "HERMES_INSTALL.md",
     ".env.example",
-    ".generated/target_sites.json"
+    ".generated/target_sites.json",
+    "docs"
   ]
 }
