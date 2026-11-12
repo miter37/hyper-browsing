@@ -8,11 +8,11 @@ function materializeStrategy(strategy: LocatorStrategy, vars: Record<string, unk
   for (const [key, value] of Object.entries(strategy)) {
     if (typeof value !== "string" || !/\{\{?[a-zA-Z0-9_.-]+\}\}?/.test(value)) continue;
     if (key !== "css") {
-      (out as Record<string, unknown>)[key] = interpolate(value, vars);
+      (out as unknown as Record<string, unknown>)[key] = interpolate(value, vars);
       continue;
     }
     const css = value;
-    (out as Record<string, unknown>)[key] = css.replace(/\{\{([a-zA-Z0-9_.-]+)\}\}|\{([a-zA-Z0-9_.-]+)\}/g,
+    (out as unknown as Record<string, unknown>)[key] = css.replace(/\{\{([a-zA-Z0-9_.-]+)\}\}|\{([a-zA-Z0-9_.-]+)\}/g,
       (placeholder: string, _double: string, _single: string, offset: number) => {
         let quote: string | undefined;
         for (let i = 0; i < offset; i++) {

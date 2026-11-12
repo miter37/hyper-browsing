@@ -45,7 +45,7 @@ metadata:
 
 ## 쓰기와 사용자 개입
 
-external_write / irreversible / unclassified 동작은 현재 작업에 대한 사용자 승인을 근거로 --confirm을 전달한다. 저장된 성공 이력은 새 작업의 승인을 대신하지 않는다.
+external_write / irreversible / unclassified 동작은 현재 작업에 대한 사용자 승인을 근거로 --confirm을 전달한다. 저장된 성공 이력은 새 작업의 승인을 대신하지 않는다. eval과 code action은 임의 코드 실행이 가능한 고급 경로이므로 read로 선언됐더라도 현재 작업에서 사용자 승인이 있을 때만 --confirm을 전달한다.
 
 쓰기 결과가 불명확하면 먼저 APPLIED / NOT_APPLIED / UNKNOWN을 확인한다. APPLIED는 재실행하지 않는다. UNKNOWN이면 중복 실행을 중지하고 사용자에게 상태를 알린다. 로그인·CAPTCHA·2FA는 browser reveal로 사용자의 직접 처리를 요청하며 강제로 우회하지 않는다.
 

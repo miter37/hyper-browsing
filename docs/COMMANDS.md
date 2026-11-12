@@ -33,7 +33,7 @@ webctl diff --session ID --before FILE     # compare before/after snapshot to de
 webctl api-sniff --session ID              # capture clean JSON API calls from backend
 webctl network start --session ID          # begin recording raw requests
 webctl network stop  --session ID          # stop and return them
-webctl eval --session ID --expr "JS..."    # evaluate JavaScript & extract structured data directly
+webctl eval --session ID --expr "JS..." --confirm   # privileged arbitrary JavaScript; prefer extract/verify for reads
 
 # --- act on the page ----------------------------------------------------
 webctl goto    --session ID --url URL

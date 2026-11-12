@@ -83,8 +83,11 @@ export class SessionStore {
     // An old session ID is not a tab index. Capture the live URL while the old
     // context still exists; Chrome may reorder, restore or add tabs on restart.
     const desired = [...this.sessions.entries()]
-      .filter(([, rec]) => !rec.page.isClosed())
-      .map(([id, rec]) => ({ id, url: rec.page.url() || rec.lastUrl || "about:blank", prepare: rec.prepare }));
+      .map(([id, rec]) => ({ id,
+        // Repair can close every old Page before rebindContext is called. Keep
+        // its previously observed URL and ID even if its handle is now closed.
+        url: rec.page.isClosed() ? rec.lastUrl || "about:blank" : rec.page.url() || rec.lastUrl || "about:blank",
+        prepare: rec.prepare }));
     this.context = context;
     this.sessions.clear();
     this.watchForPopups(context);
