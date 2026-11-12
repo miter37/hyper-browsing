@@ -97,8 +97,11 @@ export class SessionStore {
       // Reuse only a uniquely matching URL. If identity is ambiguous, create a
       // new tab instead of navigating an unrelated user tab to the old URL.
       const matches = available.filter(page => page.url() === row.url);
-      const page = matches.length === 1 ? matches[0] : await context.newPage();
-      if (matches.length === 1) available.splice(available.indexOf(page), 1);
+      // Multiple blank tabs are interchangeable and never need navigation.
+      // Nonblank duplicates are ambiguous and must not be repurposed.
+      const existing = row.url === "about:blank" ? matches[0] : matches.length === 1 ? matches[0] : undefined;
+      const page = existing || await context.newPage();
+      if (existing) available.splice(available.indexOf(existing), 1);
       const record: SessionRecord = { page, lastUrl: row.url, prepare: row.prepare, setupStatus: "ready" };
       this.sessions.set(row.id, record);
       this.watchParent(page, row.id);
