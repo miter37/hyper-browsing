@@ -298,7 +298,15 @@ const LIST_SCRIPT = `(opts) => {
   function firstLine(n) { return n ? clean(((n.innerText || n.textContent || "").split("\\n").find((l) => l.trim())) || "") : ""; }
   function titleOf(u, h, a) {
     if (h) return nameOf(h) || firstLine(h);
-    for (const l of links(u)) { const t = nameOf(l) || firstLine(l) || clean(l.getAttribute("title")); if (t.length > 1) return t; }
+    // An item often links to its page twice, through an image ("이미지 보기", "View image") and through its name:
+    // among the links to the item's own address, the longest name is the title.
+    const all = links(u);
+    const main = all.find((l) => /^https?:/.test(l.href) && !/^(#|javascript:)/i.test(l.getAttribute("href") || ""));
+    const named = all.filter((l) => !main || l.href === main.href)
+      .map((l) => nameOf(l) || firstLine(l) || clean(l.getAttribute("title"))).filter((t) => t.length > 1)
+      .sort((x, y) => y.length - x.length);
+    if (named.length) return named[0];
+    for (const l of all) { const t = nameOf(l) || firstLine(l) || clean(l.getAttribute("title")); if (t.length > 1) return t; }
     for (const k of u) { const t = nameOf(k); if (t) return t.replace(/,\\s*[^,]{1,12}$/, ""); }
     const img = q(u, "img[alt]");
     return img && clean(img.getAttribute("alt")) ? clean(img.getAttribute("alt")) : (a ? firstLine(a) : firstLine(u[0]));
@@ -351,14 +359,18 @@ const LIST_SCRIPT = `(opts) => {
       const controlRows = items.filter((u) => q(u, "input[type=checkbox], input[type=radio], input[type=range], [role=checkbox], [role=radio], [role=switch], [role=slider]")).length / items.length;
       const hrefs = items.map((u) => { const l = links(u)[0]; return l ? l.href : ""; }).filter(Boolean);
       const distinctLinks = hrefs.length ? new Set(hrefs).size / items.length : 0;
-      const weight = (inMain ? 2 : 1) * (controlRows >= 0.5 ? 0.2 : 1) * (distinctLinks >= 0.8 ? 1.5 : 1);
+      // A facet row is a short label beside its box; a result card with a "compare/cart" box is long and links somewhere.
+      const facetRows = controlRows >= 0.5 && !(distinctLinks >= 0.8 && textLen >= 80);
+      const weight = (inMain ? 2 : 1) * (facetRows ? 0.2 : 1) * (distinctLinks >= 0.8 ? 1.5 : 1);
       groups.push({ el, items, score: ((query ? hits * 100 : 0) + items.length * Math.min(textLen, 400)) * weight });
     }
   });
   groups.sort((a, b) => b.score - a.score);
   if (!groups.length) return { found: false };
   const g = groups[0];
-  const items = g.items.slice(0, opts.limit).map((k) => {
+  // With a query, return only the items that hold it (the group was already chosen for holding it).
+  const kept = query ? g.items.filter((k) => textOf(k).toLowerCase().includes(query)) : g.items;
+  const items = kept.slice(0, opts.limit).map((k) => {
     const h = headingOf(k);
     // Without a heading, an icon-only first link (vote arrow, thumbnail) is not the item's title link.
     const all = links(k);
@@ -375,7 +387,7 @@ const LIST_SCRIPT = `(opts) => {
   return {
     found: true,
     container: c.tagName.toLowerCase() + (c.id ? "#" + c.id : "") + (c.classList.length ? "." + Array.from(c.classList).slice(0, 2).join(".") : ""),
-    total: g.items.length,
+    total: kept.length,
     items,
     otherGroups: groups.length - 1,
   };

@@ -35,6 +35,18 @@ async function execute(page: Page, kind: ActionKind, params: PrimitiveParams): P
     if (kind === "click") return target.click({ timeout, force: Boolean(params.force) });
     if (kind === "hover") return target.hover({ timeout, force: Boolean(params.force) });
     if (kind === "press") return target.press(params.key || "", { timeout });
+    if (params.read === "row") {
+      // The row or entry that holds a label: "ISBN13" -> "ISBN13 9791163034735".
+      return await target.evaluate((el: Element) => {
+        const ws = /\s+/g;
+        const row = el.closest("tr, [role=row], li, dl > div");
+        if (row) return (row as HTMLElement).innerText.replace(ws, " ").trim();
+        const term = el.closest("dt, th");
+        const next = term?.nextElementSibling;
+        if (term && next) return ((term as HTMLElement).innerText + " " + (next as HTMLElement).innerText).replace(ws, " ").trim();
+        return ((el.parentElement || el) as HTMLElement).innerText.replace(ws, " ").trim();
+      });
+    }
     if (params.read === "value") return target.inputValue({ timeout });
     if (params.read === "attribute") return target.getAttribute(params.attribute || "", { timeout });
     return (await target.innerText({ timeout })).trim();

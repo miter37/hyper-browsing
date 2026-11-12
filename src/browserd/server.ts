@@ -422,6 +422,13 @@ export class BrowserDaemon {
     if (method === "page.extract") {
       if (!page) throw new Error("sessionId required");
       const readOne = async (locator: any, timeout: number): Promise<string | null> => {
+        if (params.read === "row") return locator.evaluate((el: Element) => {
+          const ws = /\s+/g;
+          const row = el.closest("tr, [role=row], li, dl > div");
+          if (row) return (row as HTMLElement).innerText.replace(ws, " ").trim();
+          const term = el.closest("dt, th"); const next = term?.nextElementSibling;
+          return term && next ? ((term as HTMLElement).innerText + " " + (next as HTMLElement).innerText).replace(ws, " ").trim() : ((el.parentElement || el) as HTMLElement).innerText.replace(ws, " ").trim();
+        }, undefined, { timeout });
         if (params.read === "value") return locator.inputValue({ timeout });
         if (params.read === "attribute") return locator.getAttribute(params.attribute, { timeout });
         return (await locator.innerText({ timeout })).trim();
@@ -435,7 +442,8 @@ export class BrowserDaemon {
         await recordLearningEvent(this.config, page, params.sessionId, "extract", { locator: params.locator, read: params.read || "text", all: true });
         return { values, count: await visible.count() };
       }
-      const outcome: any = await executePrimitive(page, "extract", params);
+      // Content that is on the page is there now; waiting the 5 s action timeout for a guess only slows a lookup.
+      const outcome: any = await executePrimitive(page, "extract", { ...params, timeoutMs: params.timeoutMs ?? 2000 });
       if (!outcome.ok) return outcome;
       const value: string | null = outcome.value;
       // Encoding the read as site knowledge writes into sites/<site>/; only when asked (--learn).

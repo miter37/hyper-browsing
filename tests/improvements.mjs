@@ -367,3 +367,31 @@ test('result rows without links or headings are still read as a list',async t=>{
  const list=await listItems(page,{limit:5});
  assert.equal(list.found,true,JSON.stringify(list));assert.equal(list.total,3);assert.match(list.items[0].title,/Air Busan/);
 });
+
+test('a result card with a cart checkbox is still a result, titled by its name link, filtered by query',async t=>{
+ const card=(i,name)=>`<li><input type="checkbox" aria-label="select"><a href="/goods/${i}"><img alt=""> 이미지 보기</a><a href="/goods/${i}">${name}</a><p>저자 · 출판사 · 19,800원 · 평점 9.${i} 판매지수 ${i*1000} 내일 도착 예정</p></li>`;
+ const {page}=await fixture(t,`<meta charset="utf-8"><div class="sec"><section><ul class="filters"><li><label><input type="checkbox">국내도서</label></li><li><label><input type="checkbox">외국도서</label></li><li><label><input type="checkbox">eBook</label></li></ul></section>
+  <section><ul id="list">${[card(1,'점프 투 파이썬'),card(2,'혼자 공부하는 파이썬'),card(3,'자바의 정석'),card(4,'파이썬 코딩 도장')].join('')}</ul></section><section><p>footer text long enough to count as something</p></section></div>`);
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const all=await listItems(page,{limit:5});
+ assert.equal(all.total,4,JSON.stringify(all));assert.equal(all.items[0].title,'점프 투 파이썬');
+ const py=await listItems(page,{query:'파이썬',limit:5});
+ assert.equal(py.total,3);assert.ok(py.items.every(i=>i.title.includes('파이썬')));
+});
+
+test('a covered click is reported as not sent, naming the control on top; a label reads its whole row',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><div style="position:relative"><span id="price">1,903,550원</span><a href="/variant/2" style="position:absolute;inset:0">66몰</a></div>
+  <table><tr><th>ISBN13</th><td>9791163034735</td></tr></table><dl><dt>쪽수</dt><dd>432쪽</dd></dl>`);
+ const r=await executePrimitive(page,'click',{locator:{css:'#price'},timeoutMs:800});
+ assert.equal(r.reason,'intercepted');assert.equal(r.execution,'not_started');assert.equal(r.coveringControl.href,'/variant/2');
+ const row=await executePrimitive(page,'extract',{locator:{text:'ISBN13',exact:true},read:'row'});
+ assert.equal(row.value,'ISBN13 9791163034735');
+ const dd=await executePrimitive(page,'extract',{locator:{text:'쪽수',exact:true},read:'row'});
+ assert.equal(dd.value,'쪽수 432쪽');
+});
+
+test('a search whose Enter changes nothing is reported as unconfirmed',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><form onsubmit="event.preventDefault()"><input type="search" id="q"></form>`);
+ const r=await executePrimitive(page,'fill',{locator:{css:'#q'},value:'파이썬',submit:true});
+ assert.equal(r.submitted,'unconfirmed',JSON.stringify(r));assert.ok(r.warning);
+});

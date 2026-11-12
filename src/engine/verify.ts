@@ -45,7 +45,7 @@ export const PageVerificationSchema=z.object({checks:z.array(z.union([z.object({
 /** Explicit, ephemeral, read-only assertions. No learning or asset persistence. */
 export async function verifyPage(page:Page,input:unknown):Promise<Record<string,any>> {
  const parsed=PageVerificationSchema.safeParse(input);
- if(!parsed.success)return {ok:false,execution:'not_started',reason:'invalid_verification',outcome:'UNKNOWN',error:parsed.error.issues.map(i=>(i.path.length?i.path.join('.')+': ':'')+i.message).join('; '),hint:'Each check is {type:"url_param",name,expected} or {type:"element",target,read,op,expected}.',details:[]};
+ if(!parsed.success)return {ok:false,execution:'not_started',reason:'invalid_verification',outcome:'UNKNOWN',error:parsed.error.issues.map(i=>(i.path.length?i.path.join('.')+': ':'')+i.message).join('; '),hint:'Each check is {type:"url_param",name:"q",expected:"text"} or {type:"element",target:{locator:{role:"button",name:"Save"}} or {ref:"e27"},read:"text|value|attribute|checked|selected",op:"equals|contains|exists",expected}. expected is a boolean for checked/selected, a string otherwise, and omitted for exists.',details:[]};
  const deadline=Date.now()+5000;
  let timer:ReturnType<typeof setTimeout>;
  try { return await Promise.race([verifyPageChecks(page,parsed.data.checks,deadline),new Promise<Record<string,any>>(r=>{timer=setTimeout(()=>r({ok:false,execution:'completed',outcome:'UNKNOWN',reason:'verification_budget',details:[]}),5000);})]);

@@ -315,6 +315,23 @@ export async function actOn<T>(
   } catch (error) {
     nav.stop();
     const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: "outcome_unknown" };
+    // Playwright waits for the point to be free and gives up without clicking: nothing was sent to the page.
+    if (failure.reason === "intercepted") {
+      failure.execution = "not_started";
+      const cover = await target.locator.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!hit || hit === el || el.contains(hit)) return null;
+        const control = hit.closest("a[href], button, [role=button], [role=link], label, input");
+        if (!control) return null;
+        const name = (control.getAttribute("aria-label") || (control as HTMLElement).innerText || control.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 80);
+        return { tag: control.tagName.toLowerCase(), role: control.getAttribute("role") || undefined, name: name || undefined, href: control.getAttribute("href") || undefined };
+      }).catch(() => null);
+      if (cover) {
+        failure.coveringControl = cover;
+        failure.hint = `A ${cover.tag}${cover.name ? ` "${cover.name}"` : ""} covers the target and takes the click. If it is the same item's control, click it instead${cover.href ? ` (href ${cover.href})` : ""}; otherwise close what covers the target.`;
+      }
+    }
     if (failure.reason === "intercepted" || failure.reason === "timeout") {
       // Is a large overlay (open panel's scrim, modal) covering the target?
       const cover = await target.locator.evaluate((el) => {
@@ -494,6 +511,14 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   }
   res.effect = outcome.effect;
   res.observationRequired = outcome.observationRequired;
+  if (params.submit && v.kind !== "choice" && !v.submissionSkipped && !v.submissionRefusal) {
+    const e = outcome.effect || {};
+    const shown = e.urlChanged || e.newSessions?.length || e.page?.opened?.length || (e.page?.interactiveDelta && Math.abs(e.page.interactiveDelta) > 3);
+    if (!shown) {
+      res.submitted = "unconfirmed";
+      res.warning = "Enter was pressed, but the URL did not change and no results appeared. The page may not have taken the input (some sites read only typed keys, or reset the field): check the page, then use the form's own search button or type again.";
+    }
+  }
   if(v.submissionSkipped){res.ok=false;res.reason=v.actual===undefined?'readback_unknown':'value_mismatch';res.submitted=false;res.submissionExecution='not_started';}
   res.resolvedBy = outcome.resolvedBy;
   res.execution = outcome.execution;
