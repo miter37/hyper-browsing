@@ -86,13 +86,20 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   const handle=createMcpHandler();
   // Keep stdout a *pure* MCP channel. Diagnostics go to stderr.
   const lines=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
+  let pending=0,closed=false;
+  const finish=()=>{if(closed&&pending===0)process.exit(0);};
   lines.on('line',async line=>{
     if(!line.trim())return;
-    let msg;
-    try{msg=JSON.parse(line);}
-    catch{process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Parse error'}})+'\n');return;}
-    const answer=await handle(msg);
-    if(answer)process.stdout.write(JSON.stringify(answer)+'\n');
+    pending++;
+    try{
+      let msg;
+      try{msg=JSON.parse(line);}
+      catch{process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Parse error'}})+'\n');return;}
+      const answer=await handle(msg);
+      if(answer)process.stdout.write(JSON.stringify(answer)+'\n');
+    }catch(error){
+      process.stderr.write('[hyper-browsing-mcp] '+String(error?.message||error)+'\n');
+    }finally{pending--;finish();}
   });
-  lines.on('close',()=>process.exit(0));
+  lines.on('close',()=>{closed=true;finish();});
 }
