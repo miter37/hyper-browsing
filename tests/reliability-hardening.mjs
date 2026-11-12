@@ -111,6 +111,23 @@ test('security scan rejects computed process access and dynamic modules', async 
   }
 });
 
+test('code actions require consent even when their metadata declares read-only',async t => {
+  const { page } = await fixture(t, '<h1>Ready</h1>');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hb-code-action-'));
+  t.after(() => fs.rm(root,{recursive:true,force:true}));
+  const c = {...getConfig(),root,runtimeDir:path.join(root,'.runtime'),sitesDir:path.join(root,'sites')};
+  const dir = path.join(c.sitesDir, 'example');
+  await fs.mkdir(dir,{recursive:true});
+  const doc = {site:{id:'example'},match:{hosts:['example.test']},
+    actions:{unsafe:{risk:'read',implementation:{kind:'code',export:'unsafe'},verify:[]}}};
+  await fs.writeFile(path.join(dir,'site.yaml'),JSON.stringify(doc));
+  const result=await runKnownAction(c,page,await loadSite(c,'example'),
+    {sessionId:'code_test',actionId:'unsafe',input:{}});
+  assert.equal(result.confirmationRequired,true);
+  assert.equal(result.risk,'unclassified');
+  assert.equal(result.execution,'not_started');
+});
+
 test('session restore matches URLs rather than tab position and preserves closed session IDs',async () => {
   const fakePage=(url='about:blank')=>({
     current:url, url(){return this.current;},title:async()=>'',isClosed(){return Boolean(this.closed);},
@@ -124,9 +141,11 @@ test('session restore matches URLs rather than tab position and preserves closed
   await store.list();
   first.closed=true;second.closed=true;
   const newA=fakePage('https://a.test/'),newB=fakePage('https://b.test/');
-  await store.rebindContext({on:()=>{},pages:()=>[newB,newA],newPage:async()=>{throw Error('unnecessary new page');}});
+  const unrelated=fakePage('https://user.test/');
+  await store.rebindContext({on:()=>{},pages:()=>[newB,unrelated,newA],newPage:async()=>{throw Error('unnecessary new page');}});
   assert.strictEqual(store.get(a.id),newA);
   assert.strictEqual(store.get(b.id),newB);
+  assert.equal(unrelated.current,'https://user.test/');
 });
 
 test('network capture cleanup detaches listeners and drops buffered results', () => {
