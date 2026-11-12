@@ -46,11 +46,20 @@ function safeUrl(raw: string): string {
 }
 
 export function siteIdFromHost(host: string): string {
-  // Never infer the registrable domain by position: co.kr, co.uk, com.au, etc.
-  // Instead use the full normalized hostname. It is stable and collision-resistant
-  // even without a bundled Public Suffix List, and matches learningContext's key.
   const hostname = host.trim().toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
-  return slug(hostname.replace(/\./g, "_"));
+  const parts = hostname.split(".").filter(Boolean);
+  if (parts.length < 2) return slug(parts[0] || "site");
+  // Preserve existing simple-domain site IDs (example.test -> example), but
+  // never call a public-suffix component such as "co" the site ID.
+  // On common multi-label country suffixes, use the full host to avoid
+  // collisions without introducing a runtime Public Suffix List dependency.
+  const second = parts[parts.length - 2];
+  const last = parts[parts.length - 1];
+  const compound = new Set(["co", "com", "net", "org", "gov", "ac", "edu"]);
+  const countries = new Set(["kr", "uk", "au", "nz", "jp", "in", "br", "cn", "za", "mx", "id", "sg", "tw", "hk"]);
+  return compound.has(second) && countries.has(last)
+    ? slug(hostname.replace(/\./g, "_"))
+    : slug(second);
 }
 
 function journalPath(config: AppConfig, sessionId: string): string {
