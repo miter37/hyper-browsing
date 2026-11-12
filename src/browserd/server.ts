@@ -148,6 +148,16 @@ export class BrowserDaemon {
     if (sessionId && safeHeadedRetry(retryMethod, retryParams) && (method !== "session.open" || params.url)) {
       fallback.retried = true;
       try {
+        // A profile may restore the same URL with the old headless challenge
+        // document. Refresh only this session before retrying a read; never
+        // reload/replay a write, batch, reference or code action.
+        if (retryMethod !== "page.goto") {
+          const targetPage = this.store().get(sessionId);
+          const currentUrl = targetPage.url();
+          if (/^https?:\/\//.test(currentUrl)) {
+            await navigate(targetPage, currentUrl).catch(() => {});
+          }
+        }
         const result = await this.dispatchUnlocked(retryMethod, retryParams);
         fallback.observationRequired = needsHeadedFallback(retryMethod, result);
         return { ...result, ...(method === "session.open" ? { id: sessionId } : {}), headedFallback: fallback };
