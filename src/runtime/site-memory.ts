@@ -29,6 +29,8 @@ export interface MemoryStep {
   setParams?: Record<string, string>;
   keptParams?: Record<string, string>;
   verified?: Array<{ name: string; expected: string }>;
+  freeParams?: string[];
+  stateChange?: string;
   blocked?: { kind: string; evidence: string };
   submit?: boolean;
 }
@@ -64,6 +66,13 @@ function pathOf(url: string): string { try { const u = new URL(url); return u.or
 function hostOf(url: string): string { try { return new URL(url).hostname; } catch { return ""; } }
 
 /** What a URL change says: which parameter carries the typed search, and which parameters the step set. */
+// Names sites commonly give the search text. Recognised even when the address was opened directly.
+const SEARCH_KEYS = /^(q|query|k|kw|keyword|keywords|search|search_query|searchterm|search_term|st|_nkw|ss|term|text|find_desc|wd|qry)$/i;
+// A first page is where every search starts; "page=1" is not a choice anyone made.
+const FIRST_PAGE = (k: string, v: string) => /^(page|p|pg|pagenum|pageno|start|offset|from)$/i.test(k) && /^[01]$/.test(v);
+// Free text (spaces, non-Latin letters) is user input: kept as a {placeholder}, never as a value.
+const FREE_TEXT = (v: string) => /\s|[^\x00-\x7F]/.test(v);
+
 export function describeUrlChange(sessionId: string, before: string, after: string) {
   const a = params(after), b = params(before);
   if (!a) return {};
@@ -71,14 +80,18 @@ export function describeUrlChange(sessionId: string, before: string, after: stri
   let queryParam: string | undefined;
   const setParams: Record<string, string> = {};
   const keptParams: Record<string, string> = {};
+  const freeParams: string[] = [];
   for (const [k, v] of a) {
     if (TRACKING.test(k)) continue;
     const lv = v.toLowerCase();
-    if (!queryParam && recent.some((t) => lv === t || lv.replace(/\+/g, " ") === t || (t.length >= 2 && lv.includes(t)))) { queryParam = k; continue; }
-    if (!stableValue(v)) continue;
+    const typedHere = recent.some((t) => lv === t || lv.replace(/\+/g, " ") === t || (t.length >= 2 && lv.includes(t)));
+    if (!queryParam && (typedHere || (SEARCH_KEYS.test(k) && v.trim()))) { queryParam = k; continue; }
+    if (FREE_TEXT(v)) { freeParams.push(k); continue; }
+    if (!stableValue(v) || FIRST_PAGE(k, v)) continue;
     if (!b || b.get(k) !== v) setParams[k] = v; else keptParams[k] = v;
   }
-  return { queryParam, setParams: Object.keys(setParams).length ? setParams : undefined, keptParams: Object.keys(keptParams).length ? keptParams : undefined };
+  return { queryParam, setParams: Object.keys(setParams).length ? setParams : undefined, keptParams: Object.keys(keptParams).length ? keptParams : undefined,
+    freeParams: freeParams.length ? freeParams : undefined };
 }
 
 export async function recordMemoryStep(c: AppConfig, sessionId: string, step: Omit<MemoryStep, "at">) {
@@ -122,10 +135,24 @@ export async function draftMemory(c: AppConfig, sessionId: string): Promise<Memo
     // The first search of the session is the search itself; later steps that keep the query add filters, which
     // the control facts below describe on their own.
     if (s.queryParam && !facts.has(`${key}|search`)) {
-      const extra = s.keptParams || s.setParams ? fmt({ ...(s.keptParams || {}), ...(s.setParams || {}) }) : "";
+      const fixed = { ...(s.keptParams || {}), ...(s.setParams || {}) };
+      const extra = [fmt(fixed), ...(s.freeParams || []).map((k) => `${k}={${k}}`)].filter(Boolean).join("&");
+      const ok = Object.entries(fixed).some(([k, v]) => confirmed(key, k, v));
       facts.set(`${key}|search`, { id: "search", key, capability: "search",
-        text: `Search results load at ${s.path}?${s.queryParam}={query}${extra ? "&" + extra : ""} (found by ${s.kind === "fill" ? "typing in the search field and pressing Enter" : `${s.kind} after typing`}).`, evidence: `${s.kind} led to the URL` });
+        text: `Search results load at ${s.path}?${s.queryParam}={query}${extra ? "&" + extra : ""}`
+          + (s.kind === "fill" ? " (typing in the search field and pressing Enter led here)" : s.kind === "open" || s.kind === "goto" ? " (opened directly and it loaded)" : ` (${s.kind} after typing led here)`)
+          + (ok ? "; confirmed with verify." : "."), evidence: `${s.kind} led to the URL` });
       continue;
+    }
+    // A filter or sort applied in place (no URL change): which control, by role and name, did it.
+    if (s.stateChange && !s.setParams && ["click", "select"].includes(s.kind)) {
+      const name = controlName(s.control);
+      if (name) {
+        const id = `control:${s.stateChange}:${name}`.slice(0, 100);
+        facts.set(`${key}|${id}`, { id, key, capability: id,
+          text: `${name} applies a filter or sort in place on ${s.path}${s.keptParams ? `?${fmt(s.keptParams)}` : ""} (it became ${s.stateChange}; the URL does not change). Use this control${s.control?.role ? ` (role ${s.control.role})` : ""}.`,
+          evidence: `${s.kind} changed the control's ${s.stateChange} state` });
+      }
     }
     if (s.setParams && ["click", "select", "press", "fill"].includes(s.kind)) {
       const name = controlName(s.control);
@@ -134,7 +161,7 @@ export async function draftMemory(c: AppConfig, sessionId: string): Promise<Memo
       const ok = Object.entries(s.setParams).some(([k, v]) => confirmed(key, k, v));
       const id = `control:${Object.keys(s.setParams).sort().join(",")}:${name}`.slice(0, 100);
       facts.set(`${key}|${id}`, { id, key, capability: id,
-        text: `${name} sets ${set} on ${s.path}${ok ? " (confirmed with verify)" : ""}. A URL with ${set} gives the same result.`, evidence: `${s.kind} changed the URL` });
+        text: `${name} sets ${set} on ${s.path}${s.keptParams ? ` (the URL also had ${fmt(s.keptParams)})` : ""}${ok ? "; confirmed with verify" : ""}. A URL with ${set} gives the same result.`, evidence: `${s.kind} changed the URL` });
     }
   }
   return [...facts.values()];
@@ -171,11 +198,20 @@ export async function removeNotes(c: AppConfig, key: string, capabilities: strin
   });
 }
 
+// One site often spans hosts (www., prod., search.): facts of a sibling host apply too.
+const TWO_LEVEL = /\.(co|or|ne|go|ac|com|net|org|gov|edu)\.[a-z]{2}$/i;
+export function baseDomain(host: string): string {
+  const parts = host.toLowerCase().split(".");
+  return parts.slice(TWO_LEVEL.test(host) ? -3 : -2).join(".");
+}
+
 /** The memory shown when a site is opened: short lines, newest first. */
 export async function memoryFor(c: AppConfig, key: string, host: string, max = 10) {
   if (!memoryReadEnabled()) return undefined;
   const notes = await readJson<Array<SiteNote & { source?: string }>>(notesFile(c), []);
-  const mine = notes.filter((n) => n.key === key || n.key === `host:${host}`).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
+  const base = baseDomain(host);
+  const sameSite = (k: string) => k === key || k === `host:${host}` || (k.startsWith("host:") && baseDomain(k.slice(5)) === base);
+  const mine = notes.filter((n) => sameSite(n.key)).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
   if (!mine.length) return undefined;
   return {
     notes: mine.map((n) => `[${n.capability}] ${n.text.slice(0, 300)} (${n.source === "auto" ? "observed" : "noted"} ${new Date(n.updatedAt).toISOString().slice(0, 10)})`),

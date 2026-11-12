@@ -211,10 +211,17 @@ export class BrowserDaemon {
     const base = { host: site.host, key: site.key, path: (() => { try { const u = new URL(after); return u.origin + u.pathname; } catch { return ""; } })() };
     if (blocked) return recordMemoryStep(this.config, params.sessionId, { ...base, kind: "blocked", blocked: { kind: blocked.kind, evidence: blocked.evidence || "" } });
     const frameUrl = params.frame !== undefined ? (page as any).mainFrame?.().url?.() : undefined;
-    const change = after !== before ? describeUrlChange(params.sessionId, before, after) : {};
-    if (!change.queryParam && !change.setParams && params.frame === undefined) return;
+    const change: any = after !== before ? describeUrlChange(params.sessionId, before, after) : {};
+    // No URL change, but the control itself became checked/selected/pressed: a filter or sort applied in place.
+    const changedState = Object.keys(result.effect?.targetChanged || {}).find((k) => ["checked", "selected", "pressed"].includes(k));
+    let stateChange: string | undefined;
+    if (after === before && changedState && ["click", "select"].includes(kind)) {
+      stateChange = changedState;
+      change.keptParams = describeUrlChange(params.sessionId, after, after).keptParams;
+    }
+    if (!change.queryParam && !change.setParams && !stateChange && params.frame === undefined) return;
     const control = params.locator ? { ...params.locator } : referencesFor(page).semanticLocator(params.ref) || undefined;
-    await recordMemoryStep(this.config, params.sessionId, { ...base, kind: kind as any, control: control as any, frame: params.frame, frameUrl, submit: Boolean(params.submit), ...change });
+    await recordMemoryStep(this.config, params.sessionId, { ...base, kind: kind as any, control: control as any, frame: params.frame, frameUrl, submit: Boolean(params.submit), stateChange, ...change });
   }
 
   private store(): SessionStore {

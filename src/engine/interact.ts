@@ -134,7 +134,7 @@ export function classifyActionError(error: unknown) {
     return { reason: "not_stable", hint: "The target is still moving (animation). Retry once it settles.", error: firstLine(message), log };
   }
   if (/outside of the viewport/i.test(message)) {
-    return { reason: "outside_viewport", hint: "Scroll the target into view (scroll) and retry.", error: firstLine(message), log };
+    return { reason: "outside_viewport", notSent: true, hint: "Scroll the target into view (scroll) and retry.", error: firstLine(message), log };
   }
   if (/element is not visible|to be visible/i.test(message)) {
     return {
@@ -308,7 +308,8 @@ export async function actOn<T>(
   const mayNavigate = kind === "click" && await target.locator.evaluate((el) => {
     const a = el.closest("a[href]");
     const href = a ? a.getAttribute("href") || "" : "";
-    if (a && href && !href.startsWith("#") && !/^javascript:/i.test(href)) return true;
+    if (a && href && !href.startsWith("#")) return true; // javascript: links often navigate from script
+    if (el.closest("[onclick]")) return true;
     return Boolean(el.closest("label, input[type=checkbox], input[type=radio], [role=radio], [role=checkbox], [role=menuitemradio], [role=option], [role=tab]"));
   }).catch(() => false);
   const nav = watchNavigation(page);
@@ -318,6 +319,8 @@ export async function actOn<T>(
   } catch (error) {
     nav.stop();
     const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: (error as any)?.notStarted ? "not_started" : "outcome_unknown" };
+    // Playwright gave up before pressing: the page received nothing.
+    if (failure.notSent) { failure.execution = "not_started"; delete failure.notSent; }
     // Playwright waits for the point to be free and gives up without clicking: nothing was sent to the page.
     if (failure.reason === "intercepted") {
       failure.execution = "not_started";

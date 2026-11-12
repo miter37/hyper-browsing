@@ -443,3 +443,15 @@ test('a challenge address and a bare access-denied page are reported as blocked'
  await page.setContent('<p>checking</p>');
  assert.equal((await detectBlock(page))?.kind,'bot-challenge');
 });
+
+test('a javascript: link that navigates from script is waited for',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><script>function Sort_Set(v){setTimeout(()=>history.pushState({},'', '/search?SortOrder='+v),700)}</script><a href="javascript:Sort_Set('2')">판매량순</a>`);
+ const r=await executePrimitive(page,'click',{locator:{role:'link',name:'판매량순'}});
+ assert.equal(r.effect.urlChanged,true,JSON.stringify(r.effect));assert.match(r.effect.url,/SortOrder=2/);
+});
+
+test('verify reads "true" for a checked state as the boolean it means',async t=>{
+ const {page}=await fixture(t,'<input type="checkbox" aria-label="LG" checked>');
+ const r=await verification.verifyPage(page,{checks:[{type:'element',target:{locator:{role:'checkbox',name:'LG'}},read:'checked',op:'equals',expected:'true'}]});
+ assert.equal(r.outcome,'APPLIED',JSON.stringify(r));
+});

@@ -18,7 +18,7 @@ actions:
     description: Stays in {place} from {checkin} to {checkout} (YYYY-MM-DD) for
       {adults} adults
     risk: read
-    lifecycle: candidate
+    lifecycle: verified
     knowledge:
       capability: hotels
       scope: Opened live and checked on 2026-11-12; the URL is verified after loading.

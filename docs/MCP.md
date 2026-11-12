@@ -64,7 +64,9 @@ The npm package name/availability must be verified at publication time. The repo
 | `dismiss_annoyances` | Evidence-based popup handling |
 | `verify` | Read-only page assertions |
 | `click`, `fill`, `select`, `press` | Verified actions on observed targets |
-| `site_identify`, `learning_notes` | Read what is already known about the site |
+| `site_identify`, `learning_notes` | Read what is already known about the site (`guide:<section>` reads a section of the site guide) |
+| `site_memory_draft`, `site_memory_save` | See the facts the engine drafted from this session; keep, write or remove site facts |
+| `site_repair` | Save a working control or URL template for a saved action that failed |
 | `action_list`, `run_saved_action` | Reuse site assets |
 | `request_status` | Check uncertain requests without replay |
 

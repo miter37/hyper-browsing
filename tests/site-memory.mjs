@@ -70,7 +70,37 @@ test('the search fact is the first search, and later filters stay separate contr
   await recordMemoryStep(c,'s5',{...base,kind:'click',queryParam:'q',keptParams:{type:'repositories'},setParams:{l:'TypeScript'},control:{role:'link',name:'TypeScript'}});
   const facts=await draftMemory(c,'s5');
   const search=facts.find(f=>f.id==='search');
-  assert.equal(search.text,'Search results load at https://gh.test/search?q={query}&type=repositories (found by typing in the search field and pressing Enter).');
+  assert.equal(search.text,'Search results load at https://gh.test/search?q={query}&type=repositories (typing in the search field and pressing Enter led here).');
   assert.ok(!facts.some(f=>f.id.includes('combobox')));
   assert.match(facts.find(f=>f.id.startsWith('control:l:')).text,/link "TypeScript" sets l=TypeScript/);
+});
+
+test('an address opened directly is recognised as a search; first pages and free text are not stored as values',async()=>{
+  const c=await config();
+  const d=describeUrlChange('s6','','https://www.yes24.com/product/search?domain=BOOK&query=%ED%8C%8C%EC%9D%B4%EC%8D%AC&order=SINDEX_ONLY&page=1');
+  assert.equal(d.queryParam,'query');assert.deepEqual(d.setParams,{domain:'BOOK',order:'SINDEX_ONLY'});
+  const j=describeUrlChange('s6','','https://jobs.test/jobs?q=nurse&l=Austin%2C+TX&sort=date');
+  assert.equal(j.queryParam,'q');assert.deepEqual(j.freeParams,['l']);assert.deepEqual(j.setParams,{sort:'date'});
+  await recordMemoryStep(c,'s6',{host:'jobs.test',key:'host:jobs.test',path:'https://jobs.test/jobs',kind:'open',...j});
+  await recordMemoryStep(c,'s6',{host:'jobs.test',key:'host:jobs.test',path:'',kind:'verify',verified:[{name:'sort',expected:'date'}]});
+  const f=(await draftMemory(c,'s6')).find(x=>x.id==='search');
+  assert.equal(f.text,'Search results load at https://jobs.test/jobs?q={query}&sort=date&l={l} (opened directly and it loaded); confirmed with verify.');
+  const p=describeUrlChange('s7','https://x.test/s?query=a&order=SINDEX_ONLY','https://x.test/s?query=a&order=SINDEX_ONLY&page=1');
+  assert.equal(p.setParams,undefined);
+});
+
+test('a filter applied in place is kept as a control fact with its role and page',async()=>{
+  const c=await config();
+  await recordMemoryStep(c,'s8',{host:'prod.shop.test',key:'host:prod.shop.test',path:'https://prod.shop.test/list/',kind:'click',stateChange:'checked',keptParams:{cate:'112758'},control:{role:'checkbox',name:'16인치대'}});
+  const f=await draftMemory(c,'s8');
+  assert.equal(f[0].text,'checkbox "16인치대" applies a filter or sort in place on https://prod.shop.test/list/?cate=112758 (it became checked; the URL does not change). Use this control (role checkbox).');
+});
+
+test('facts of a sibling host of the same site are shown',async()=>{
+  const { baseDomain } = await import('../src/runtime/site-memory.ts');
+  assert.equal(baseDomain('prod.danawa.com'),'danawa.com');assert.equal(baseDomain('www.aladin.co.kr'),'aladin.co.kr');
+  const c=await config();
+  await saveFacts(c,[{id:'f',capability:'control:x',text:'filter',key:'host:prod.danawa.com',evidence:'e'}],'auto');
+  assert.equal((await memoryFor(c,'host:www.danawa.com','www.danawa.com')).notes.length,1);
+  assert.equal(await memoryFor(c,'host:www.other.com','www.other.com'),undefined);
 });
