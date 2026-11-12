@@ -2,6 +2,24 @@
 
 기본 작업 흐름은 [SKILL.md](../SKILL.md), 실행·참조·배치 규칙은 [실행 안내](EXECUTION.md), 자산화와 복구는 [학습 안내](LEARNING.md)를 읽습니다. JSON은 --input-file로 전달합니다.
 
+## 설치·패키지 CLI·MCP
+
+최신 실행 파일은 `bin/hyper-browsing.mjs`입니다. 기존 `bin/webctl`, Windows `bin/webctl.cmd`도 계속 지원합니다. npm 패키지 공개 배포 전에는 저장소를 복제하고 `npm ci`를 실행합니다.
+
+```bash
+node bin/hyper-browsing.mjs --help
+node bin/hyper-browsing.mjs init
+node bin/hyper-browsing.mjs doctor
+node bin/hyper-browsing.mjs mcp
+node bin/hyper-browsing.mjs webctl session open --url https://example.com
+```
+
+MCP 클라이언트 설정에는 `node`와 `/ABSOLUTE/PATH/bin/hyper-browsing.mjs mcp`를 등록합니다. MCP를 통해 `hb_session_open` → `hb_snapshot`/`hb_forms` → `hb_click`/`hb_fill` → `hb_verify` 순서로 사용합니다. 가상 리스트는 `hb_smart_scroll`을 이용합니다. MCP는 동일한 브라우저 데몬을 사용하므로 브라우저를 이중으로 제어하지 않습니다.
+
+**npx 배포 준비만 완료한 상태**입니다. npm 공개 후 `npx -y hyper-browsing@0.4.0 mcp` 사용을 의도하며, 지금은 해당 npm 패키지의 배포를 보장하지 않습니다. 패키지 CLI는 기본 `~/.hyper-browsing`에 세션·학습 데이터를 보존합니다.
+
+보안과 JSON 예시, 모든 MCP 도구 목록은 [MCP.md](MCP.md)를 읽으세요. `confirmed=true`·`approved=true`는 반드시 사용자 승인 근거가 있을 때만 전달합니다.
+
 ## 전체 명령
 
 ```bash
