@@ -32,6 +32,7 @@ import crypto from "node:crypto";
 import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from "./headed-fallback";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
+import { findFrame, frameView, listFrames, FRAME_HINT } from "./frame-view";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
 // A page-load popup watch stops at the first of these: from then on a new dialog may be the agent's own doing.
@@ -317,7 +318,28 @@ export class BrowserDaemon {
       return opened;
     }
     if (method === "session.list") return this.store().list();
-    const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
+    let page = params.sessionId ? this.store().get(params.sessionId) : undefined;
+    const topPage = page;
+    if (page && params.frame !== undefined && (method.startsWith("page.") || method === "batch.run")) {
+      const frame = findFrame(page, String(params.frame));
+      if (!frame) return { ok: false, reason: "no_frame", execution: "not_started", frames: await listFrames(page, 1),
+        hint: "No frame has this name or URL part. Use one of frames, or omit frame for the page itself." };
+      page = frameView(page, frame);
+    }
+    const result = await this.dispatchOnPage(method, params, page);
+    // Nothing found on the page itself: say so when the content may sit inside a frame.
+    if (topPage && params.frame === undefined && result && typeof result === "object" && !Array.isArray(result)
+      && (result.found === false || result.reason === "no_match" || (method === "page.snapshot" && result.snapshot))) {
+      const frames = await listFrames(topPage).catch(() => []);
+      if (frames.length) {
+        if (method === "page.snapshot") { result.snapshot.frames = frames; result.snapshot.frameHint = FRAME_HINT; }
+        else { result.frames = frames; result.frameHint = FRAME_HINT; }
+      }
+    }
+    return result;
+  }
+
+  private async dispatchOnPage(method: string, params: any, page: Page | undefined): Promise<any> {
     if (method === "batch.run") {
       if (!page) throw new Error("sessionId required");
       return runBatch(page, params.input, async (command, result) => {
@@ -434,7 +456,9 @@ export class BrowserDaemon {
     if (method === "page.screenshot") {
       if (!page) throw new Error("sessionId required");
       const file = path.join(this.config.runtimeDir, "snapshots", `${Date.now()}-${params.sessionId}.png`);
-      await page.screenshot({ path: file, fullPage: Boolean(params.fullPage) });
+      // A tab behind another tab in a visible window is not painted, so a capture can wait forever.
+      await page.bringToFront().catch(() => {});
+      await page.screenshot({ path: file, fullPage: Boolean(params.fullPage), timeout: 10000, animations: "disabled" });
       return { file };
     }
     if (method === "network.start") {

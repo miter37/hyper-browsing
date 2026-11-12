@@ -311,6 +311,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     let r;
     const ko = /(?:(\\d{4})\\s*년\\s*)?(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일/g;
     while ((r = ko.exec(s))) add(r[1], r[2], r[3]);
+    const monthDay = /^(\\d{2})-(\\d{2})$/.exec(s.trim());
+    if (monthDay) add(0, monthDay[1], monthDay[2]);
     const iso = /\\b(\\d{4})[-.\\/](\\d{1,2})[-.\\/](\\d{1,2})\\b/g;
     while ((r = iso.exec(s))) add(r[1], r[2], r[3]);
     const us = /\\b(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\b/g;
@@ -320,6 +322,45 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     const dm = new RegExp("\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?,?\\\\s+(?:[a-z]+day,?\\\\s+)?(?:of\\\\s+)?" + MONTH_WORD + "\\\\b(?:,?\\\\s+(\\\\d{4}))?", "g");
     while ((r = dm.exec(s))) add(r[3], monthOf(r[2]), r[1]);
     return out;
+  }
+  // A calendar cell is often named only "18". Its month comes from the grid around it ("2026년 12월", "December 2026")
+  // or from a date attribute (data-iso, data-date, datetime). Returns the cell's date and the caption it came from.
+  const MONTH_KO = /(?:(\\d{4})\\s*년\\s*)?(\\d{1,2})\\s*월/;
+  const MONTH_EN = new RegExp("\\\\b" + MONTH_WORD + "\\\\b(?:\\\\s+(\\\\d{4}))?", "i");
+  const MONTH_ISO = /\\b(\\d{4})[-.\\/](\\d{1,2})\\b/;
+  function monthIn(text) {
+    if (!text || text.length > 60) return null;
+    let r = MONTH_KO.exec(text); if (r) return { y: r[1] ? Number(r[1]) : 0, m: Number(r[2]) };
+    r = MONTH_EN.exec(text); if (r) return { y: r[2] ? Number(r[2]) : 0, m: monthOf(r[1]) };
+    r = MONTH_ISO.exec(text); if (r) return { y: Number(r[1]), m: Number(r[2]) };
+    return null;
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  function cellDate(el, name) {
+    for (const n of [el, el.firstElementChild, el.parentElement]) {
+      if (!n) continue;
+      for (const a of ["data-iso", "data-date", "data-day", "datetime", "data-value"]) {
+        const found = datesIn(n.getAttribute(a) || "").find((d) => d.y);
+        if (found) return { date: found.y + "-" + pad(found.m) + "-" + pad(found.d) };
+      }
+    }
+    const day = /^(\\d{1,2})(?!\\d)/.exec(String(name || "").trim());
+    if (!day || Number(day[1]) > 31) return null;
+    let node = el.parentElement;
+    for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
+      const labelled = (node.getAttribute("aria-labelledby") || "").split(/\\s+/).filter(Boolean)
+        .map((id) => (document.getElementById(id) || {}).textContent || "").join(" ");
+      const caption = node.tagName === "TABLE" && node.caption ? node.caption.textContent : "";
+      const lead = node.firstElementChild && !node.firstElementChild.contains(el) ? node.firstElementChild.innerText || "" : "";
+      for (const text of [node.getAttribute("aria-label"), labelled, caption, lead]) {
+        const month = monthIn(cleanStr(text));
+        if (month) {
+          const d = Number(day[1]);
+          return { date: (month.y ? month.y + "-" : "") + pad(month.m) + "-" + pad(d), caption: cleanStr(text).slice(0, 40) };
+        }
+      }
+    }
+    return null;
   }
   const queryDates = datesIn(query);
   // Words of the query, without punctuation ("TypeScript, sort" -> typescript, sort).
@@ -341,7 +382,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       else if (s.includes(query)) best = Math.max(best, 1);
       else if (querySolid.length > 1 && s.replace(/\\s+/g, "").includes(querySolid)) best = Math.max(best, 1);
     }
-    if (best < 2 && [e.name, e.label, e.text, e.testId].some((v) => sameDay(v))) best = 2;
+    if (best < 2 && [e.date, e.name, e.label, e.text, e.testId].some((v) => sameDay(v))) best = 2;
     // Several words ("destination check-in guests") name several controls: rank by the share of words an element holds.
     if (!best && queryWords.length > 1) {
       const hay = [e.name, e.label, e.hint, e.placeholder, e.text, e.value, e.testId].filter(Boolean).join(" ").toLowerCase();
@@ -448,6 +489,10 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     if ((role === "button" || role === "combobox" || tag === "select") && !cleanStr(el.getAttribute("aria-label"))) {
       const h = hintOf(el);
       if (h && h !== entry.name) entry.hint = h;
+    }
+    if (role === "gridcell" || role === "button" || role === "option" || tag === "td" || tag === "button") {
+      const cell = cellDate(el, entry.name || entry.text);
+      if (cell) { entry.date = cell.date; if (cell.caption && !entry.context) entry.context = cell.caption; }
     }
     let s = score(entry);
     // A repeated short link/button ("Repository", "Select") also matches through its card heading.

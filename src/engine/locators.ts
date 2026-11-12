@@ -66,6 +66,17 @@ const describeCandidate = (el: Element) => {
     }
     break;
   }
+  // A cell of a grid or table (a calendar month, a price table) is placed by the grid's caption.
+  for (let n: Element | null = el.parentElement, depth = 0; n && depth < 8; depth++, n = n.parentElement) {
+    const caption = n.getAttribute("aria-label") || (n.tagName === "TABLE" ? (n as HTMLTableElement).caption?.textContent : "")
+      // A leading title ("2026년 12월") counts; a leading sibling cell or row does not.
+      || (n.firstElementChild && !n.firstElementChild.contains(el) && !n.firstElementChild.matches("[role=gridcell], [role=row], td, tr, th")
+        && !n.firstElementChild.querySelector("[role=gridcell], td") && (n.firstElementChild as HTMLElement).innerText?.length <= 40 ? (n.firstElementChild as HTMLElement).innerText : "");
+    if (caption && /grid|table|rowgroup|group|tabpanel/.test((n.getAttribute("role") || n.tagName).toLowerCase()) || (caption && n.querySelector("[role=gridcell], td"))) {
+      scope.push(String(caption).replace(/\s+/g, " ").trim().slice(0, 60));
+      break;
+    }
+  }
   const form = el.closest("form, fieldset, [role=form], [role=search]");
   if (form) {
     const legend = form.querySelector(":scope > legend");

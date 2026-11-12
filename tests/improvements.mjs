@@ -325,3 +325,45 @@ test('a click on a link that routes late still reports the new URL',async t=>{
  const r=await executePrimitive(page,'click',{locator:{role:'link',name:'Next page'}});
  assert.equal(r.effect.urlChanged,true,JSON.stringify(r.effect));assert.match(r.effect.url,/\/next$/);
 });
+
+test('content inside an iframe is listed, observed, read and clicked through frame',async t=>{
+ const {findFrame,frameView,listFrames}=await import('../src/browserd/frame-view.ts');
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const browser=await chromium.launch(browserOptions());t.after(()=>browser.close());
+ const context=await browser.newContext();
+ const top='<meta charset="utf-8"><input placeholder="search"><iframe name="searchIframe" src="https://list.example.test/place/list" style="width:400px;height:600px"></iframe>';
+ const inner='<meta charset="utf-8"><ul>'+[1,2,3].map(i=>`<li><a href="/place/${i}">Cafe ${i}</a> 리뷰 ${i*10}</li>`).join('')+'</ul><button onclick="window.opened=1">펼쳐보기</button>';
+ await context.route('**/*',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:r.request().url().includes('list.example.test')?inner:top}));
+ const page=await context.newPage();await page.goto('https://map.example.test/');
+ await page.frame({name:'searchIframe'}).waitForLoadState();
+ const frames=await listFrames(page);
+ assert.equal(frames[0].frame,'searchIframe');assert.match(frames[0].url,/place\/list/);
+ assert.ok(!(await captureSnapshot(page)).elements.some(e=>e.name==='펼쳐보기'));
+ const inside=frameView(page,findFrame(page,'place/list'));
+ const list=await listItems(inside,{limit:5});
+ assert.equal(list.items[0].title,'Cafe 1');
+ const snap=await captureSnapshot(inside,{references:referencesFor(inside),query:'펼쳐보기'});
+ const button=snap.elements.find(e=>e.name==='펼쳐보기');assert.ok(button?.ref);
+ const r=await executePrimitive(page,'click',{ref:button.ref});
+ assert.equal(r.ok,true,JSON.stringify(r));
+ assert.equal(await page.frame({name:'searchIframe'}).evaluate(()=>window.opened),1);
+});
+
+test('calendar cells named only by their day number carry the date of their month',async t=>{
+ const month=(label,id)=>`<div role="rowgroup" aria-label="${label}"><div role="row">${[17,18,19].map(d=>`<div role="gridcell" tabindex="0" onclick="window.picked='${id}-${d}'">${d}</div>`).join('')}</div></div>`;
+ const {page}=await fixture(t,`<meta charset="utf-8"><div role="grid">${month('2026년 11월','nov')}${month('2026년 12월','dec')}</div>
+  <div role="button" tabindex="0" data-iso="2027-01-18">18</div>`);
+ const snap=await captureSnapshot(page,{query:'12월 18일'});
+ const cell=snap.elements.find(e=>e.date==='2026-12-18');
+ assert.ok(cell,JSON.stringify(snap.elements));assert.ok(!snap.elements.some(e=>e.date==='2026-11-18'));
+ assert.ok((await captureSnapshot(page,{query:'2027-01-18'})).elements.some(e=>e.date==='2027-01-18'));
+ const r=await executePrimitive(page,'click',{locator:{role:'gridcell',name:'18',exact:true,within:'12월'}});
+ assert.equal(r.ok,true,JSON.stringify(r));assert.equal(await page.evaluate(()=>window.picked),'dec-18');
+});
+
+test('result rows without links or headings are still read as a list',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><ul>${['Air Busan 15:35 – 18:10 ₩309,718','ZIPAIR 13:05 – 15:30 ₩353,318','ZIPAIR 15:00 – 17:25 ₩353,318'].map(r=>`<li><div>${r}</div><div>Nonstop · 2 hr 35 min · ICN–NRT</div></li>`).join('')}</ul>`);
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const list=await listItems(page,{limit:5});
+ assert.equal(list.found,true,JSON.stringify(list));assert.equal(list.total,3);assert.match(list.items[0].title,/Air Busan/);
+});

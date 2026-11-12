@@ -301,7 +301,7 @@ const LIST_SCRIPT = `(opts) => {
     for (const l of links(u)) { const t = nameOf(l) || firstLine(l) || clean(l.getAttribute("title")); if (t.length > 1) return t; }
     for (const k of u) { const t = nameOf(k); if (t) return t.replace(/,\\s*[^,]{1,12}$/, ""); }
     const img = q(u, "img[alt]");
-    return img ? clean(img.getAttribute("alt")) : (a ? firstLine(a) : "");
+    return img && clean(img.getAttribute("alt")) ? clean(img.getAttribute("alt")) : (a ? firstLine(a) : firstLine(u[0]));
   }
   function textOf(u) { return clean(u.map((k) => k.innerText || (k.shadowRoot ? k.shadowRoot.textContent : "")).join(" ")); }
   function headingOf(k) { return q(k, "h1, h2, h3, h4, h5, h6, [role=heading]"); }
@@ -339,7 +339,8 @@ const LIST_SCRIPT = `(opts) => {
       }
     }
     for (const units of candidates) {
-      const items = units.filter((u) => q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading]"));
+      // Result rows may hold no link or heading (a flight row opens on click): a control or enough text also counts.
+      const items = units.filter((u) => q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading], button, [role=button], [role=link], [tabindex]") || textOf(u).length >= 40);
       if (items.length < 3) continue;
       const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
       if (query && !hits) continue;
@@ -365,7 +366,8 @@ const LIST_SCRIPT = `(opts) => {
     const a = h || !all.length || clean(all[0].innerText || all[0].textContent) ? all[0] : (named || all[0]);
     return {
       title: (titleOf(k, h, a) || "").slice(0, 120) || undefined,
-      href: a ? a.href : undefined,
+      // "#" and javascript: links are click handlers, not addresses.
+      href: a && !/^(#|javascript:)/i.test(a.getAttribute("href") || "") ? a.href : undefined,
       text: textOf(k).slice(0, 500),
     };
   });

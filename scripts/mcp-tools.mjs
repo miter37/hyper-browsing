@@ -16,7 +16,8 @@ const locator = O('One locator such as {"role":"button","name":"Search","exact":
 const ref = S('Current snapshot element reference, e.g. e27. Never reuse after navigation.');
 const nth = { type: 'integer', minimum: 0, maximum: 500, description: 'With locator only: pick the N-th visible match (0-based), using the index from the candidates of an ambiguous result.' };
 const within = S('With locator only: keep matches whose card heading, form or landmark contains this text.');
-const target = { locator, ref, nth, within };
+const frame = S('Optional: work inside this frame (iframe). A name or URL part from the frames list of snapshot or a failed lookup.');
+const target = { locator, ref, nth, within, frame };
 const confirmation = B('Set true ONLY after the user explicitly approved this external write. Never infer approval.');
 const targetMessage = 'Provide exactly one of locator or ref, never both. Ambiguous targets are rejected with candidates; narrow with nth or within, or take a new snapshot.';
 
@@ -27,17 +28,17 @@ export const TOOLS = [
   tool('navigate', 'Load a URL in an existing session tab and return the resulting page state.', {sessionId, url:S('HTTP(S) URL to load.')}, ['sessionId','url']),
   tool('back', 'Go back one step in the session tab history.', {sessionId}, ['sessionId']),
   tool('session_close', 'Close one session tab, not the whole browser.', {sessionId}, ['sessionId']),
-  tool('snapshot', 'Compact observation of current page with short-lived element references.', {sessionId, query:S('Optional query for relevant controls.'), limit:N('Maximum elements to show.',1,100)}, ['sessionId'], true),
-  tool('list_items', 'Extract repeated result cards and their titles/links (text holds the rest of each card: price, rating, date). otherGroups counts other repeated lists on the page; narrow with query if the wrong list came back.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,50)}, ['sessionId'], true),
+  tool('snapshot', 'Compact observation of current page with short-lived element references. If the result lists frames, that content is inside iframes: pass frame to look inside.', {sessionId, query:S('Optional query for relevant controls.'), limit:N('Maximum elements to show.',1,100), frame}, ['sessionId'], true),
+  tool('list_items', 'Extract repeated result cards and their titles/links (text holds the rest of each card: price, rating, date). otherGroups counts other repeated lists on the page; narrow with query if the wrong list came back.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,50), frame}, ['sessionId'], true),
   tool('read_text', 'Read the text, value or an attribute of current elements. Use this to read page content; snapshot lists controls, not prose. '+targetMessage, {sessionId,...target, read:S('What to read: text (default), value or attribute.',{enum:['text','value','attribute']}), attribute:S('Attribute name when read is attribute, e.g. href.'), all:B('Return every visible match in order instead of requiring a unique one.'), limit:N('Maximum values when all is true.',1,100)}, ['sessionId'], true),
   tool('screenshot', 'Save a PNG of the session tab and return its local file path.', {sessionId, fullPage:B('Capture the whole scrollable page instead of the viewport.')}, ['sessionId'], true),
-  tool('wait_for', 'Wait until a text or CSS match appears. Provide text or css.', {sessionId, text:S('Visible text to wait for.'), css:S('CSS selector to wait for.'), timeoutMs:N('Give up after this many milliseconds.',100,30000)}, ['sessionId'], true),
-  tool('forms', 'Inspect visible form structure (labels, fields and submit buttons).', {sessionId}, ['sessionId'], true),
+  tool('wait_for', 'Wait until a text or CSS match appears. Provide text or css.', {sessionId, text:S('Visible text to wait for.'), css:S('CSS selector to wait for.'), timeoutMs:N('Give up after this many milliseconds.',100,30000), frame}, ['sessionId'], true),
+  tool('forms', 'Inspect visible form structure (labels, fields and submit buttons).', {sessionId, frame}, ['sessionId'], true),
   tool('smart_scroll', 'Accumulate distinct visible list items across successive scrolls; no background action or auto-submission.', {sessionId, query:S('Optional text filter.'), rounds:N('Number of scroll rounds, max 8.',1,8), limit:N('Maximum aggregated items, max 100.',1,100)}, ['sessionId']),
-  tool('scroll', 'Scroll the page to trigger lazy loading or reach lower content.', {sessionId, direction:S('down (default) or up.',{enum:['down','up']}), distance:N('Pixels per step.',50,5000), times:N('Number of steps.',1,10)}, ['sessionId']),
+  tool('scroll', 'Scroll the page to trigger lazy loading or reach lower content.', {sessionId, direction:S('down (default) or up.',{enum:['down','up']}), distance:N('Pixels per step.',50,5000), times:N('Number of steps.',1,10), frame}, ['sessionId']),
   tool('hover', 'Hover a uniquely identified element to open hover menus or collapsed sub-lists. '+targetMessage, {sessionId,...target}, ['sessionId']),
   tool('dismiss_annoyances', 'Dismiss supported cookie banners and blocking popups using evidence-based UI rules (no forced hiding).', {sessionId}, ['sessionId']),
-  tool('verify', 'Read-only assertions for the current page, returning APPLIED/NOT_APPLIED/UNKNOWN.', {sessionId, input:O('{"checks":[...]} with at most 20 checks. URL query: {"type":"url_param","name":"checkin","expected":"2026-12-10"}. Element: {"type":"element","target":{"locator":{...}} or {"ref":"e27"},"read":"text|value|attribute|checked|selected","op":"equals|contains|exists","expected":"..."} (attribute reads also need "attribute"; exists takes no expected; locator targets may add nth/within).')}, ['sessionId','input'], true),
+  tool('verify', 'Read-only assertions for the current page, returning APPLIED/NOT_APPLIED/UNKNOWN.', {sessionId, frame, input:O('{"checks":[...]} with at most 20 checks. URL query: {"type":"url_param","name":"checkin","expected":"2026-12-10"}. Element: {"type":"element","target":{"locator":{...}} or {"ref":"e27"},"read":"text|value|attribute|checked|selected","op":"equals|contains|exists","expected":"..."} (attribute reads also need "attribute"; exists takes no expected; locator targets may add nth/within).')}, ['sessionId','input'], true),
   tool('click', 'Click a uniquely identified current element. '+targetMessage, {sessionId,...target, confirmed:confirmation}, ['sessionId']),
   tool('fill', 'Fill one input, verify readback; submit is false by default. '+targetMessage, {sessionId,...target, value:S('Text to enter.'), submit:B('Submit with Enter after readback.'),confirmed:confirmation}, ['sessionId','value']),
   tool('select', 'Select one native/custom option. '+targetMessage, {sessionId,...target, option:S('Visible option label.')}, ['sessionId','option']),
@@ -153,7 +154,9 @@ function shapeForMcp(name, args, result) {
   }
   return result;
 }
-async function runDaemonTool(name,args,call) {
+async function runDaemonTool(name,args,rawCall) {
+  // frame is passed through on every call of this tool, including the steps of smart_scroll.
+  const call=(method,params)=>rawCall(method,args.frame!==undefined&&params&&typeof params==='object'?{...params,frame:args.frame}:params);
   validateToolInput(name,args);
   switch(name){
     case 'browser_status': return rpc(call,'browser.status',{});

@@ -15,6 +15,10 @@ export const REFERENCE_GUARD = `(el) => {
 }`;
 let nextBlock = 1;
 const stores = new WeakMap<Page, ElementReferences>();
+// Each store issues refs from its own block of a million numbers, so a ref names its store (a page or a frame).
+const BLOCK = 1_000_000;
+const owners = new Map<number, WeakRef<ElementReferences>>();
+const blockOf = (ref: string) => Math.floor((Number(normalizeReference(ref).slice(1)) - 1) / BLOCK);
 export function normalizeReference(ref: string): string { return /^@?e\d+$/.test(ref) ? ref.replace(/^@/, '') : ref; }
 
 export function targetFor(handle: ElementHandle<HTMLElement | SVGElement>): ActionTarget {
@@ -45,7 +49,8 @@ export class ElementReferences {
   async snapshotState() {
     const generation = this.generation;
     if (!this.state) {
-      const base = nextBlock; nextBlock += 1_000_000;
+      const base = nextBlock; nextBlock += BLOCK;
+      owners.set(Math.floor((base - 1) / BLOCK), new WeakRef(this));
       const state = await this.page.evaluateHandle(base => ({ ids: new WeakMap(), next: base, max: base + 999999 }), base);
       if (generation !== this.generation) { await state.dispose(); throw new Error("Snapshot document changed; observe again"); }
       this.state = state;
@@ -79,6 +84,11 @@ export class ElementReferences {
   async resolve(ref: string): Promise<{ locator: ActionTarget; resolvedBy: "reference" } | { ok: false; reason: "stale_ref"; execution: "not_started"; hint: string }> {
     ref = normalizeReference(ref);
     const entry = this.entries.get(ref);
+    if (!entry) {
+      // Observed in a frame, used without naming the frame: resolve it in the store that issued it.
+      const owner = owners.get(blockOf(ref))?.deref();
+      if (owner && owner !== this) return owner.resolve(ref);
+    }
     const stale = { ok: false as const, reason: "stale_ref" as const, execution: "not_started" as const, hint: "The observed element is no longer valid. Take a fresh snapshot; do not substitute a similar element." };
     if (!entry) return stale;
     const valid = await entry.handle.evaluate((el, guard) => el.isConnected ? eval(`(${guard})`)(el) : null, REFERENCE_GUARD).catch(() => null);

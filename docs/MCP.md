@@ -68,6 +68,8 @@ The npm package name/availability must be verified at publication time. The repo
 | `action_list`, `run_saved_action` | Reuse site assets |
 | `request_status` | Check uncertain requests without replay |
 
+Content inside iframes is not part of the page's own snapshot. When a page has visible frames, `snapshot` (and a lookup that finds nothing) lists them under `frames`; pass `frame` (a frame name or URL part) to `snapshot`, `list_items`, `read_text`, `click`, `fill` and the other page tools to work inside one. A `ref` observed in a frame can be used without `frame`.
+
 Targets take exactly one of `locator` or `ref`. An ambiguous locator is rejected with its candidates; retry with `nth` (0-based) or `within`. Locator suggestions in results are returned as `locator` objects, ready to pass back as arguments.
 
 **Safety contract:** `click`, `fill`, `press` and `run_saved_action` use the existing shared risk/confirmation engine. If a tool returns `confirmationRequired`, stop and ask the user. Only pass `confirmed: true` for a specific operation that the user has explicitly authorized. No raw arbitrary JavaScript `eval` or unrestricted Node execution is exposed through MCP.
