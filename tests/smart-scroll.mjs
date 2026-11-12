@@ -9,16 +9,16 @@ test("smart-scroll accumulates unique list items across virtual DOM replacements
   t.after(() => browser.close());
   const page = await browser.newPage();
   await page.setContent([
-    '<main><div id="results"></div><div style="height:5000px"></div></main>',
+    '<main><div id="scrollbox" style="height:180px; overflow-y:scroll;"><div id="results"></div><div style="height:5000px"></div></div></main>',
     '<script>',
     'const root = document.querySelector("#results"); let turn = 0;',
     'function paint() { root.innerHTML = Array.from({length:5}, (_,i) =>',
     '  "<article class=result><h3>Item " + (turn*5+i) + "</h3><a href=/items/" + (turn*5+i) + ">Read article</a></article>"',
     ').join(""); }',
-    'paint(); window.addEventListener("scroll", () => { turn++; paint(); });',
+    'paint(); document.querySelector("#scrollbox").addEventListener("scroll", () => { turn++; paint(); });',
     '</script>'
   ].join(""));
-  const result = await smartScroll(page, { maxScrolls: 4, distance: 500, limit: 50 });
+  const result = await smartScroll(page, { selector: "#scrollbox", maxScrolls: 4, distance: 500, limit: 50 });
   assert.equal(result.observation.complete, false);
   assert.equal(result.observation.reason, "bounded_virtual_scroll");
   assert.ok(result.scrolled <= 4);
