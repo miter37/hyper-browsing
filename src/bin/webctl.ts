@@ -236,6 +236,7 @@ async function main() {
   if (a === "eval") return print(await client.call("page.evaluate", {
     sessionId: required("session"),
     expression: required("expr"),
+    confirmed: boolFlag("confirm"),
   }));
 
   if (a === "identify") return print(await client.call("site.identify", { sessionId: required("session") }));

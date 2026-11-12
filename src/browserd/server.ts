@@ -1,5 +1,5 @@
 import http from "node:http";
-import type { BrowserContext } from "playwright";
+import type { BrowserContext, Page } from "playwright";
 import type { AppConfig } from "../config";
 import { ensureRuntime } from "../runtime/paths";
 import { ensureToken } from "./token";
@@ -32,11 +32,27 @@ import crypto from "node:crypto";
 import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from "./headed-fallback";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
+import { findFrame, frameView, listFrames, FRAME_HINT } from "./frame-view";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
+
+// A page-load popup watch stops at the first of these: from then on a new dialog may be the agent's own doing.
+const USER_ACTIONS = new Set(["page.click", "page.hover", "page.fill", "page.select", "page.press", "page.scroll", "page.evaluate",
+  "page.dismissAnnoyances", "batch.run", "action.run", "overview.run", "session.close"]);
+const LOAD_POPUP_WATCH_MS = 8000;
 
 async function readJson(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  let bytes = 0;
+  for await (const chunk of req) {
+    bytes += chunk.length;
+    if (bytes > 8 * 1024 * 1024) {
+      req.destroy();
+      const error = new Error("RPC body exceeds 8 MiB") as Error & { execution?: string };
+      error.execution = "not_started";
+      throw error;
+    }
+    chunks.push(Buffer.from(chunk));
+  }
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
@@ -54,7 +70,21 @@ export class BrowserDaemon {
   private requests = new RequestStore();
   private server?: http.Server;
   private networkLogs = new Map<string, any[]>();
-  private networkListeners = new Map<string, { request: (req: any) => void; response: (res: any) => void }>();
+  private networkListeners = new Map<string, { page: Page; request: (req: any) => void; response: (res: any) => void }>();
+
+  /** Detach listeners before sessions close or Chrome is replaced. */
+  private clearNetwork(sessionId?: string): void {
+    const ids = sessionId ? [sessionId] : [...this.networkListeners.keys()];
+    for (const id of ids) {
+      const entry = this.networkListeners.get(id);
+      if (entry) {
+        entry.page.off("request", entry.request);
+        entry.page.off("response", entry.response);
+      }
+      this.networkListeners.delete(id);
+      this.networkLogs.delete(id);
+    }
+  }
 
   constructor(private config: AppConfig) { this.chrome = new ChromeManager(config); }
 
@@ -67,13 +97,19 @@ export class BrowserDaemon {
     await this.sessions.adoptExisting();
 
     this.server = http.createServer(async (req, res) => {
-      if (req.method === "GET" && req.url === "/health") return json(res, 200, { status: "ok", pid: process.pid, chrome: this.chrome.getState() });
+      if (req.method === "GET" && req.url === "/health") {
+        if (req.headers["x-browserd-token"] !== this.token) return json(res, 401, { error: "unauthorized" });
+        return json(res, 200, { status: "ok", pid: process.pid, chrome: this.chrome.getState() });
+      }
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { error: "not_found" });
       if (req.headers.authorization !== `Bearer ${this.token}`) return json(res, 401, { error: "unauthorized" });
       try {
         const { method, params = {}, requestId = crypto.randomUUID() } = await readJson(req);
         const started = Date.now();
+        if (params.sessionId && USER_ACTIONS.has(method)) await this.loadPopupWatch.get(params.sessionId)?.stop();
+        if (method === "session.closeAll") for (const watch of this.loadPopupWatch.values()) await watch.stop();
         const result = method === "request.status" ? await this.dispatch(method, params) : await this.requests.run(requestId, method, params, () => this.dispatch(method, params));
+        await this.afterLoadPopups(method, params, result);
         // How long each command took, so slow steps are visible to the agent and in transcripts.
         if (result && typeof result === "object" && !Array.isArray(result)) (result as any).durationMs = Date.now() - started;
         const full = params.verbose || params.observe || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
@@ -86,6 +122,41 @@ export class BrowserDaemon {
     await new Promise<void>((resolve) => this.server!.listen(this.config.port, this.config.host, resolve));
   }
 
+  // Popups that open by themselves after a page load (sign-in promos, consent banners) are closed without being
+  // asked. The watch ends at the first user action on the tab, so a dialog the agent opened itself is never touched.
+  private loadPopupWatch = new Map<string, { log: string[]; stop: () => Promise<void> }>();
+  private async afterLoadPopups(method: string, params: any, result: any): Promise<void> {
+    if (!result || typeof result !== "object" || Array.isArray(result)) return;
+    const sessionId = method === "session.open" ? result.id : params.sessionId;
+    if (!sessionId) return;
+    if (method === "session.close") { this.loadPopupWatch.delete(sessionId); return; }
+    const loaded = method === "session.open" ? Boolean(params.url) && !result.navigationError
+      : ["page.goto", "page.back", "page.forward"].includes(method) && result.ok !== false;
+    if (!loaded || result.blocked) {
+      const watch = this.loadPopupWatch.get(sessionId);
+      if (watch?.log.length) result.autoDismissed = watch.log.splice(0);
+      return;
+    }
+    if (process.env.WEBAGENT_AUTO_DISMISS === "0") return;
+    let page: Page;
+    try { page = this.store().get(sessionId); } catch { return; }
+    await this.loadPopupWatch.get(sessionId)?.stop();
+    const first = await dismissAnnoyances(page, { fast: true }).catch(() => null);
+    if (first?.actions.length) result.autoDismissed = first.actions;
+    const log: string[] = [];
+    let active = true;
+    const until = Date.now() + LOAD_POPUP_WATCH_MS;
+    const running = (async () => {
+      while (active && Date.now() < until && !page.isClosed()) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        if (!active || page.isClosed()) break;
+        const later = await dismissAnnoyances(page, { fast: true }).catch(() => null);
+        if (later?.actions.length) log.push(...later.actions);
+      }
+    })();
+    this.loadPopupWatch.set(sessionId, { log, stop: async () => { active = false; await running; } });
+  }
+
   private store(): SessionStore {
     if (!this.sessions) throw new Error("browserd not started");
     return this.sessions;
@@ -95,7 +166,10 @@ export class BrowserDaemon {
     // A display change relaunches the shared Chrome instance. Never interrupt an
     // in-flight operation in another session, and leave status queries unblocked.
     if (["request.status", "learning.status", "learning.finish"].includes(method)) return this.dispatchUnlocked(method, params);
-    return serial(`browser:${this.config.runtimeDir}`, () => this.dispatchWithFallback(method, params));
+    return serial(`browser:${this.config.runtimeDir}`, async () => {
+      try { return await this.dispatchWithFallback(method, params); }
+      finally { if (params.sessionId) this.sessions?.touch?.(params.sessionId); }
+    });
   }
   private async dispatchWithFallback(method: string, params: any): Promise<any> {
     let original: any;
@@ -114,7 +188,8 @@ export class BrowserDaemon {
       reason: original.reason || original.blocked || original.navigationError || "headless_failure" };
     try {
       // Capture up-to-date URLs before destroying Playwright handles.
-      await this.store().list();
+      this.store().captureUrls?.();
+      this.clearNetwork();
       await this.chrome.writeDisplayPreference({ headless: false });
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
@@ -149,17 +224,20 @@ export class BrowserDaemon {
       return await learningStatus(this.config, params.sessionId).catch((e: any) => ({ active: false, learningPending: false, warning: e.message }));
     }
     if (method === "session.close") {
+      this.clearNetwork(params.sessionId);
       await this.store().close(params.sessionId);
       const learning = await finishObservedLearning(this.config, params.sessionId).catch((e: any) => ({ learningPending: false, warning: e.message }));
       return { closed: params.sessionId, learning, learning_pending: false };
     }
     if (method === "session.closeAll") {
+      this.clearNetwork();
       const closed = await this.store().closeAll();
       for (const sessionId of closed) await finishObservedLearning(this.config, sessionId).catch(() => {});
       return { closed, count: closed.length };
     }
     const current = await this.chrome.ensureConnected();
     if (current !== this.context) {
+      this.clearNetwork();
       this.context = current;
       if (this.sessions) await this.sessions.rebindContext(current);
       else { this.sessions = new SessionStore(current); await this.sessions.adoptExisting(); }
@@ -184,6 +262,8 @@ export class BrowserDaemon {
       };
       const resolved = await resolveChromeProfile(this.config, { preference });
       const saved = await this.chrome.writePreference(preference);
+      this.store().captureUrls?.();
+      this.clearNetwork();
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
@@ -191,6 +271,8 @@ export class BrowserDaemon {
       return { status: "switched", preference: saved, resolved, chrome: repaired.state, takeover: repaired.takeover };
     }
     if (method === "browser.repair") {
+      this.store().captureUrls?.();
+      this.clearNetwork();
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
@@ -201,6 +283,8 @@ export class BrowserDaemon {
       // Changing headless is launch-time only in Chrome - there is no live CDP toggle - so
       // this relaunches the browser. Open tabs are not lost: rebindContext() reopens every
       // tracked session at its last known URL in the new window, same as browser.repair does.
+      this.store().captureUrls?.();
+      this.clearNetwork();
       await this.chrome.writeDisplayPreference({ headless: method === "browser.hide" });
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
@@ -234,7 +318,28 @@ export class BrowserDaemon {
       return opened;
     }
     if (method === "session.list") return this.store().list();
-    const page = params.sessionId ? this.store().get(params.sessionId) : undefined;
+    let page = params.sessionId ? this.store().get(params.sessionId) : undefined;
+    const topPage = page;
+    if (page && params.frame !== undefined && (method.startsWith("page.") || method === "batch.run")) {
+      const frame = findFrame(page, String(params.frame));
+      if (!frame) return { ok: false, reason: "no_frame", execution: "not_started", frames: await listFrames(page, 1),
+        hint: "No frame has this name or URL part. Use one of frames, or omit frame for the page itself." };
+      page = frameView(page, frame);
+    }
+    const result = await this.dispatchOnPage(method, params, page);
+    // Nothing found on the page itself: say so when the content may sit inside a frame.
+    if (topPage && params.frame === undefined && result && typeof result === "object" && !Array.isArray(result)
+      && (result.found === false || result.reason === "no_match" || (method === "page.snapshot" && result.snapshot))) {
+      const frames = await listFrames(topPage).catch(() => []);
+      if (frames.length) {
+        if (method === "page.snapshot") { result.snapshot.frames = frames; result.snapshot.frameHint = FRAME_HINT; }
+        else { result.frames = frames; result.frameHint = FRAME_HINT; }
+      }
+    }
+    return result;
+  }
+
+  private async dispatchOnPage(method: string, params: any, page: Page | undefined): Promise<any> {
     if (method === "batch.run") {
       if (!page) throw new Error("sessionId required");
       return runBatch(page, params.input, async (command, result) => {
@@ -317,6 +422,31 @@ export class BrowserDaemon {
     if (method === "page.extract") {
       if (!page) throw new Error("sessionId required");
       const readOne = async (locator: any, timeout: number): Promise<string | null> => {
+        if (params.read === "section") return locator.evaluate((el: Element) => {
+            const ws = /\s+/g;
+            const H = "h1, h2, h3, h4, h5, h6, [role=heading]";
+            const head = el.closest(H) || el.querySelector(H) || el;
+            const level = /^H[1-6]$/.test(head.tagName) ? Number(head.tagName[1]) : Number(head.getAttribute("aria-level") || 2);
+            // Headings are often wrapped with small extras (<div><h2>..</h2>[edit]</div>): start after the wrapper.
+            let start: Element = head;
+            while (start.parentElement && start.parentElement !== document.body && ((start.parentElement as HTMLElement).innerText || "").length <= ((head as HTMLElement).innerText || "").length + 40) start = start.parentElement;
+            const parts: string[] = [];
+            let size = 0;
+            for (let n = start.nextElementSibling; n && size < 6000; n = n.nextElementSibling) {
+              const h = n.matches(H) ? n : n.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > [role=heading]");
+              if (h && (/^H[1-6]$/.test(h.tagName) ? Number(h.tagName[1]) : Number(h.getAttribute("aria-level") || 2)) <= level) break;
+              const t = ((n as HTMLElement).innerText || "").replace(ws, " ").trim();
+              if (t) { parts.push(t); size += t.length; }
+            }
+            return parts.join("\n");
+          }, undefined, { timeout });
+        if (params.read === "row") return locator.evaluate((el: Element) => {
+          const ws = /\s+/g;
+          const row = el.closest("tr, [role=row], li, dl > div");
+          if (row) return (row as HTMLElement).innerText.replace(ws, " ").trim();
+          const term = el.closest("dt, th"); const next = term?.nextElementSibling;
+          return term && next ? ((term as HTMLElement).innerText + " " + (next as HTMLElement).innerText).replace(ws, " ").trim() : ((el.parentElement || el) as HTMLElement).innerText.replace(ws, " ").trim();
+        }, undefined, { timeout });
         if (params.read === "value") return locator.inputValue({ timeout });
         if (params.read === "attribute") return locator.getAttribute(params.attribute, { timeout });
         return (await locator.innerText({ timeout })).trim();
@@ -330,7 +460,8 @@ export class BrowserDaemon {
         await recordLearningEvent(this.config, page, params.sessionId, "extract", { locator: params.locator, read: params.read || "text", all: true });
         return { values, count: await visible.count() };
       }
-      const outcome: any = await executePrimitive(page, "extract", params);
+      // Content that is on the page is there now; waiting the 5 s action timeout for a guess only slows a lookup.
+      const outcome: any = await executePrimitive(page, "extract", { ...params, timeoutMs: params.timeoutMs ?? 2000 });
       if (!outcome.ok) return outcome;
       const value: string | null = outcome.value;
       // Encoding the read as site knowledge writes into sites/<site>/; only when asked (--learn).
@@ -351,13 +482,14 @@ export class BrowserDaemon {
     if (method === "page.screenshot") {
       if (!page) throw new Error("sessionId required");
       const file = path.join(this.config.runtimeDir, "snapshots", `${Date.now()}-${params.sessionId}.png`);
-      await page.screenshot({ path: file, fullPage: Boolean(params.fullPage) });
+      // A tab behind another tab in a visible window is not painted, so a capture can wait forever.
+      await page.bringToFront().catch(() => {});
+      await page.screenshot({ path: file, fullPage: Boolean(params.fullPage), timeout: 10000, animations: "disabled" });
       return { file };
     }
     if (method === "network.start") {
       if (!page) throw new Error("sessionId required");
-      const old = this.networkListeners.get(params.sessionId);
-      if (old) { page.off("request", old.request); page.off("response", old.response); }
+      this.clearNetwork(params.sessionId);
       const logs: any[] = [];
       const safeUrl = (raw: string) => {
         try { const u = new URL(raw); for (const key of [...u.searchParams.keys()]) u.searchParams.set(key, "<redacted>"); return redactText(u.toString()); }
@@ -367,16 +499,13 @@ export class BrowserDaemon {
       const response = (res: any) => { if (logs.length < 500) logs.push({ type: "response", at: new Date().toISOString(), status: res.status(), url: safeUrl(res.url()) }); };
       page.on("request", request); page.on("response", response);
       this.networkLogs.set(params.sessionId, logs);
-      this.networkListeners.set(params.sessionId, { request, response });
+      this.networkListeners.set(params.sessionId, { page, request, response });
       return { started: true };
     }
     if (method === "network.stop") {
       if (!page) throw new Error("sessionId required");
-      const listeners = this.networkListeners.get(params.sessionId);
-      if (listeners) { page.off("request", listeners.request); page.off("response", listeners.response); }
-      this.networkListeners.delete(params.sessionId);
       const events = this.networkLogs.get(params.sessionId) || [];
-      this.networkLogs.delete(params.sessionId);
+      this.clearNetwork(params.sessionId);
       return { events };
     }
 
@@ -426,6 +555,11 @@ export class BrowserDaemon {
     }
     if (method === "page.evaluate") {
       if (!page) throw new Error("sessionId required");
+      if (!this.config.allowUnsafeEval) return { ok: false, execution: "not_started", reason: "unsafe_eval_disabled",
+        hint: "Raw page JavaScript can mutate the page and send network requests. Set WEBAGENT_ALLOW_UNSAFE_EVAL=1 only in a trusted environment." };
+      if (!params.confirmed) return { ok: false, execution: "not_started", confirmationRequired: true, risk: "unclassified" };
+      if (typeof params.expression !== "string" || !params.expression.trim() || params.expression.length > 16384)
+        return { ok: false, execution: "not_started", reason: "invalid_expression" };
       return await page.evaluate(params.expression);
     }
 
@@ -502,6 +636,7 @@ export class BrowserDaemon {
   }
 
   async stop(): Promise<void> {
+    this.clearNetwork();
     await new Promise<void>((resolve) => this.server?.close(() => resolve()));
     await this.chrome.stop();
   }

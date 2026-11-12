@@ -18,7 +18,7 @@ webctl browser hide     # optional: back to headless when done
 ```
 
 Reveal for: a login wall, a CAPTCHA, 2FA, or a failure you cannot explain after checking
-the execution and recovery guidance and a screenshot. Session IDs, current URLs, explicit viewport/locale and profile cookies are restored across reveal/hide.
+the execution and recovery guidance and a screenshot. Session IDs, last observed URLs, explicit viewport/locale and profile cookies are restored across reveal/hide. Existing unrelated tabs are never repurposed by their array index. When no unambiguous original tab exists, a new session tab is opened; unrelated tabs are left intact.
 Chrome relaunches: live element references, unsaved form values and transient page state are not preserved. Take a fresh snapshot and verify the result before continuing. `webctl browser status` reports
 the current state as `"headless": true/false`. `hide` is optional, not mandatory — leave it
 revealed if you expect to need the user again soon.

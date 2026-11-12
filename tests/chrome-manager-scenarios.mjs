@@ -35,7 +35,7 @@ exports.chromium = {
     return {
       on: (n, cb) => { handlers[n] = cb; },
       isConnected: () => connected,
-      contexts: () => [{ pages: () => [] }],
+      contexts: () => [{ pages: () => [], addInitScript: async () => {} }],
       __disconnect: () => { connected = false; handlers.disconnected && handlers.disconnected(); }
     };
   }

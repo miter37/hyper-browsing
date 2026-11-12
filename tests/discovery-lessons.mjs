@@ -107,6 +107,20 @@ try {
   check("dialog 'Close' is skipped while the dialog holds a filled field", !clicked.includes("dialog-close"), JSON.stringify(res.skipped));
   const backdropShown = await page.evaluate(() => getComputedStyle(document.querySelector(".modal-backdrop")).display !== "none");
   check("non-consent backdrop is reported, not hidden", backdropShown && res.overlays.some((o) => o.includes("modal-backdrop")), JSON.stringify(res));
+  await page.setContent(`<script>window.clicked = [];</script>
+    <div role="dialog" aria-modal="true" style="position:fixed;top:20px;left:20px;width:300px;height:200px">
+      <button aria-label="로그인 혜택 안내 창 닫기." onclick="clicked.push('promo-x')"><svg width="12" height="12"></svg></button>
+      <button aria-label="Close sign-in info dialog" onclick="clicked.push('info-x')"><svg width="12" height="12"></svg></button>
+      <button aria-label="Close account" onclick="clicked.push('account')">x</button>
+      <button aria-label="예약 내역 닫기" onclick="clicked.push('booking')">x</button></div>
+    <div style="position:sticky;top:0"><button aria-label="메뉴 창 닫기" onclick="clicked.push('sticky')">x</button></div>`);
+  await dismissAnnoyances(page, { fast: true });
+  const labelled = await page.evaluate(() => window.clicked);
+  check("a descriptive close label on a dialog is clicked", labelled.includes("promo-x") && labelled.includes("info-x"), JSON.stringify(labelled));
+  check("a close label naming something else, or outside a dialog, is left alone",
+    !labelled.includes("account") && !labelled.includes("booking") && !labelled.includes("sticky"), JSON.stringify(labelled));
+
+  await page.setContent(ANNOYANCES);
   await dismissAnnoyances(page, { forceHide: true });
   const backdropHidden = await page.evaluate(() => getComputedStyle(document.querySelector(".modal-backdrop")).display === "none");
   check("forceHide hides the remaining backdrop", backdropHidden);
@@ -183,6 +197,32 @@ try {
     <li><h3><a href="/c">Gamma crate</a></h3><p>third</p></li></ol></main>`);
   const list = await listItems(page, { limit: 5 });
   check("list reads repeated items in order", list.found && list.items[0].title === "Alpha crate" && list.total === 3, JSON.stringify(list));
+
+  // One record spread over sibling rows: icon-only vote link + title row, then a details row, then a spacer.
+  await page.setContent(`<table><tbody>${[["Alpha story", "ann"], ["Beta story", "bob"], ["Gamma story", "cy"], ["Delta story", "di"]].map(([t, u], i) => `
+    <tr class="athing"><td>${i + 1}.</td><td><a href="/vote?id=${i}"><div style="width:10px;height:10px"></div></a></td><td><a href="https://example.com/${i}">${t}</a></td></tr>
+    <tr><td colspan="2"></td><td>${10 + i} points by <a href="/user?id=${u}">${u}</a> | <a href="/item?id=${i}">${i} comments</a></td></tr>
+    <tr class="spacer" style="height:5px"><td></td></tr>`).join("")}
+    <tr><td><a href="/more">More</a></td></tr></tbody></table>`);
+  const striped = await listItems(page, { limit: 5 });
+  check("list reads a record spread over sibling rows by its title link",
+    striped.found && striped.total === 4 && striped.items[0].title === "Alpha story" && striped.items[0].href === "https://example.com/0"
+      && striped.items[0].text.includes("points by ann") && striped.items[3].title === "Delta story", JSON.stringify(striped));
+
+  // A filter panel and result cards on the same page, outside <main>; cards are interleaved with banners.
+  await page.setContent(`<div class="filters">${["Free cancellation", "Breakfast", "Pool", "Parking", "Pet friendly"].map((f) => `
+      <div class="facet"><label><input type="checkbox"> ${f} filter option with a count and longer helper description text</label></div>`).join("")}</div>
+    <div class="results">${[1, 2, 3, 4].map((i) => `
+      <div class="card" aria-label="Hotel ${i}, property"><a href="/hotel/${i}"><img alt=""></a><h3><span>Hotel ${i}</span><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">opens in a new window</span></h3><p>2 nights, 2 adults</p></div>
+      <div class="banner">Ad</div><div></div><div></div><div class="slot"></div>`).join("")}</div>
+    <div class="grid">${[1, 2, 3].map((i) => `
+      <div class="tile"><a href="/rooms/${i}" aria-labelledby="t${i}"></a><div id="t${i}">Cabin ${i}</div><p>Superhost · 4.9</p></div>`).join("")}</div>`);
+  const cards = await listItems(page, { limit: 5 });
+  check("list prefers linked result cards over a filter panel", cards.found && cards.items[0].href?.endsWith("/hotel/1") && cards.total === 4, JSON.stringify(cards));
+  check("list title is the heading's visible line, without screen-reader helper text", cards.items[0].title === "Hotel 1", JSON.stringify(cards.items[0]));
+  await page.evaluate(() => { document.querySelector(".results").remove(); document.querySelector(".filters").remove(); });
+  const tiles = await listItems(page, { limit: 5 });
+  check("list title comes from the link's aria-labelledby when there is no heading", tiles.items[0]?.title === "Cabin 1", JSON.stringify(tiles));
 
   await page.setContent(`<nav><ul><li><a href="/x">Home</a></li><li><a href="/y">About</a></li><li><a href="/z">Blog</a></li><li><a href="/w">Jobs</a></li></ul></nav>
     <main><div id="res"></div></main>

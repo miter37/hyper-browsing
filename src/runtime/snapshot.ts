@@ -75,6 +75,7 @@ export interface PageSnapshot {
   hidden?: HiddenMatch[];
   // With --query: plain-text matches outside the listed controls (status text, custom span buttons).
   textHits?: TextHit[];
+  queryFilter?: { query: string; matches: number; hint?: string };
   // With --query and no match: closed <details>/collapsed toggles whose content is only rendered once opened.
   collapsed?: Array<{ tag: string; name: string; use: string }>;
   // Why the list is empty, when it is.
@@ -158,12 +159,18 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   }
 
   // Visible text without icon-font ligatures ("arrow_drop_down") and aria-hidden decorations.
+  // Images that carry words ("<img alt='로켓배송'>만 보기") are part of the name, as for a screen reader.
   function textOf(el) {
-    if (!el.querySelector("[aria-hidden='true'], i, [class*='icon' i], [class*='material' i], [class*='symbol' i]")) return cleanStr(el.innerText);
+    const altImages = Array.from(el.querySelectorAll("img[alt]")).filter((i) => cleanStr(i.alt) && i.getAttribute("aria-hidden") !== "true");
+    if (!altImages.length && !el.querySelector("[aria-hidden='true'], i, [class*='icon' i], [class*='material' i], [class*='symbol' i]")) return cleanStr(el.innerText);
     const parts = [];
     const skip = new Map();
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      if (t.nodeType === 1) {
+        if (t.tagName === "IMG" && altImages.includes(t)) parts.push(t.alt);
+        continue;
+      }
       let bad = false;
       for (let p = t.parentElement; p && p !== el.parentElement; p = p.parentElement) {
         if (skip.has(p)) { bad = skip.get(p); if (bad) break; continue; }
@@ -181,6 +188,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   function labelText(label) {
     const clone = label.cloneNode(true);
     clone.querySelectorAll("input, select, textarea, button, option, [role=listbox], [role=option]").forEach((c) => c.remove());
+    clone.querySelectorAll("img[alt]").forEach((i) => i.replaceWith(" " + i.alt + " "));
     return cleanStr(clone.textContent);
   }
   function byIds(el, attr) {
@@ -289,6 +297,80 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     const name = cleanStr(el.getAttribute("aria-label")) || (cleanStr(el.innerText) || cleanStr(el.textContent) || "").slice(0, 60) || undefined;
     return { tag, role, name };
   }
+
+  // Dates are written many ways ("12월 10일", "2026-12-10", "10, Thursday, December 2026", "Dec 10"). A query that
+  // names a day matches an element naming the same day in any of these forms.
+  const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const monthOf = (w) => { const i = MONTHS.indexOf(String(w).slice(0, 3).toLowerCase()); return i < 0 ? 0 : i + 1; };
+  const MONTH_WORD = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  function datesIn(text) {
+    const out = [];
+    if (!text) return out;
+    const s = String(text).toLowerCase();
+    const add = (y, m, d) => { m = Number(m); d = Number(d); if (m >= 1 && m <= 12 && d >= 1 && d <= 31) out.push({ y: y ? Number(y) : 0, m, d }); };
+    let r;
+    const ko = /(?:(\\d{4})\\s*년\\s*)?(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일/g;
+    while ((r = ko.exec(s))) add(r[1], r[2], r[3]);
+    const monthDay = /^(\\d{2})-(\\d{2})$/.exec(s.trim());
+    if (monthDay) add(0, monthDay[1], monthDay[2]);
+    const iso = /\\b(\\d{4})[-.\\/](\\d{1,2})[-.\\/](\\d{1,2})\\b/g;
+    while ((r = iso.exec(s))) add(r[1], r[2], r[3]);
+    const us = /\\b(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\b/g;
+    while ((r = us.exec(s))) { if (Number(r[1]) > 12) add(r[3], r[2], r[1]); else add(r[3], r[1], r[2]); }
+    const md = new RegExp("\\\\b" + MONTH_WORD + "\\\\.?\\\\s+(\\\\d{1,2})(?:st|nd|rd|th)?\\\\b(?:,?\\\\s+(\\\\d{4}))?", "g");
+    while ((r = md.exec(s))) add(r[3], monthOf(r[1]), r[2]);
+    const dm = new RegExp("\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?,?\\\\s+(?:[a-z]+day,?\\\\s+)?(?:of\\\\s+)?" + MONTH_WORD + "\\\\b(?:,?\\\\s+(\\\\d{4}))?", "g");
+    while ((r = dm.exec(s))) add(r[3], monthOf(r[2]), r[1]);
+    return out;
+  }
+  // A calendar cell is often named only "18". Its month comes from the grid around it ("2026년 12월", "December 2026")
+  // or from a date attribute (data-iso, data-date, datetime). Returns the cell's date and the caption it came from.
+  const MONTH_KO = /(?:(\\d{4})\\s*년\\s*)?(\\d{1,2})\\s*월/;
+  const MONTH_EN = new RegExp("\\\\b" + MONTH_WORD + "\\\\b(?:\\\\s+(\\\\d{4}))?", "i");
+  const MONTH_ISO = /\\b(\\d{4})[-.\\/](\\d{1,2})\\b/;
+  function monthIn(text) {
+    if (!text || text.length > 60) return null;
+    let r = MONTH_KO.exec(text); if (r) return { y: r[1] ? Number(r[1]) : 0, m: Number(r[2]) };
+    r = MONTH_EN.exec(text); if (r) return { y: r[2] ? Number(r[2]) : 0, m: monthOf(r[1]) };
+    r = MONTH_ISO.exec(text); if (r) return { y: Number(r[1]), m: Number(r[2]) };
+    return null;
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  function cellDate(el, name) {
+    for (const n of [el, el.firstElementChild, el.parentElement]) {
+      if (!n) continue;
+      for (const a of ["data-iso", "data-date", "data-day", "datetime", "data-value"]) {
+        const found = datesIn(n.getAttribute(a) || "").find((d) => d.y);
+        if (found) return { date: found.y + "-" + pad(found.m) + "-" + pad(found.d) };
+      }
+    }
+    const day = /^(\\d{1,2})(?!\\d)/.exec(String(name || "").trim());
+    if (!day || Number(day[1]) > 31) return null;
+    let node = el.parentElement;
+    for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
+      const labelled = (node.getAttribute("aria-labelledby") || "").split(/\\s+/).filter(Boolean)
+        .map((id) => (document.getElementById(id) || {}).textContent || "").join(" ");
+      const caption = node.tagName === "TABLE" && node.caption ? node.caption.textContent : "";
+      const lead = node.firstElementChild && !node.firstElementChild.contains(el) ? node.firstElementChild.innerText || "" : "";
+      for (const text of [node.getAttribute("aria-label"), labelled, caption, lead]) {
+        const month = monthIn(cleanStr(text));
+        if (month) {
+          const d = Number(day[1]);
+          return { date: (month.y ? month.y + "-" : "") + pad(month.m) + "-" + pad(d), caption: cleanStr(text).slice(0, 40) };
+        }
+      }
+    }
+    return null;
+  }
+  const queryDates = datesIn(query);
+  // Words of the query, without punctuation ("TypeScript, sort" -> typescript, sort).
+  const queryWords = query.split(/[\\s,;:/|()\\[\\]{}"'!?]+/).filter((w) => w.length > 1);
+  const querySolid = query.replace(/\\s+/g, "");
+  function sameDay(text) {
+    if (!queryDates.length || !text) return false;
+    const found = datesIn(text);
+    return queryDates.some((q) => found.some((f) => f.m === q.m && f.d === q.d && (!q.y || !f.y || q.y === f.y)));
+  }
   function score(e) {
     if (!query) return 1;
     let best = 0;
@@ -298,6 +380,14 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       if (strong && s === query) best = Math.max(best, 3);
       else if (strong && s.startsWith(query)) best = Math.max(best, 2);
       else if (s.includes(query)) best = Math.max(best, 1);
+      else if (querySolid.length > 1 && s.replace(/\\s+/g, "").includes(querySolid)) best = Math.max(best, 1);
+    }
+    if (best < 2 && [e.date, e.name, e.label, e.text, e.testId].some((v) => sameDay(v))) best = 2;
+    // Several words ("destination check-in guests") name several controls: rank by the share of words an element holds.
+    if (!best && queryWords.length > 1) {
+      const hay = [e.name, e.label, e.hint, e.placeholder, e.text, e.value, e.testId].filter(Boolean).join(" ").toLowerCase();
+      const held = queryWords.filter((w) => hay.includes(w)).length;
+      if (held) best = 0.9 * held / queryWords.length;
     }
     return best;
   }
@@ -400,6 +490,10 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       const h = hintOf(el);
       if (h && h !== entry.name) entry.hint = h;
     }
+    if (role === "gridcell" || role === "button" || role === "option" || tag === "td" || tag === "button") {
+      const cell = cellDate(el, entry.name || entry.text);
+      if (cell) { entry.date = cell.date; if (cell.caption && !entry.context) entry.context = cell.caption; }
+    }
     let s = score(entry);
     // A repeated short link/button ("Repository", "Select") also matches through its card heading.
     if (query && !s && (role === "link" || role === "button") && entry.name && entry.name.length <= 30) {
@@ -488,6 +582,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     headings,
     open: open.length ? open : undefined,
     elements: picked.map((m) => m.entry),
+    // Says the list was filtered, so an empty or short list is not mistaken for the whole page.
+    queryFilter: query ? { query: opts.query, matches: matched.length } : undefined,
     truncated: omittedCount > 0,
     omitted: omittedCount ? { count: omittedCount, byHeading: Object.fromEntries(top) } : undefined,
     hidden: hidden.length ? hidden : undefined,
@@ -569,6 +665,7 @@ export async function captureSnapshot(
     headings: (data.headings || []).map(redactText),
     open: data.open,
     elements,
+    queryFilter: data.queryFilter ? { ...data.queryFilter, ...(data.queryFilter.matches ? {} : { hint: "No control's name holds these words. Use a word that is visible on the page, a shorter query, or no query." }) } : undefined,
     truncated: Boolean(data.truncated),
     omitted: data.omitted,
     hidden: data.hidden,

@@ -1,7 +1,6 @@
 {
   "name": "hyper-browsing",
   "version": "0.3.0",
-  "private": true,
   "type": "module",
   "scripts": {
     "browserd": "node scripts/launcher.mjs browserd",
@@ -15,22 +14,59 @@
     "clean": "node scripts/clean.mjs",
     "test:scenarios": "node tests/chrome-manager-scenarios.mjs",
     "test:learning": "node --import tsx --test tests/learning-policy.mjs tests/asset-recovery.mjs tests/learning-assets.mjs tests/learning-cli.mjs tests/learning-status.mjs",
-    "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs tests/headed-fallback.mjs tests/improvements.mjs tests/input-pacing.mjs",
+    "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs tests/headed-fallback.mjs tests/improvements.mjs tests/input-pacing.mjs tests/reliability.mjs",
     "test:discovery": "node --import tsx tests/discovery-lessons.mjs",
-    "test": "npm run typecheck && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery"
+    "test": "npm run typecheck && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery && npm run test:mcp",
+    "test:mcp": "node --test tests/mcp-protocol.mjs tests/distribution.mjs"
   },
   "dependencies": {
     "dotenv": "^16.0.0",
     "playwright": "^1.55.0",
     "yaml": "^2.0.0",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "tsx": "^4.0.0"
   },
   "devDependencies": {
-    "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "@types/node": "^22.0.0"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "description": "Local-first, agent-native Chrome browser automation with MCP tools, reliable actions, and reusable site knowledge.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "browser-automation",
+    "playwright",
+    "ai-agent",
+    "chrome",
+    "cli",
+    "local-first"
+  ],
+  "homepage": "https://github.com/miter37/hyper-browsing",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miter37/hyper-browsing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/miter37/hyper-browsing/issues"
+  },
+  "bin": {
+    "hyper-browsing": "./bin/hyper-browsing.mjs"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "src",
+    "sites",
+    "templates",
+    "mcp",
+    "SKILL.md",
+    "README.ko.md",
+    "HERMES_INSTALL.md",
+    ".env.example",
+    ".generated/target_sites.json",
+    "docs"
+  ]
 }

@@ -193,6 +193,8 @@ export interface ActParams {
   timeoutMs?: number;
   force?: boolean;
   value?: string;
+  /** Saved-action variables for parameterized locator text. */
+  vars?: Record<string, unknown>;
 }
 
 /** The main-frame document response of a navigation started by the action, if any. */
@@ -230,7 +232,7 @@ export async function actOn<T>(
   let target: { locator: ActionTarget; resolvedBy?: string; equivalentMatches?: number };
   if (pinnedTarget) { target = { locator: pinnedTarget }; } else if (params.element) {
     if (params.ref || params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
-    try { target = { locator: await resolveElement(page, params.element) }; }
+    try { target = { locator: await resolveElement(page, params.element, params.vars) }; }
     catch (error) {
       if (error instanceof LocatorResolutionError && !("locator" in error.result)) return { ...unresolvedResult(error.result), reason: "ambiguous" in error.result ? "ambiguous" : "hiddenOnly" in error.result ? "hidden_only" : "no_match", execution: "not_started" };
       throw error;
@@ -243,7 +245,7 @@ export async function actOn<T>(
   } else {
     if (!params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
     let resolved;
-    try { resolved = await resolveUnique(page, params.locator, params.nth, timeoutMs, params.within || params.locator.within); }
+    try { resolved = await resolveUnique(page, params.locator, params.nth, timeoutMs, params.within || params.locator.within, params.vars); }
     catch (error: any) { return { ok: false, reason: "invalid_target", execution: "not_started", error: error.message }; }
     if (!("locator" in resolved)) return { ...unresolvedResult(resolved), reason: "ambiguous" in resolved ? "ambiguous" : "hiddenOnly" in resolved ? "hidden_only" : "no_match", execution: "not_started" };
     target = resolved;
@@ -261,7 +263,8 @@ export async function actOn<T>(
     el.getAttribute('target')==='_blank'||/\bwindow\.open\b/.test(el.getAttribute('onclick')||'')||(el as HTMLInputElement).form?.target==='_blank').catch(()=>false);
 
   let before = await readTarget(page, target.locator);
-  if (before.clipped && before.scrollClipped) {
+  if (before.clipped) {
+    // Often only scrolled out of a scrolling area: bring it into view before calling it collapsed.
     await target.locator.scrollIntoViewIfNeeded({ timeout: 1500 }).catch(() => {});
     before = await readTarget(page, target.locator);
   }
@@ -283,7 +286,9 @@ export async function actOn<T>(
       }
       return undefined;
     }).catch(() => undefined);
-    return {
+    // No zero-size overflow container around it: nothing is collapsed, so let the action try (Playwright waits for it).
+    if (!collapsedUnder) before = { ...before, clipped: false };
+    else return {
       ok: false,
       reason: "clipped",
       execution: "not_started",
@@ -298,13 +303,38 @@ export async function actOn<T>(
   }
 
   const probeBefore = kind === "extract" ? null : await probePage(page);
+  // Links, and choices that apply a filter or sort, often change the URL only after a short delay (client routing,
+  // a debounced auto-submit). Decided before the click, since the element may be gone afterwards.
+  const mayNavigate = kind === "click" && await target.locator.evaluate((el) => {
+    const a = el.closest("a[href]");
+    const href = a ? a.getAttribute("href") || "" : "";
+    if (a && href && !href.startsWith("#") && !/^javascript:/i.test(href)) return true;
+    return Boolean(el.closest("label, input[type=checkbox], input[type=radio], [role=radio], [role=checkbox], [role=menuitemradio], [role=option], [role=tab]"));
+  }).catch(() => false);
   const nav = watchNavigation(page);
   let value: T;
   try {
     value = await act(target.locator, timeoutMs);
   } catch (error) {
     nav.stop();
-    const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: "outcome_unknown" };
+    const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: (error as any)?.notStarted ? "not_started" : "outcome_unknown" };
+    // Playwright waits for the point to be free and gives up without clicking: nothing was sent to the page.
+    if (failure.reason === "intercepted") {
+      failure.execution = "not_started";
+      const cover = await target.locator.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!hit || hit === el || el.contains(hit)) return null;
+        const control = hit.closest("a[href], button, [role=button], [role=link], label, input");
+        if (!control) return null;
+        const name = (control.getAttribute("aria-label") || (control as HTMLElement).innerText || control.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 80);
+        return { tag: control.tagName.toLowerCase(), role: control.getAttribute("role") || undefined, name: name || undefined, href: control.getAttribute("href") || undefined };
+      }).catch(() => null);
+      if (cover) {
+        failure.coveringControl = cover;
+        failure.hint = `A ${cover.tag}${cover.name ? ` "${cover.name}"` : ""} covers the target and takes the click. If it is the same item's control, click it instead${cover.href ? ` (href ${cover.href})` : ""}; otherwise close what covers the target.`;
+      }
+    }
     if (failure.reason === "intercepted" || failure.reason === "timeout") {
       // Is a large overlay (open panel's scrim, modal) covering the target?
       const cover = await target.locator.evaluate((el) => {
@@ -328,6 +358,10 @@ export async function actOn<T>(
   if (kind === "extract") { nav.stop(); return { ok: true, value, ...resolved, execution: "completed" }; }
 
   await settle(page, { quietMs: 300, maxMs: 1500 });
+  if (mayNavigate && page.url() === before.url) {
+    const moved = await page.waitForURL((u) => u.toString() !== before.url, { timeout: 1500, waitUntil: "commit" }).then(() => true).catch(() => false);
+    if (moved) await settle(page, { quietMs: 300, maxMs: 1500 });
+  }
   if (page.url() !== before.url) await page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => {});
   nav.stop();
   const after = await readTarget(page, target.locator);
@@ -446,7 +480,17 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
     if (params.submit && matches) {
       const refused=authorize ? await authorize(locator) : undefined;
       if (refused) return {kind:element,actual:read?.value,secret:read?.secret,submissionRefusal:refused};
-      await locator.press("Enter", { timeout });
+      try { await locator.press("Enter", { timeout }); }
+      catch (error) {
+        // Suggestion lists often re-render the field after typing. If the focused field still holds the text, Enter
+        // goes there; otherwise nothing was pressed and the caller may act again.
+        const focused = await page.evaluate((w) => {
+          const el = document.activeElement as HTMLInputElement | null;
+          return Boolean(el && ("value" in el) && String(el.value).replace(/\s+/g, " ").trim() === w);
+        }, wanted.replace(/\s+/g, " ").trim()).catch(() => false);
+        if (!focused) throw Object.assign(new Error("Enter was not pressed: the field was replaced before submitting. " + String((error as any)?.message || error).split("\n")[0]), { notStarted: true });
+        await page.keyboard.press("Enter");
+      }
     }
     return { kind: element, actual: read?.value, secret: read?.secret,submissionSkipped:params.submit&&!matches };
   },authorize);
@@ -457,7 +501,7 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   if (v.kind === "choice") res.selected = v.actual;
   else if (v.actual === "" && wanted && !params.submit && outcome.effect?.page?.valueChanges === undefined) {
     // Token/chip inputs move the typed text into a chip and empty the field: look for it next to the field.
-    const target = params.element ? { locator: await resolveElement(page, params.element).catch(() => null) } : params.ref ? await referencesFor(page).resolve(params.ref) : params.locator ? await resolveUnique(page, params.locator, params.nth, 1000, params.within).catch(() => null) : null;
+    const target = params.element ? { locator: await resolveElement(page, params.element, params.vars).catch(() => null) } : params.ref ? await referencesFor(page).resolve(params.ref) : params.locator ? await resolveUnique(page, params.locator, params.nth, 1000, params.within, params.vars).catch(() => null) : null;
     const chip = target && "locator" in target && target.locator
       ? await target.locator.evaluate((el, w) => {
         let box: Element | null = el.parentElement;
@@ -480,6 +524,14 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   }
   res.effect = outcome.effect;
   res.observationRequired = outcome.observationRequired;
+  if (params.submit && v.kind !== "choice" && !v.submissionSkipped && !v.submissionRefusal) {
+    const e = outcome.effect || {};
+    const shown = e.urlChanged || e.newSessions?.length || e.page?.opened?.length || (e.page?.interactiveDelta && Math.abs(e.page.interactiveDelta) > 3);
+    if (!shown) {
+      res.submitted = "unconfirmed";
+      res.warning = "Enter was pressed, but the URL did not change and no results appeared. The page may not have taken the input (some sites read only typed keys, or reset the field): check the page, then use the form's own search button or type again.";
+    }
+  }
   if(v.submissionSkipped){res.ok=false;res.reason=v.actual===undefined?'readback_unknown':'value_mismatch';res.submitted=false;res.submissionExecution='not_started';}
   res.resolvedBy = outcome.resolvedBy;
   res.execution = outcome.execution;

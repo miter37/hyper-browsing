@@ -118,7 +118,7 @@ test('a failed action falls back, is repaired in place, and validates only the n
   // Agent observes actual result, completes task, and replaces only this capability.
   await recordLearningEvent(c,page,'repair','extract',{locator:{css:'#result'},read:'text'});
   const repaired=await saveObservedAction(c,page,'repair',{id:'read_count',capability:'read-count',scope:'Listings count',action:{...doc.actions.read_count,verify:[{type:'extractor_equals',extractor:'count',value:'{expected}'}]},validationInput:{expected:'0'}});
-  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true);
+  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true,JSON.stringify(repaired.validation));
   assert.notEqual(repaired.revision,failed.revision);
   assert.equal(repaired.validation.promotion.to,'candidate');
   loaded=await loadSite(c,'example');
@@ -175,15 +175,18 @@ test('concurrent extraction encoding and action saving preserve both capabilitie
   assert.ok(Object.values(loaded.definition.extractors).some(ex=>ex.read==='attribute'));
 });
 test('missing code can be replaced after discovery without frequency gating',async t=>{
-  const {c,page}=await fixture(t);await page.goto('https://example.test/list');
+  const {c,page}=await fixture(t);
+  c.allowCodeActions = true; // Explicitly trust this local test fixture.
+  await page.goto('https://example.test/list');
   const dir=path.join(c.sitesDir,'example');await fs.mkdir(dir,{recursive:true});
   const doc={site:{id:'example'},match:{hosts:['example.test']},elements:{result:{strategies:[{css:'#result'}]}},extractors:{count:{element:'result',read:'text'}},actions:{count:{risk:'read',implementation:{kind:'code',export:'count'},returns:{extractor:'count'},verify:[]}}};
   await fs.writeFile(path.join(dir,'site.yaml'),YAML.stringify(doc));
   const failed=await runKnownAction(c,page,await loadSite(c,'example'),{sessionId:'s',actionId:'count',input:{}});
   assert.equal(failed.recovery.suspended,true);
   await recordLearningEvent(c,page,'s','extract',{locator:{css:'#result'},read:'text'});
+  const beforeRepair = {url:page.url(),count:await page.locator('#result').count(),body:await page.locator('body').innerText().catch(()=>'<unreadable>')};
   const repaired=await saveObservedAction(c,page,'s',{id:'count',capability:'count',scope:'Listings',action:{...doc.actions.count,implementation:{kind:'declarative',steps:[]},verify:[{type:'extractor_equals',extractor:'count',value:'0'}]},validationInput:{}});
-  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true);
+  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true,JSON.stringify({beforeRepair,afterRepair:{url:page.url(),count:await page.locator('#result').count(),body:await page.locator('body').innerText().catch(()=>'<unreadable>')},validation:repaired.validation}));
 });
 test('validation binds to the saved revision and refuses a substituted click',async t=>{
   const {c,page}=await fixture(t);

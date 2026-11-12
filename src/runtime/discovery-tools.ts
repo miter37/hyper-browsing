@@ -21,6 +21,9 @@ const DISMISS_SCAN_SCRIPT = `(mark) => {
     const DISMISS = ["닫기", "다음에", "나중에 하기", "오늘 하루 보지 않기", "close", "dismiss", "not now", "maybe later",
       "no thanks", "×", "✕"];
     const CONSENT_TEXT = /cookie|consent|gdpr|privacy|tracking|쿠키|개인정보|동의/i;
+    const DIALOG = "dialog, [role=dialog], [role=alertdialog], [aria-modal=true]";
+    const CLOSE_LABEL_KO = /(창|팝업|레이어|배너|알림|안내|모달|대화상자|메시지)\\s*닫기\\.?$/;
+    const CLOSE_LABEL_EN = /^(close|dismiss)( (the|this))?( [\\w-]+){0,3} (dialog|modal|popup|pop-up|window|banner|message|notification|overlay|panel|info|information|prompt|tooltip|ad)\\.?$/i;
     const clean = (s) => (s || "").replace(/\\s+/g, " ").trim();
     const visible = (el) => {
       const r = el.getBoundingClientRect();
@@ -29,7 +32,7 @@ const DISMISS_SCAN_SCRIPT = `(mark) => {
     };
     const overlayOf = (el) => {
       for (let n = el; n && n !== document.body; n = n.parentElement) {
-        if (n.matches("dialog, [role=dialog], [role=alertdialog], [aria-modal=true]")) return n;
+        if (n.matches(DIALOG)) return n;
         const pos = getComputedStyle(n).position;
         if (pos === "fixed" || pos === "sticky") return n;
       }
@@ -48,10 +51,16 @@ const DISMISS_SCAN_SCRIPT = `(mark) => {
       const aria = clean(el.getAttribute("aria-label"));
       const phrase = (text || aria).toLowerCase();
       const isAccept = ACCEPT.includes(phrase);
-      const isClose = DISMISS.includes(phrase) || DISMISS.includes(aria.toLowerCase()) ||
+      const exactClose = DISMISS.includes(phrase) || DISMISS.includes(aria.toLowerCase()) ||
         el.matches(".modal-close, .popup-close, [data-testid='close-button']");
+      // A descriptive close label ("Close sign-in info dialog", "혜택 안내 창 닫기.") names the thing it closes.
+      // It counts only inside a real dialog, never on a sticky bar, and never for "Close account"-style actions.
+      const label = aria || text;
+      const labelledClose = label.length <= 60 && (CLOSE_LABEL_KO.test(label) || CLOSE_LABEL_EN.test(label));
+      const isClose = exactClose || labelledClose;
       if (!isAccept && !isClose) continue;
       const overlay = overlayOf(el);
+      if (!isAccept && !exactClose && !(overlay && overlay.matches(DIALOG))) continue;
       const consent = Boolean(overlay && CONSENT_TEXT.test(clean(overlay.innerText).slice(0, 2000)));
       if (isAccept && !consent) {
         if (!isClose) { skipped.push(\`\${describe(el, text || aria)}: no cookie/consent overlay around it\`); continue; }
@@ -102,7 +111,7 @@ const OVERLAY_SCAN_SCRIPT = `(forceHide) => {
  * - button text must equal the phrase ("Close account" is not "Close").
  * Keyword-matched overlays are hidden only when they show consent text, or with forceHide; otherwise reported.
  */
-export async function dismissAnnoyances(page: Page, options: { forceHide?: boolean } = {}): Promise<AnnoyanceResult> {
+export async function dismissAnnoyances(page: Page, options: { forceHide?: boolean; fast?: boolean } = {}): Promise<AnnoyanceResult> {
   const actions: string[] = [];
 
   // Pass 1: mark evidence-backed consent / close buttons in the page, then click them with real input.
@@ -113,12 +122,14 @@ export async function dismissAnnoyances(page: Page, options: { forceHide?: boole
   for (const c of found.clicks) {
     const el = page.locator(`[${DISMISS_MARK}="${c.id}"]`).first();
     if (!(await el.isVisible().catch(() => false))) continue; // an earlier click already closed it
-    await waitBeforeInput();
+    // fast: a popup that opened by itself is closed at once, the way a person swats it away.
+    if (options.fast) await page.waitForTimeout(120 + Math.floor(Math.random() * 180));
+    else await waitBeforeInput();
     if (!(await el.isVisible().catch(() => false))) continue;
     const ok = await el.click({ force: true, timeout: 500 }).then(() => true).catch(() => false);
     if (ok) {
       actions.push(`Clicked: ${c.what}`);
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(options.fast ? 150 : 300);
     }
   }
   await page.evaluate((mark) => document.querySelectorAll(`[${mark}]`).forEach((el) => el.removeAttribute(mark)), DISMISS_MARK).catch(() => {});
@@ -265,8 +276,42 @@ const LIST_SCRIPT = `(opts) => {
   }
   function shape(el) { return el.tagName + "." + Array.from(el.classList).slice(0, 2).sort().join("."); }
   // Items may be web components whose content lives in their own shadow root.
-  function q(k, sel) { return k.querySelector(sel) || (k.shadowRoot ? k.shadowRoot.querySelector(sel) : null); }
-  function textOf(k) { return clean(k.innerText || (k.shadowRoot ? k.shadowRoot.textContent : "")); }
+  // An item is a unit: one element, or the sibling rows that together form one record.
+  function q(u, sel) {
+    for (const k of u) { const hit = k.querySelector(sel) || (k.shadowRoot ? k.shadowRoot.querySelector(sel) : null); if (hit) return hit; }
+    return null;
+  }
+  function links(u) {
+    const out = [];
+    for (const k of u) { out.push(...k.querySelectorAll("a[href]")); if (k.shadowRoot) out.push(...k.shadowRoot.querySelectorAll("a[href]")); }
+    return out;
+  }
+  // The accessible name a screen reader gives the item: heading, then the main link's name, then the card's.
+  function nameOf(n) {
+    if (!n) return "";
+    const root = n.getRootNode();
+    const byIds = (n.getAttribute("aria-labelledby") || "").split(/\\s+/).filter(Boolean)
+      .map((id) => root.getElementById ? (root.getElementById(id) || {}).innerText || "" : "").join(" ");
+    return clean(n.getAttribute("aria-label") || byIds || "");
+  }
+  // First visible line: drops visually hidden helper text such as "opens in a new window".
+  function firstLine(n) { return n ? clean(((n.innerText || n.textContent || "").split("\\n").find((l) => l.trim())) || "") : ""; }
+  function titleOf(u, h, a) {
+    if (h) return nameOf(h) || firstLine(h);
+    // An item often links to its page twice, through an image ("이미지 보기", "View image") and through its name:
+    // among the links to the item's own address, the longest name is the title.
+    const all = links(u);
+    const main = all.find((l) => /^https?:/.test(l.href) && !/^(#|javascript:)/i.test(l.getAttribute("href") || ""));
+    const named = all.filter((l) => !main || l.href === main.href)
+      .map((l) => nameOf(l) || firstLine(l) || clean(l.getAttribute("title"))).filter((t) => t.length > 1)
+      .sort((x, y) => y.length - x.length);
+    if (named.length) return named[0];
+    for (const l of all) { const t = nameOf(l) || firstLine(l) || clean(l.getAttribute("title")); if (t.length > 1) return t; }
+    for (const k of u) { const t = nameOf(k); if (t) return t.replace(/,\\s*[^,]{1,12}$/, ""); }
+    const img = q(u, "img[alt]");
+    return img && clean(img.getAttribute("alt")) ? clean(img.getAttribute("alt")) : (a ? firstLine(a) : firstLine(u[0]));
+  }
+  function textOf(u) { return clean(u.map((k) => k.innerText || (k.shadowRoot ? k.shadowRoot.textContent : "")).join(" ")); }
   function headingOf(k) { return q(k, "h1, h2, h3, h4, h5, h6, [role=heading]"); }
   const query = (opts.query || "").toLowerCase();
   const CHROME = "nav, header, footer, aside, [role=navigation], [role=banner], [role=contentinfo], [role=complementary], [role=menu], [role=menubar]";
@@ -275,38 +320,74 @@ const LIST_SCRIPT = `(opts) => {
     if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.tagName === "HEAD") return false;
     // Site chrome (nav menus, header, footer, sidebars) repeats links too, but is never the result list.
     if (el.matches(CHROME) || el.closest(CHROME)) return false;
-    const kids = Array.from(el.children);
+    // Only rendered siblings count: zero-height spacers and slots repeat more often than the cards around them.
+    const kids = Array.from(el.children).filter((k) => shown(k));
     if (kids.length < 3) return;
     const counts = {};
     for (const k of kids) counts[shape(k)] = (counts[shape(k)] || 0) + 1;
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    if (top[1] < 3) return;
-    const items = kids.filter((k) => shape(k) === top[0] && shown(k) && q(k, "a[href], h1, h2, h3, h4, h5, h6, [role=heading]"));
-    if (items.length < 3) return;
-    const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
-    if (query && !hits) return;
-    const sample = items.slice(0, 5);
-    const textLen = sample.reduce((sum, k) => sum + textOf(k).length, 0) / sample.length;
-    const inMain = Boolean(el.closest("main, [role=main]"));
-    groups.push({ el, items, score: ((query ? hits * 100 : 0) + items.length * Math.min(textLen, 200)) * (inMain ? 2 : 1) });
+    const repeated = Object.keys(counts).filter((s) => counts[s] >= 3).sort((a, b) => counts[b] - counts[a]);
+    if (!repeated.length) return;
+    const candidates = repeated.map((s) => kids.filter((k) => shape(k) === s).map((k) => [k]));
+    // Striped records: one item spread over a repeating run of sibling shapes (a title row followed by a
+    // details row and a spacer). Reading one shape alone would return the details rows without their titles.
+    const stripe = repeated.filter((s) => Math.abs(counts[s] - counts[repeated[0]]) <= 2);
+    if (stripe.length > 1) {
+      const seq = kids.filter((k) => stripe.includes(shape(k)));
+      const period = stripe.length;
+      let periodic = 0;
+      for (let i = period; i < seq.length; i++) if (shape(seq[i]) === shape(seq[i - period])) periodic++;
+      if (seq.length > period && periodic / (seq.length - period) >= 0.8) {
+        const anchor = shape(seq[0]);
+        const units = [];
+        for (const k of seq) {
+          if (shape(k) === anchor) units.push([k]);
+          else if (units.length && units[units.length - 1].length < period) units[units.length - 1].push(k);
+        }
+        candidates.unshift(units);
+      }
+    }
+    for (const units of candidates) {
+      // Result rows may hold no link or heading (a flight row opens on click): a control or enough text also counts.
+      const items = units.filter((u) => q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading], button, [role=button], [role=link], [tabindex]") || textOf(u).length >= 40);
+      if (items.length < 3) continue;
+      const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
+      if (query && !hits) continue;
+      const sample = items.slice(0, 5);
+      const textLen = sample.reduce((sum, k) => sum + textOf(k).length, 0) / sample.length;
+      const inMain = Boolean(el.closest("main, [role=main]"));
+      // Filter and facet panels repeat too, but their rows are form controls. Result cards link to distinct places.
+      const controlRows = items.filter((u) => q(u, "input[type=checkbox], input[type=radio], input[type=range], [role=checkbox], [role=radio], [role=switch], [role=slider]")).length / items.length;
+      const hrefs = items.map((u) => { const l = links(u)[0]; return l ? l.href : ""; }).filter(Boolean);
+      const distinctLinks = hrefs.length ? new Set(hrefs).size / items.length : 0;
+      // A facet row is a short label beside its box; a result card with a "compare/cart" box is long and links somewhere.
+      const facetRows = controlRows >= 0.5 && !(distinctLinks >= 0.8 && textLen >= 80);
+      const weight = (inMain ? 2 : 1) * (facetRows ? 0.2 : 1) * (distinctLinks >= 0.8 ? 1.5 : 1);
+      groups.push({ el, items, score: ((query ? hits * 100 : 0) + items.length * Math.min(textLen, 400)) * weight });
+    }
   });
   groups.sort((a, b) => b.score - a.score);
   if (!groups.length) return { found: false };
   const g = groups[0];
-  const items = g.items.slice(0, opts.limit).map((k) => {
+  // With a query, return only the items that hold it (the group was already chosen for holding it).
+  const kept = query ? g.items.filter((k) => textOf(k).toLowerCase().includes(query)) : g.items;
+  const items = kept.slice(0, opts.limit).map((k) => {
     const h = headingOf(k);
-    const a = q(k, "a[href]");
+    // Without a heading, an icon-only first link (vote arrow, thumbnail) is not the item's title link.
+    const all = links(k);
+    const named = all.find((l) => clean(l.innerText || l.textContent).length > 1);
+    const a = h || !all.length || clean(all[0].innerText || all[0].textContent) ? all[0] : (named || all[0]);
     return {
-      title: clean(h ? (h.innerText || h.textContent) : (a ? (a.innerText || a.textContent) : "")).slice(0, 120) || undefined,
-      href: a ? a.href : undefined,
-      text: textOf(k).slice(0, 200),
+      title: (titleOf(k, h, a) || "").slice(0, 120) || undefined,
+      // "#" and javascript: links are click handlers, not addresses.
+      href: a && !/^(#|javascript:)/i.test(a.getAttribute("href") || "") ? a.href : undefined,
+      text: textOf(k).slice(0, 500),
     };
   });
   const c = g.el;
   return {
     found: true,
     container: c.tagName.toLowerCase() + (c.id ? "#" + c.id : "") + (c.classList.length ? "." + Array.from(c.classList).slice(0, 2).join(".") : ""),
-    total: g.items.length,
+    total: kept.length,
     items,
     otherGroups: groups.length - 1,
   };

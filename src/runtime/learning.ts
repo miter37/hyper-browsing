@@ -46,11 +46,25 @@ function safeUrl(raw: string): string {
 }
 
 export function siteIdFromHost(host: string): string {
-  const parts = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
-  if (parts.length <= 1) return slug(parts[0] || "site");
-  const commonSubdomains = new Set(["www", "app", "admin", "portal", "dashboard", "secure", "m"]);
-  if (parts.length >= 3 && commonSubdomains.has(parts[0])) return slug(parts[parts.length - 2]);
-  return slug(parts[parts.length - 2]);
+  const normalized = host.toLowerCase().replace(/^www\./, "");
+  const parts = normalized.split(".").filter(Boolean);
+  if (parts.length <= 2) return slug(parts[0] || "site");
+  // Preserve existing second-level IDs for common domains, but never collapse
+  // a known public two-label suffix (co.kr, co.uk, com.au, etc.) to "co"/"com".
+  const multiLabel = new Set([
+    "co.kr", "or.kr", "go.kr", "ac.kr", "ne.kr", "re.kr", "pe.kr",
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "net.uk",
+    "com.au", "net.au", "org.au", "edu.au", "gov.au",
+    "co.jp", "or.jp", "ne.jp", "ac.jp", "go.jp",
+    "co.nz", "org.nz", "ac.nz", "govt.nz",
+    "com.br", "com.mx", "com.tr", "com.cn", "com.tw", "com.sg", "co.in",
+  ]);
+  const suffix = parts.slice(-2).join(".");
+  if (multiLabel.has(suffix)) return slug(parts[parts.length - 3] || normalized);
+  const singleLabelSuffixes = new Set(["com", "net", "org", "edu", "gov", "io", "ai", "app", "dev", "test", "info", "co", "me"]);
+  if (singleLabelSuffixes.has(parts[parts.length - 1])) return slug(parts[parts.length - 2]);
+  // Unknown suffix: prefer a specific host ID to a potentially incorrect merge.
+  return slug(normalized);
 }
 
 function journalPath(config: AppConfig, sessionId: string): string {

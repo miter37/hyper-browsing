@@ -11,5 +11,10 @@ export async function ensureRuntime(config: AppConfig): Promise<void> {
     path.join(config.runtimeDir, "traces"),
     path.join(config.runtimeDir, "sessions"),
     config.profileDir,
-  ]) await fs.mkdir(dir, { recursive: true });
+  ]) await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+  // Existing runtimes created with an ordinary umask may have permissive modes.
+  if (process.platform !== "win32") {
+    await fs.chmod(config.runtimeDir, 0o700);
+    await fs.chmod(config.profileDir, 0o700);
+  }
 }

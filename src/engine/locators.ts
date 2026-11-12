@@ -1,14 +1,21 @@
 import type { Locator, Page } from "playwright";
 import type { ElementDefinition, LocatorStrategy, SiteDefinition } from "../schema/site";
+import { interpolate } from "../utils/strings";
 
-export function locatorFromStrategy(page: Page, strategy: LocatorStrategy): Locator {
-  if (strategy.role) return page.getByRole(strategy.role as any, { name: strategy.name, exact: strategy.exact });
-  if (strategy.testId) return page.getByTestId(strategy.testId);
-  if (strategy.label) return page.getByLabel(strategy.label, { exact: strategy.exact });
-  if (strategy.placeholder) return page.getByPlaceholder(strategy.placeholder, { exact: strategy.exact });
-  if (strategy.text) return page.getByText(strategy.text, { exact: strategy.exact });
-  if (strategy.css) return page.locator(strategy.css);
-  throw new Error("Invalid locator strategy");
+/** Interpolate text arguments, not CSS syntax (which would allow selector injection). */
+export function locatorFromStrategy(page: Page, strategy: LocatorStrategy, vars: Record<string, unknown> = {}): Locator {
+  const text = (value: string) => interpolate(value, vars);
+  let locator: Locator;
+  if (strategy.role) locator = page.getByRole(strategy.role as any, { name: strategy.name === undefined ? undefined : text(strategy.name), exact: strategy.exact });
+  else if (strategy.testId) locator = page.getByTestId(text(strategy.testId));
+  else if (strategy.label) locator = page.getByLabel(text(strategy.label), { exact: strategy.exact });
+  else if (strategy.placeholder) locator = page.getByPlaceholder(text(strategy.placeholder), { exact: strategy.exact });
+  else if (strategy.text) locator = page.getByText(text(strategy.text), { exact: strategy.exact });
+  else if (strategy.css) {
+    if (/\{\{?[a-zA-Z0-9_.-]+\}?\}/.test(strategy.css)) throw new Error("Do not interpolate CSS selectors; use css + hasText for dynamic text");
+    locator = page.locator(strategy.css);
+  } else throw new Error("Invalid locator strategy");
+  return strategy.hasText === undefined ? locator : locator.filter({ hasText: text(strategy.hasText) });
 }
 
 export interface LocatorCandidate {
@@ -59,6 +66,17 @@ const describeCandidate = (el: Element) => {
     }
     break;
   }
+  // A cell of a grid or table (a calendar month, a price table) is placed by the grid's caption.
+  for (let n: Element | null = el.parentElement, depth = 0; n && depth < 8; depth++, n = n.parentElement) {
+    const caption = n.getAttribute("aria-label") || (n.tagName === "TABLE" ? (n as HTMLTableElement).caption?.textContent : "")
+      // A leading title ("2026년 12월") counts; a leading sibling cell or row does not.
+      || (n.firstElementChild && !n.firstElementChild.contains(el) && !n.firstElementChild.matches("[role=gridcell], [role=row], td, tr, th")
+        && !n.firstElementChild.querySelector("[role=gridcell], td") && (n.firstElementChild as HTMLElement).innerText?.length <= 40 ? (n.firstElementChild as HTMLElement).innerText : "");
+    if (caption && /grid|table|rowgroup|group|tabpanel/.test((n.getAttribute("role") || n.tagName).toLowerCase()) || (caption && n.querySelector("[role=gridcell], td"))) {
+      scope.push(String(caption).replace(/\s+/g, " ").trim().slice(0, 60));
+      break;
+    }
+  }
   const form = el.closest("form, fieldset, [role=form], [role=search]");
   if (form) {
     const legend = form.querySelector(":scope > legend");
@@ -87,8 +105,9 @@ function suggestedUse(d: { role?: string; name?: string }): string {
 }
 
 /** Visible elements whose text, aria-label or placeholder contains the locator's words, whatever their role. */
-async function similarVisible(page: Page, strategy: LocatorStrategy): Promise<Suggestion[]> {
-  const words = strategy.name ?? strategy.label ?? strategy.text ?? strategy.placeholder ?? strategy.testId;
+async function similarVisible(page: Page, strategy: LocatorStrategy, vars: Record<string, unknown> = {}): Promise<Suggestion[]> {
+  const source = strategy.name ?? strategy.label ?? strategy.text ?? strategy.placeholder ?? strategy.testId ?? strategy.hasText;
+  const words = source === undefined ? undefined : interpolate(source, vars);
   if (!words) return [];
   const pools = [
     page.getByText(words, { exact: false }),
@@ -119,9 +138,9 @@ async function similarVisible(page: Page, strategy: LocatorStrategy): Promise<Su
  *   with suggestions, instead of a bare timeout.
  */
 export async function resolveUnique(
-  page: Page, strategy: LocatorStrategy, nth?: number, timeoutMs = 5000, within?: string,
+  page: Page, strategy: LocatorStrategy, nth?: number, timeoutMs = 5000, within?: string, vars: Record<string, unknown> = {},
 ): Promise<UniqueResolution> {
-  const all = locatorFromStrategy(page, strategy);
+  const all = locatorFromStrategy(page, strategy, vars);
   const visible = all.filter({ visible: true });
   let count = await visible.count();
   if (count === 0) {
@@ -142,8 +161,8 @@ export async function resolveUnique(
           if ((await alt.count()) === 1) return { locator: alt.first(), resolvedBy: "role-family" };
         }
       }
-      if (hiddenCount > 0) return { hiddenOnly: true, hiddenCount, alternatives: await similarVisible(page, strategy) };
-      return { noMatch: true, suggestions: await similarVisible(page, strategy) };
+      if (hiddenCount > 0) return { hiddenOnly: true, hiddenCount, alternatives: await similarVisible(page, strategy, vars) };
+      return { noMatch: true, suggestions: await similarVisible(page, strategy, vars) };
     }
   }
 
@@ -162,7 +181,7 @@ export async function resolveUnique(
 
   if (within) {
     const ds = await describe();
-    const w = norm(within);
+    const w = norm(interpolate(within, vars));
     indices = indices.filter((i) => ds[i].scope.some((s) => norm(s).includes(w)));
     if (indices.length === 0) return { noMatch: true, suggestions: [] };
     if (nth === undefined && indices.length === 1) return { locator: visible.nth(indices[0]), resolvedBy: "within" };
@@ -175,7 +194,8 @@ export async function resolveUnique(
   if (indices.length === 1) return { locator: visible.nth(indices[0]) };
 
   const ds = await describe();
-  const wanted = norm(strategy.name ?? strategy.label ?? strategy.text ?? strategy.placeholder);
+  const source = strategy.name ?? strategy.label ?? strategy.text ?? strategy.placeholder ?? strategy.hasText;
+  const wanted = norm(source === undefined ? undefined : interpolate(source, vars));
   if (wanted) {
     const exact = indices.filter((i) => [ds[i].name, ds[i].label, ds[i].placeholder].some((v) => norm(v) === wanted));
     if (exact.length === 1) return { locator: visible.nth(exact[0]), resolvedBy: "exact" };
@@ -196,17 +216,17 @@ export async function resolveUnique(
   return { ambiguous: true, count: within ? indices.length : count, candidates };
 }
 
-export async function resolveElement(page: Page, element: ElementDefinition): Promise<Locator> {
+export async function resolveElement(page: Page, element: ElementDefinition, vars: Record<string, unknown> = {}): Promise<Locator> {
   const deadline = Date.now() + 5000;
   let last: UniqueResolution | undefined;
   for (const strategy of element.strategies) {
-    if (!(await locatorFromStrategy(page, strategy).count())) continue;
-    const result = await resolveUnique(page, strategy, undefined, Math.max(1, deadline - Date.now()), strategy.within);
+    if (!(await locatorFromStrategy(page, strategy, vars).count())) continue;
+    const result = await resolveUnique(page, strategy, undefined, Math.max(1, deadline - Date.now()), strategy.within, vars);
     if ("locator" in result) return result.locator;
     if ("ambiguous" in result) throw new LocatorResolutionError(result);
     last = result;
   }
-  if (!last && element.strategies.length) last = await resolveUnique(page, element.strategies[0], undefined, Math.max(1, deadline - Date.now()), element.strategies[0].within);
+  if (!last && element.strategies.length) last = await resolveUnique(page, element.strategies[0], undefined, Math.max(1, deadline - Date.now()), element.strategies[0].within, vars);
   if (last && "locator" in last) return last.locator;
   throw new LocatorResolutionError(last || { noMatch: true, suggestions: [] });
 }
@@ -215,8 +235,8 @@ export class LocatorResolutionError extends Error {
   constructor(public result: UniqueResolution) { super("Locator did not resolve uniquely"); this.name = "LocatorResolutionError"; }
 }
 
-export async function locatorFor(page: Page, site: SiteDefinition, elementId: string): Promise<Locator> {
+export async function locatorFor(page: Page, site: SiteDefinition, elementId: string, vars: Record<string, unknown> = {}): Promise<Locator> {
   const element = site.elements[elementId];
   if (!element) throw new Error(`Unknown element: ${elementId}`);
-  return resolveElement(page, element);
+  return resolveElement(page, element, vars);
 }

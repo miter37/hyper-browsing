@@ -237,6 +237,7 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
       params: {
         sessionId: flags.session,
         expression: flags.expr,
+        confirmed: boolFlags.has("confirm"),
       },
     };
   }
@@ -283,6 +284,6 @@ async function main() {
   process.exit(!response.rpcOk || response.result?.ok === false ? 1 : 0);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) main().catch(error => {
   console.error(JSON.stringify({ ok: false, error: error.message })); process.exitCode = 1;
 });

@@ -17,9 +17,9 @@ export async function evaluateCondition(page: Page, site: SiteDefinition, condit
     return false;
   }
   if (c.type === "fingerprint") return matchFingerprint(page, site, c.name);
-  if (c.type === "element_visible") return (await locatorFor(page, site, c.element)).isVisible().catch(() => false);
+  if (c.type === "element_visible") return (await locatorFor(page, site, c.element, vars)).isVisible().catch(() => false);
   if (c.type === "url_matches") return matchesGlob(page.url(), interpolate(c.pattern, vars));
-  if (c.type === "extractor_equals") return (await runExtractor(page, site, c.extractor)) === interpolate(c.value, vars);
-  if (c.type === "extractor_exists") return (await runExtractor(page, site, c.extractor)) !== null;
+  if (c.type === "extractor_equals") return (await runExtractor(page, site, c.extractor, vars)) === interpolate(c.value, vars);
+  if (c.type === "extractor_exists") return (await runExtractor(page, site, c.extractor, vars)) !== null;
   return false;
 }
