@@ -184,7 +184,7 @@ test('missing code can be replaced after discovery without frequency gating',asy
   assert.equal(failed.recovery.suspended,true);
   await recordLearningEvent(c,page,'s','extract',{locator:{css:'#result'},read:'text'});
   const repaired=await saveObservedAction(c,page,'s',{id:'count',capability:'count',scope:'Listings',action:{...doc.actions.count,implementation:{kind:'declarative',steps:[]},verify:[{type:'extractor_equals',extractor:'count',value:'0'}]},validationInput:{}});
-  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true);
+  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true,JSON.stringify(repaired.validation));
 });
 test('validation binds to the saved revision and refuses a substituted click',async t=>{
   const {c,page}=await fixture(t);
