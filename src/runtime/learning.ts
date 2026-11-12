@@ -106,7 +106,7 @@ export async function learningContext(config: AppConfig, page: Page, sessionId: 
   const url = new URL(page.url());
   if (!["https:", "http:"].includes(url.protocol)) return null;
   const identified = await identifySite(config, page).catch(() => null);
-  const siteId = identified?.loaded.definition.site.id || siteIdFromHost(url.hostname);
+  const siteId = identified?.loaded.definition.site.id || slug(url.hostname.replace(/\./g, "_"));
   const key = identified ? `site:${siteId}` : `host:${url.hostname}`;
   await recordVisit(config, sessionId, url.hostname, key);
   if (identified) await migrateNotes(config, url.hostname, siteId);
