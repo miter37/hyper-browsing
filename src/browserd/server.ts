@@ -152,10 +152,13 @@ export class BrowserDaemon {
         // document. Refresh only this session before retrying a read; never
         // reload/replay a write, batch, reference or code action.
         if (retryMethod !== "page.goto") {
-          const targetPage = this.store().get(sessionId);
-          const currentUrl = targetPage.url();
-          if (/^https?:\/\//.test(currentUrl)) {
-            await navigate(targetPage, currentUrl).catch(() => {});
+          try {
+            const targetPage = this.store().get(sessionId);
+            const currentUrl = targetPage.url();
+            if (/^https?:\/\//.test(currentUrl)) await navigate(targetPage, currentUrl).catch(() => {});
+          } catch {
+            // Session lookup can fail in a stale/partial rebind. Preserve the
+            // original read retry and let its normal error reporting classify it.
           }
         }
         const result = await this.dispatchUnlocked(retryMethod, retryParams);

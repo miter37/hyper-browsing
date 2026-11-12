@@ -71,7 +71,7 @@ test('real Chrome retries a read after a confirmed headless challenge in the sam
   assert.equal(chrome.getState().headless,true);
   await daemon.sessions.get(opened.id).setContent('<div role="dialog">Robot or human? Confirm that you are human.</div>');
   const result=await daemon.dispatch('page.extract',{sessionId:opened.id,locator:{css:'#result'}});
-  assert.equal(result.value,'Headed result');assert.equal(result.headedFallback.retried,true);assert.equal(chrome.getState().headless,false);
+  assert.equal(result.value,'Headed result',JSON.stringify(result));assert.equal(result.headedFallback.retried,true);assert.equal(chrome.getState().headless,false);
   assert.equal((await daemon.sessions.list())[0].id,opened.id);
 });
 test('session display restart reapplies viewport and locale preparation',async()=>{
