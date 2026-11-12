@@ -191,13 +191,13 @@ strategies:
 
 ## npm CLI / Native MCP
 
-The cross-platform entry point is \`node bin/hyper-browsing.mjs\` (or \`hyper-browsing\` after installing a published npm package).
+The cross-platform entry point is `node bin/hyper-browsing.mjs` (or `hyper-browsing` after installing a published npm package).
 
-\`\`\`bash
+```bash
 node bin/hyper-browsing.mjs doctor
 node bin/hyper-browsing.mjs browser start
 node bin/hyper-browsing.mjs session open --url https://example.com
 node bin/hyper-browsing.mjs mcp
-\`\`\`
+```
 
-MCP uses the same authenticated daemon and risk checks as \`webctl\`. Configure the client using [docs/MCP.md](MCP.md); package publication requirements are explained in [docs/INSTALL.md](INSTALL.md).
+MCP uses the same authenticated daemon and risk checks as `webctl`. Configure the client using [docs/MCP.md](MCP.md); package publication requirements are explained in [docs/INSTALL.md](INSTALL.md).

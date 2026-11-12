@@ -24,16 +24,16 @@ No hosted browser subscription is required. No separate cloud credential vault. 
 
 ### Works now — from source
 
-\`\`\`bash
+```bash
 git clone https://github.com/miter37/hyper-browsing.git
 cd hyper-browsing
 npm ci
 node bin/hyper-browsing.mjs doctor
-\`\`\`
+```
 
 Add this stdio server to your MCP client's configuration (replace the path):
 
-\`\`\`json
+```json
 {
   "mcpServers": {
     "hyper-browsing": {
@@ -42,9 +42,9 @@ Add this stdio server to your MCP client's configuration (replace the path):
     }
   }
 }
-\`\`\`
+```
 
-After **npm publication**, the same integration can use \`npx --yes hyper-browsing mcp\`. The package is configured for npm distribution; **this GitHub branch is not itself an npm release.** [Installation details](docs/INSTALL.md) · [MCP client setup](docs/MCP.md)
+After **npm publication**, the same integration can use `npx --yes hyper-browsing mcp`. The package is configured for npm distribution; **this GitHub branch is not itself an npm release.** [Installation details](docs/INSTALL.md) · [MCP client setup](docs/MCP.md)
 
 ### What you can ask your agent
 
@@ -67,18 +67,18 @@ After **npm publication**, the same integration can use \`npx --yes hyper-browsi
 
 ### The three-stage approach
 
-\`\`\`text
+```text
 Inspect a new site  →  Interact & verify  →  Reuse the successful path
        snapshot            click / fill          site-specific actions
        forms / list        diff / verify         recorded knowledge
        smart-scroll        risk checks           recovery on UI change
-\`\`\`
+```
 
 A task can finish without saving anything. Learning is deliberately bounded: concise notes first; action recording after repeated independent use; shallow overviews only for recurrent sites. See [learning and recovery](docs/LEARNING.md).
 
 ## One browser engine. Multiple entry points.
 
-\`\`\`text
+```text
 Claude / Cursor / Hermes   Other agents / shell
          |                        |
     MCP (stdio)               CLI / SKILL.md
@@ -90,15 +90,15 @@ Claude / Cursor / Hermes   Other agents / shell
           Playwright + Chrome CDP
                      |
         Your local Chrome profile
-\`\`\`
+```
 
 MCP is an **adapter to the existing daemon**, not a second automation engine. The same target resolution, safety classification, request IDs, and verification rules apply regardless of client.
 
 ### MCP tool highlights
 
-\`browser_status\` · \`session_open\` · \`snapshot\` · \`forms\` · \`list_items\` · \`smart_scroll\` · \`dismiss_annoyances\` · \`click\` · \`fill\` · \`select\` · \`press\` · \`verify\` · \`action_list\` · \`run_saved_action\` · \`request_status\`
+`browser_status` · `session_open` · `snapshot` · `forms` · `list_items` · `smart_scroll` · `dismiss_annoyances` · `click` · `fill` · `select` · `press` · `verify` · `action_list` · `run_saved_action` · `request_status`
 
-**Important:** state-changing actions require specific user authorization. \`confirmed: true\` is **not** blanket approval. Raw JavaScript evaluation and unrestricted Node code execution are **not exposed** by the MCP adapter. See the [MCP safety contract](docs/MCP.md).
+**Important:** state-changing actions require specific user authorization. `confirmed: true` is **not** blanket approval. Raw JavaScript evaluation and unrestricted Node code execution are **not exposed** by the MCP adapter. See the [MCP safety contract](docs/MCP.md).
 
 ## See it in action
 
@@ -114,33 +114,33 @@ These are examples of the legacy CLI/skill workflow. Actual latency, site compat
 
 ## Command-line quick reference
 
-\`\`\`bash
+```bash
 node bin/hyper-browsing.mjs doctor
 node bin/hyper-browsing.mjs browser start
 node bin/hyper-browsing.mjs session open --url https://example.com
 node bin/hyper-browsing.mjs session list
 node bin/hyper-browsing.mjs mcp
-\`\`\`
+```
 
-The npm entry point retains runtime data at \`~/.hyper-browsing\` (override via \`WEBAGENT_RUNTIME_DIR\`). The existing \`./bin/webctl\` and Windows \`bin\\webctl.cmd\` remain compatible. [Full command reference](docs/COMMANDS.md).
+The npm entry point retains runtime data at `~/.hyper-browsing` (override via `WEBAGENT_RUNTIME_DIR`). The existing `./bin/webctl` and Windows `bin\\webctl.cmd` remain compatible. [Full command reference](docs/COMMANDS.md).
 
 ## Safety, privacy and transparency
 
 - Browser RPC is restricted to localhost and token authenticated; the MCP server uses local stdio transport.
 - Session cookies and browser profiles stay in local runtime storage. **Page data returned to your connected agent may be processed by its model provider.**
 - Ambiguous actions are refused. A request with an uncertain outcome is observed or checked by request ID, **not blindly replayed**.
-- \`webctl eval\` is disabled by default and requires explicit opt-in plus confirmation. Node code actions are also disabled by default because they are privileged local programs. The regex source scan is not a sandbox.
+- `webctl eval` is disabled by default and requires explicit opt-in plus confirmation. Node code actions are also disabled by default because they are privileged local programs. The regex source scan is not a sandbox.
 - Your local Chrome must be installed. CAPTCHA, login and two-factor prompts may require human intervention. Website terms and account permissions still apply.
 
 ## Build and contribute
 
-\`\`\`bash
+```bash
 npm ci
 npm run typecheck
 npm run test:mcp
 npm test
 npm pack --dry-run --json
-\`\`\`
+```
 
 Linux/Windows CI checks this project on push/PR; see [CI workflow](.github/workflows/ci.yml). Issues, contributions and reproducible browser failures are welcome.
 

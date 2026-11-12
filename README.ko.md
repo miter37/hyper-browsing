@@ -24,16 +24,16 @@
 
 ### 지금 바로 사용: GitHub 소스 설치
 
-\`\`\`bash
+```bash
 git clone https://github.com/miter37/hyper-browsing.git
 cd hyper-browsing
 npm ci
 node bin/hyper-browsing.mjs doctor
-\`\`\`
+```
 
 MCP 클라이언트에 아래 설정을 등록합니다. 경로는 실제 설치 경로로 바꾸세요.
 
-\`\`\`json
+```json
 {
   "mcpServers": {
     "hyper-browsing": {
@@ -42,9 +42,9 @@ MCP 클라이언트에 아래 설정을 등록합니다. 경로는 실제 설치
     }
   }
 }
-\`\`\`
+```
 
-npm 패키지가 실제 배포된 뒤에는 \`npx --yes hyper-browsing mcp\`로 연결할 수 있습니다. **GitHub의 소스·브랜치에 실행 파일을 추가한 것만으로 npm 배포가 완료된 것은 아닙니다.** [설치 안내](docs/INSTALL.md) · [MCP 연결 가이드](docs/MCP.md)
+npm 패키지가 실제 배포된 뒤에는 `npx --yes hyper-browsing mcp`로 연결할 수 있습니다. **GitHub의 소스·브랜치에 실행 파일을 추가한 것만으로 npm 배포가 완료된 것은 아닙니다.** [설치 안내](docs/INSTALL.md) · [MCP 연결 가이드](docs/MCP.md)
 
 ### 에이전트에게 이렇게 요청해 보세요
 
@@ -67,18 +67,18 @@ npm 패키지가 실제 배포된 뒤에는 \`npx --yes hyper-browsing mcp\`로 
 
 ### 사용하면서 똑똑해지는 3단계
 
-\`\`\`text
+```text
 처음 방문·구조 파악  →  조작·결과 검증  →  성공 경로 재사용
       snapshot             click/fill          사이트 액션
       forms / list         diff/verify         지식 문서
       smart-scroll         위험도 확인          UI 변경 시 재탐색
-\`\`\`
+```
 
 한 번의 작업으로 무조건 스크립트를 만들지는 않습니다. 반복 사용 가치가 확인된 지식만 제한적으로 저장하고, 바뀐 사이트는 새 관찰을 통해 검증합니다. [학습·복구 원칙](docs/LEARNING.md).
 
 ## 여러 에이전트, 하나의 브라우저 엔진
 
-\`\`\`text
+```text
 Claude / Cursor / Hermes     코딩 에이전트 / 쉘
           |                         |
      MCP (stdio)                 CLI / SKILL
@@ -90,13 +90,13 @@ Claude / Cursor / Hermes     코딩 에이전트 / 쉘
               Playwright + Chrome CDP
                        |
                사용자 로컬 Chrome
-\`\`\`
+```
 
 MCP는 별도의 브라우저 엔진이 아니라 **기존 데몬의 안전한 연결 인터페이스**입니다. 어떤 클라이언트를 쓰든 실제 대상 선택·입력 확인·실행 결과·요청 ID 처리를 동일한 계층에서 수행합니다.
 
 ### 네이티브 MCP 핵심 도구
 
-\`browser_status\` · \`session_open\` · \`snapshot\` · \`forms\` · \`list_items\` · \`smart_scroll\` · \`dismiss_annoyances\` · \`click\` · \`fill\` · \`select\` · \`press\` · \`verify\` · \`action_list\` · \`run_saved_action\` · \`request_status\`
+`browser_status` · `session_open` · `snapshot` · `forms` · `list_items` · `smart_scroll` · `dismiss_annoyances` · `click` · `fill` · `select` · `press` · `verify` · `action_list` · `run_saved_action` · `request_status`
 
 외부 상태 변경에는 개별 사용자 승인이 필요합니다. 확인이 필요한 동작을 임의로 승인 처리하지 않으며, 임의 JavaScript 실행이나 Node 코드 실행은 MCP에 공개하지 않습니다. [MCP 안전 계약](docs/MCP.md).
 
@@ -114,33 +114,33 @@ MCP는 별도의 브라우저 엔진이 아니라 **기존 데몬의 안전한 �
 
 ## CLI 빠른 사용법
 
-\`\`\`bash
+```bash
 node bin/hyper-browsing.mjs doctor
 node bin/hyper-browsing.mjs browser start
 node bin/hyper-browsing.mjs session open --url https://example.com
 node bin/hyper-browsing.mjs session list
 node bin/hyper-browsing.mjs mcp
-\`\`\`
+```
 
-npm CLI 사용 시 런타임 정보는 기본적으로 \`~/.hyper-browsing\`에 저장됩니다. \`WEBAGENT_RUNTIME_DIR\`로 변경할 수 있습니다. 기존 \`./bin/webctl\`, Windows \`bin\\webctl.cmd\`도 지원합니다. [전체 명령](docs/COMMANDS.md).
+npm CLI 사용 시 런타임 정보는 기본적으로 `~/.hyper-browsing`에 저장됩니다. `WEBAGENT_RUNTIME_DIR`로 변경할 수 있습니다. 기존 `./bin/webctl`, Windows `bin\\webctl.cmd`도 지원합니다. [전체 명령](docs/COMMANDS.md).
 
 ## 개인정보·보안 원칙
 
 - 로컬 BrowserDaemon은 localhost와 토큰 인증을 사용하며 MCP는 로컬 stdio로 연결됩니다.
 - 쿠키·Chrome 프로필은 로컬에 보관합니다. **에이전트로 전달되는 웹페이지 정보는 연결한 모델 제공자가 처리할 수 있습니다.**
 - 모호한 요소는 자동 선택하지 않고, 실행 결과를 모르면 같은 쓰기 요청을 무작정 반복하지 않습니다.
-- \`webctl eval\`과 Node 코드 액션은 기본적으로 차단돼 있습니다. 신뢰하는 환경에서만 별도로 허용하며 코드 정규식 검사는 샌드박스가 아닙니다.
+- `webctl eval`과 Node 코드 액션은 기본적으로 차단돼 있습니다. 신뢰하는 환경에서만 별도로 허용하며 코드 정규식 검사는 샌드박스가 아닙니다.
 - Chrome 설치가 필요하고, 로그인·CAPTCHA·2단계 인증은 사람이 직접 수행해야 할 수 있습니다.
 
 ## 개발·기여
 
-\`\`\`bash
+```bash
 npm ci
 npm run typecheck
 npm run test:mcp
 npm test
 npm pack --dry-run --json
-\`\`\`
+```
 
 GitHub Actions로 Linux/Windows 검증을 수행합니다. 기능 제안, 오류 재현, 기여를 환영합니다.
 

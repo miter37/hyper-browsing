@@ -31,5 +31,5 @@ test('cross-platform CLI help and version do not launch a browser or print secre
 test('MCP implementation does not open an unauthenticated standalone listener',()=>{
   const code=fs.readFileSync(path.join(root,'scripts/mcp-server.mjs'),'utf8');
   assert.match(code,/postRpc/);
-  assert.doesNotMatch(code,/createServer\\(/);
+  assert.doesNotMatch(code,/createServer\(/);
 });
