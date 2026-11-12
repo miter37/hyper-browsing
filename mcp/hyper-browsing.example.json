@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hyper-browsing": {
+      "command": "node",
+      "args": [
+        "/ABSOLUTE/PATH/TO/hyper-browsing/bin/hyper-browsing.mjs",
+        "mcp"
+      ]
+    }
+  }
+}
