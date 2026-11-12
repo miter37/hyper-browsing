@@ -15,7 +15,11 @@ test("smart-scroll accumulates unique list items across virtual DOM replacements
     'function paint() { root.innerHTML = Array.from({length:5}, (_,i) =>',
     '  "<article class=result><h3>Item " + (turn*5+i) + "</h3><a href=/items/" + (turn*5+i) + ">Read article</a></article>"',
     ').join(""); }',
-    'paint(); document.querySelector("#scrollbox").addEventListener("scroll", () => { turn++; paint(); });',
+    'paint(); let observedPosition = 0;',
+    'Object.defineProperty(document.querySelector("#scrollbox"), "scrollTop", { configurable: true,',
+    '  get() { return observedPosition; },',
+    '  set(value) { observedPosition = value; turn++; paint(); }',
+    '});',
     '</script>'
   ].join(""));
   const result = await smartScroll(page, { selector: "#scrollbox", maxScrolls: 4, distance: 500, limit: 50 });
