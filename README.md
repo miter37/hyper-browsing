@@ -6,16 +6,85 @@
 
 <p>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://github.com/miter37/hyper-browsing/actions"><img src="https://img.shields.io/github/actions/workflow/status/miter37/hyper-browsing/ci.yml?branch=main&label=CI" alt="GitHub Actions CI"></a>
 </p>
 
-> - **Enables AI agents to rapidly inspect and interact with any website through Playwright, leveraging your real Chrome browser profile.**
-> - **Self-learns and turns successful interactions into dedicated scripts and knowledge docs for blazing-fast execution on subsequent visits.**
-> - **Ultra-fast, adaptive web browsing agent skill.**
+> **Your Chrome. Your AI agent. One local browser runtime.**
+>
+> Connect AI coding assistants to a real Chrome session with **native MCP**, automate known sites through **reusable workflows**, or control the browser from a **cross-platform CLI**. No hosted browser subscription, Docker, or remote credential vault required.
 
+**Hyper-Browsing** is a local-first browser automation toolkit built on Playwright and an authenticated Chrome daemon. It turns live pages into compact, actionable observations; verifies actions instead of trusting clicks; and retains proven site knowledge for later work.
 
-Learning stays small: notes on a first task, observed actions after two independent tasks within 30 days, and shallow exploration overviews after seven. Overviews describe the starting screen, one-hop screens and potential actions while referencing existing actions. Learning can be skipped without blocking task completion. See [learning and recovery](docs/LEARNING.md).
+## Why build on Hyper-Browsing?
 
-Direct commands and saved declarative actions share ambiguity checks, input verification and effect reporting. Snapshots expose temporary `--ref` targets; `batch --input-file` fills up to ten observed fields without creating assets. Lost RPC replies return `outcome_unknown` with a request ID for status lookup; they never trigger automatic retransmission. See [execution rules](docs/EXECUTION.md) and [commands](docs/COMMANDS.md).
+| What you get | Why it matters |
+|---|---|
+| **Native MCP server** | 23 typed tools for session control, snapshots, forms, virtual-list accumulation, safe interactions, verification and reusable actions |
+| **One shared execution engine** | MCP and CLI use the same session store, unique-element checks, write confirmation and request tracking |
+| **Your installed Chrome** | Reuse a real or agent-managed Chrome profile, including authenticated sessions when available |
+| **Less repeated discovery** | Structured snapshots and verified site assets reduce the need to rediscover familiar workflows |
+| **Local-first by design** | Browser profiles, cookies and runtime state stay on the machine; page content sent to your model follows that provider's policies |
+| **Cross-platform** | Node.js 20+, Windows, macOS and Linux; an npm-ready `hyper-browsing` CLI with a persistent local workspace |
+
+**Not a magic CAPTCHA bypass or a claim of universal website success.** Human login/2FA, website changes and explicit approval for purchases, messages, deletes or account changes remain part of the workflow. Benchmarks are published with their setup and limitations rather than promising unsupported speedups.
+
+## Quick start — use the GitHub source today
+
+**Prerequisites:** Node.js 20+, Google Chrome. On first browsing use, the daemon opens Chrome in a headless or managed profile; use `browser reveal` when a person needs to sign in.
+
+```bash
+git clone https://github.com/miter37/hyper-browsing.git
+cd hyper-browsing
+npm ci
+node bin/hyper-browsing.mjs init
+node bin/hyper-browsing.mjs doctor
+```
+
+Use the built-in **MCP server** with an MCP host:
+
+```bash
+node bin/hyper-browsing.mjs mcp
+```
+
+Or use the **CLI** without an MCP host:
+
+```bash
+node bin/hyper-browsing.mjs webctl session open --url https://example.com
+node bin/hyper-browsing.mjs webctl session list
+```
+
+The MCP process speaks JSON-RPC over **stdio**. Your MCP application launches it for you; don't paste MCP tool-call JSON into a normal shell. It connects to the same authenticated local browser daemon as `webctl`. See [MCP setup and safety](docs/MCP.md).
+
+### One-command npx experience (after npm publication)
+
+This repository has npm packaging and an executable `bin` entry, but **the package has not been published by this change**. After the owner publishes the vetted release, the intended workflow is:
+
+```bash
+npx -y hyper-browsing@0.4.0 init
+npx -y hyper-browsing@0.4.0 doctor
+npx -y hyper-browsing@0.4.0 mcp
+```
+
+The npm CLI keeps runtime profiles and learned site assets under `~/.hyper-browsing/` by default—not in a disposable npx cache. Existing files in the workspace are not overwritten by startup. Change the location with `WEBAGENT_WORKSPACE_DIR`. Publishing is a separate owner action; verify the npm package name and release provenance before using registry commands.
+
+### Connect from Claude Desktop, Cursor, Hermes or another stdio MCP host
+
+Configure the application to launch your local checkout:
+
+```json
+{
+  "mcpServers": {
+    "hyper-browsing": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/hyper-browsing/bin/hyper-browsing.mjs", "mcp"]
+    }
+  }
+}
+```
+
+Once released to npm, replace that command with `npx` and args `["-y", "hyper-browsing@0.4.0", "mcp"]`. Client-specific config locations vary; the protocol adapter is standard stdio MCP, and host integration must still be configured.
+
+**Tool flow:** `hb_session_open` → `hb_snapshot` / `hb_forms` → `hb_click` / `hb_fill` → `hb_verify`. For changing feeds use `hb_smart_scroll`; for repeat visits use `hb_action_list` and `hb_action_run`. Write-like actions can return `confirmationRequired`; never automatically set `confirmed=true` without user approval. Lost responses return an ID for `hb_request_status`, never a blind replay.
 
 ---
 
@@ -28,7 +97,7 @@ Direct commands and saved declarative actions share ambiguity checks, input veri
 <table align="center">
   <tr>
     <td>
-      <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
+      <img src="https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_airbnb.gif" width="800" alt="Airbnb Ready-Made Script Execution Demo">
     </td>
   </tr>
 </table>
@@ -40,7 +109,7 @@ Direct commands and saved declarative actions share ambiguity checks, input veri
 <table align="center">
   <tr>
     <td>
-      <img src="./assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
+      <img src="https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_investing.gif" width="800" alt="Investing.com Standard Tools Browsing Demo">
     </td>
   </tr>
 </table>
@@ -164,39 +233,25 @@ npm run clean
 
 ---
 
-### 7. Installation & Environment Setup
+### 7. Installation, MCP and npx
 
-Requires **Node.js 20+** and **Google Chrome** installed on your machine.
+Hyper-Browsing supports both the original source checkout and a packaged CLI. The native MCP stdio server is a thin, dependency-free adapter over the existing daemon; it does not create a separate Chrome driver.
 
-#### Instruct Your AI Agent (Easiest Method)
-Paste this single prompt into your AI coding agent (Claude Code, Antigravity, Hermes, etc.):
+**Source (available today):**
 
-> 💬 *"Clone https://github.com/miter37/hyper-browsing into my skills directory, run npm install, and run health check so it's ready to use."*
+```bash
+git clone https://github.com/miter37/hyper-browsing.git
+cd hyper-browsing
+npm ci
+node bin/hyper-browsing.mjs init
+node bin/hyper-browsing.mjs mcp
+```
 
-##### 🤖 Steps for User or Agent to Execute:
-1. **Clone to Skills Directory**:
-   Clone or link into your agent's skills directory (`~/.agents/skills/`):
-   ```bash
-   git clone https://github.com/miter37/hyper-browsing.git
-   cd hyper-browsing
-   ```
-   *(※ The agent recognizes `SKILL.md` and automatically adopts it for browser tasks.)*
+**Legacy skill usage is unchanged:** `./bin/webctl health` on macOS/Linux or `bin\webctl.cmd health` on Windows. The skill can still be cloned into an agent's skills folder. New packaged-CLI runtime paths are under `~/.hyper-browsing/`, while the existing repository launcher keeps its original checkout-local defaults.
 
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-   *(※ The `playwright` package is installed automatically. Since this skill controls your real installed Google Chrome via CDP, downloading heavy Chromium binaries (`npx playwright install`) is NOT required.)*
+**npx (only after npm publication by the owner):** `npx -y hyper-browsing@0.4.0 mcp`. Publishing is not part of this PR. Before release, confirm package-name ownership, install from the resulting tarball on all three supported OSes and check npm provenance.
 
-3. **Verify Daemon & Chrome Health**:
-   Start the browser daemon and verify `status: "ok"`:
-   ```bash
-   # Windows
-   bin\webctl.cmd health
-
-   # macOS / Linux
-   ./bin/webctl health
-   ```
+For client configuration, available MCP tools, human approval requirements and troubleshooting, read [docs/MCP.md](docs/MCP.md). For Playwright/Chrome behavior read [docs/BROWSER.md](docs/BROWSER.md).
 
 ---
 
