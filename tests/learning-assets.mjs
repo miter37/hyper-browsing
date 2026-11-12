@@ -118,7 +118,7 @@ test('a failed action falls back, is repaired in place, and validates only the n
   // Agent observes actual result, completes task, and replaces only this capability.
   await recordLearningEvent(c,page,'repair','extract',{locator:{css:'#result'},read:'text'});
   const repaired=await saveObservedAction(c,page,'repair',{id:'read_count',capability:'read-count',scope:'Listings count',action:{...doc.actions.read_count,verify:[{type:'extractor_equals',extractor:'count',value:'{expected}'}]},validationInput:{expected:'0'}});
-  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true);
+  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true,JSON.stringify(repaired.validation));
   assert.notEqual(repaired.revision,failed.revision);
   assert.equal(repaired.validation.promotion.to,'candidate');
   loaded=await loadSite(c,'example');
