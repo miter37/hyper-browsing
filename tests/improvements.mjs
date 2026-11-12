@@ -290,3 +290,23 @@ test('a date query finds the day however the page writes it',async t=>{
  assert.ok((await names('2026-12-13')).some(n=>String(n).includes('12/13/2026')));
  assert.ok((await names('12월 14일')).some(n=>n==='Dec 14, 2026'));
 });
+
+test('a query of several words finds each named control, and verify says which field is wrong',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><label>여행지 <input placeholder="여행지 검색"></label>
+  <button>체크인 날짜 추가</button><button>여행자 게스트 추가</button><button>도움말</button>`);
+ const names=(await captureSnapshot(page,{query:'여행지 체크인 여행자'})).elements.map(e=>e.name||e.placeholder);
+ assert.ok(names.some(n=>/체크인/.test(n))&&names.some(n=>/여행자/.test(n))&&names.some(n=>/여행지/.test(n)),JSON.stringify(names));
+ assert.ok(!names.includes('도움말'));
+ const bad=await verification.verifyPage(page,{checks:[{type:'url_param',name:'q',value:'x'}]});
+ assert.equal(bad.reason,'invalid_verification');assert.match(bad.error,/checks\.0/);assert.ok(bad.hint);
+});
+
+test('effect names report a visible label and its screen-reader copy once',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><input id="q"><div id="l" role="listbox"></div>
+  <script>document.getElementById('q').addEventListener('input',()=>{
+   const o=document.createElement('div');o.setAttribute('role','option');o.textContent='제주 도시';
+   const sr=document.createElement('span');sr.textContent=' 제주 도시';sr.style.cssText='position:absolute;width:1px;height:1px;overflow:hidden';
+   o.append(sr);document.getElementById('l').append(o);});</script>`);
+ const r=await executePrimitive(page,'fill',{locator:{css:'#q'},value:'제주'});
+ assert.ok(r.effect?.page?.appeared?.includes('제주 도시'),JSON.stringify(r.effect));
+});

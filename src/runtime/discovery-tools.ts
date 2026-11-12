@@ -366,7 +366,7 @@ const LIST_SCRIPT = `(opts) => {
     return {
       title: (titleOf(k, h, a) || "").slice(0, 120) || undefined,
       href: a ? a.href : undefined,
-      text: textOf(k).slice(0, 200),
+      text: textOf(k).slice(0, 500),
     };
   });
   const c = g.el;

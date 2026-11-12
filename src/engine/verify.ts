@@ -45,7 +45,7 @@ export const PageVerificationSchema=z.object({checks:z.array(z.union([z.object({
 /** Explicit, ephemeral, read-only assertions. No learning or asset persistence. */
 export async function verifyPage(page:Page,input:unknown):Promise<Record<string,any>> {
  const parsed=PageVerificationSchema.safeParse(input);
- if(!parsed.success)return {ok:false,execution:'not_started',reason:'invalid_verification',outcome:'UNKNOWN',error:parsed.error.issues.map(i=>i.message).join('; '),details:[]};
+ if(!parsed.success)return {ok:false,execution:'not_started',reason:'invalid_verification',outcome:'UNKNOWN',error:parsed.error.issues.map(i=>(i.path.length?i.path.join('.')+': ':'')+i.message).join('; '),hint:'Each check is {type:"url_param",name,expected} or {type:"element",target,read,op,expected}.',details:[]};
  const deadline=Date.now()+5000;
  let timer:ReturnType<typeof setTimeout>;
  try { return await Promise.race([verifyPageChecks(page,parsed.data.checks,deadline),new Promise<Record<string,any>>(r=>{timer=setTimeout(()=>r({ok:false,execution:'completed',outcome:'UNKNOWN',reason:'verification_budget',details:[]}),5000);})]);

@@ -314,6 +314,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     return out;
   }
   const queryDates = datesIn(query);
+  const queryWords = query.split(" ").filter((w) => w.length > 1);
   function sameDay(text) {
     if (!queryDates.length || !text) return false;
     const found = datesIn(text);
@@ -330,6 +331,12 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       else if (s.includes(query)) best = Math.max(best, 1);
     }
     if (best < 2 && [e.name, e.label, e.text, e.testId].some((v) => sameDay(v))) best = 2;
+    // Several words ("destination check-in guests") name several controls: rank by the share of words an element holds.
+    if (!best && queryWords.length > 1) {
+      const hay = [e.name, e.label, e.hint, e.placeholder, e.text, e.value, e.testId].filter(Boolean).join(" ").toLowerCase();
+      const held = queryWords.filter((w) => hay.includes(w)).length;
+      if (held) best = 0.9 * held / queryWords.length;
+    }
     return best;
   }
 

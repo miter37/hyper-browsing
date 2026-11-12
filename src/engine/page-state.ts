@@ -129,7 +129,11 @@ const PROBE_SCRIPT = `(() => {
     if (el.matches(CONTROL) && shown(el)) {
       interactive++;
       if (names.length < 300 && /^(A|BUTTON|SUMMARY)$/.test(tag) || /^(button|link|tab|menuitem|option)$/.test(el.getAttribute("role") || "")) {
-        const n = clean(el.getAttribute("aria-label")) || clean(el.innerText).slice(0, 50);
+        let n = clean(el.getAttribute("aria-label")) || clean(el.innerText);
+        // Visible text plus its screen-reader copy reads "X X"; report it once, as a locator would see it.
+        const half = n.length > 3 ? n.slice(0, Math.floor((n.length - 1) / 2)) : "";
+        if (half && n === half + " " + half) n = half;
+        n = n.slice(0, 50);
         if (n && names.length < 300) names.push(n);
       }
     }
