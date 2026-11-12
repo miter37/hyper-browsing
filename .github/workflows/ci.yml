@@ -34,4 +34,14 @@ jobs:
         run: npx playwright install chromium
       - run: npm run typecheck
       - run: npm run validate:sites
-      - run: npm test
+      - name: Learning tests
+        run: npm run test:learning
+      - name: Execution and regression tests
+        if: ${{ !cancelled() }}
+        run: npm run test:execution
+      - name: Chrome manager scenarios
+        if: ${{ !cancelled() }}
+        run: npm run test:scenarios
+      - name: Discovery tests
+        if: ${{ !cancelled() }}
+        run: npm run test:discovery

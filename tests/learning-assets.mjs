@@ -183,8 +183,9 @@ test('missing code can be replaced after discovery without frequency gating',asy
   const failed=await runKnownAction(c,page,await loadSite(c,'example'),{sessionId:'s',actionId:'count',input:{}});
   assert.equal(failed.recovery.suspended,true);
   await recordLearningEvent(c,page,'s','extract',{locator:{css:'#result'},read:'text'});
+  const beforeRepair = {url:page.url(),count:await page.locator('#result').count(),body:await page.locator('body').innerText().catch(()=>'<unreadable>')};
   const repaired=await saveObservedAction(c,page,'s',{id:'count',capability:'count',scope:'Listings',action:{...doc.actions.count,implementation:{kind:'declarative',steps:[]},verify:[{type:'extractor_equals',extractor:'count',value:'0'}]},validationInput:{}});
-  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true,JSON.stringify(repaired.validation));
+  assert.equal(repaired.repair,true);assert.equal(repaired.validation.ok,true,JSON.stringify({beforeRepair,afterRepair:{url:page.url(),count:await page.locator('#result').count(),body:await page.locator('body').innerText().catch(()=>'<unreadable>')},validation:repaired.validation}));
 });
 test('validation binds to the saved revision and refuses a substituted click',async t=>{
   const {c,page}=await fixture(t);
