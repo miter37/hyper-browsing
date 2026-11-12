@@ -4,6 +4,7 @@ const PLACEHOLDER = /\{\{([a-zA-Z0-9_.-]+)\}\}|\{([a-zA-Z0-9_.-]+)\}/g;
 function substitute(template: string, vars: Record<string, unknown>, encode: (value: string) => string): string {
   return template.replace(PLACEHOLDER, (_match, double: string | undefined, single: string | undefined) => {
     const key = double || single;
+    if (!key) throw new Error("Malformed template placeholder");
     const value = vars[key];
     if (value === undefined || value === null) throw new Error(`Missing variable: ${key}`);
     return encode(String(value));
