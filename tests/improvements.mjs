@@ -310,3 +310,18 @@ test('effect names report a visible label and its screen-reader copy once',async
  const r=await executePrimitive(page,'fill',{locator:{css:'#q'},value:'제주'});
  assert.ok(r.effect?.page?.appeared?.includes('제주 도시'),JSON.stringify(r.effect));
 });
+
+test('image words are part of a name, and spacing does not hide a match',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><label><input type="checkbox" style="opacity:0;position:absolute"><img alt="로켓배송" width="40" height="12">만 보기</label><button>도움말</button>`);
+ const snap=await captureSnapshot(page,{query:'로켓배송만 보기'});
+ assert.ok(snap.elements.some(e=>/로켓배송\s*만 보기/.test(e.name||'')),JSON.stringify(snap.elements));
+ assert.equal(snap.queryFilter.query,'로켓배송만 보기');assert.ok(snap.queryFilter.matches>0);
+ const none=await captureSnapshot(page,{query:'zzz-not-here'});
+ assert.equal(none.queryFilter.matches,0);assert.ok(none.queryFilter.hint);
+});
+
+test('a click on a link that routes late still reports the new URL',async t=>{
+ const {page}=await fixture(t,`<a href="/next" onclick="event.preventDefault();setTimeout(()=>history.pushState({},'', '/next'),900)">Next page</a>`);
+ const r=await executePrimitive(page,'click',{locator:{role:'link',name:'Next page'}});
+ assert.equal(r.effect.urlChanged,true,JSON.stringify(r.effect));assert.match(r.effect.url,/\/next$/);
+});

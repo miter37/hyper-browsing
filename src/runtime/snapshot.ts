@@ -75,6 +75,7 @@ export interface PageSnapshot {
   hidden?: HiddenMatch[];
   // With --query: plain-text matches outside the listed controls (status text, custom span buttons).
   textHits?: TextHit[];
+  queryFilter?: { query: string; matches: number; hint?: string };
   // With --query and no match: closed <details>/collapsed toggles whose content is only rendered once opened.
   collapsed?: Array<{ tag: string; name: string; use: string }>;
   // Why the list is empty, when it is.
@@ -158,12 +159,18 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   }
 
   // Visible text without icon-font ligatures ("arrow_drop_down") and aria-hidden decorations.
+  // Images that carry words ("<img alt='로켓배송'>만 보기") are part of the name, as for a screen reader.
   function textOf(el) {
-    if (!el.querySelector("[aria-hidden='true'], i, [class*='icon' i], [class*='material' i], [class*='symbol' i]")) return cleanStr(el.innerText);
+    const altImages = Array.from(el.querySelectorAll("img[alt]")).filter((i) => cleanStr(i.alt) && i.getAttribute("aria-hidden") !== "true");
+    if (!altImages.length && !el.querySelector("[aria-hidden='true'], i, [class*='icon' i], [class*='material' i], [class*='symbol' i]")) return cleanStr(el.innerText);
     const parts = [];
     const skip = new Map();
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      if (t.nodeType === 1) {
+        if (t.tagName === "IMG" && altImages.includes(t)) parts.push(t.alt);
+        continue;
+      }
       let bad = false;
       for (let p = t.parentElement; p && p !== el.parentElement; p = p.parentElement) {
         if (skip.has(p)) { bad = skip.get(p); if (bad) break; continue; }
@@ -181,6 +188,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
   function labelText(label) {
     const clone = label.cloneNode(true);
     clone.querySelectorAll("input, select, textarea, button, option, [role=listbox], [role=option]").forEach((c) => c.remove());
+    clone.querySelectorAll("img[alt]").forEach((i) => i.replaceWith(" " + i.alt + " "));
     return cleanStr(clone.textContent);
   }
   function byIds(el, attr) {
@@ -314,7 +322,9 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     return out;
   }
   const queryDates = datesIn(query);
-  const queryWords = query.split(" ").filter((w) => w.length > 1);
+  // Words of the query, without punctuation ("TypeScript, sort" -> typescript, sort).
+  const queryWords = query.split(/[\\s,;:/|()\\[\\]{}"'!?]+/).filter((w) => w.length > 1);
+  const querySolid = query.replace(/\\s+/g, "");
   function sameDay(text) {
     if (!queryDates.length || !text) return false;
     const found = datesIn(text);
@@ -329,6 +339,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       if (strong && s === query) best = Math.max(best, 3);
       else if (strong && s.startsWith(query)) best = Math.max(best, 2);
       else if (s.includes(query)) best = Math.max(best, 1);
+      else if (querySolid.length > 1 && s.replace(/\\s+/g, "").includes(querySolid)) best = Math.max(best, 1);
     }
     if (best < 2 && [e.name, e.label, e.text, e.testId].some((v) => sameDay(v))) best = 2;
     // Several words ("destination check-in guests") name several controls: rank by the share of words an element holds.
@@ -526,6 +537,8 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     headings,
     open: open.length ? open : undefined,
     elements: picked.map((m) => m.entry),
+    // Says the list was filtered, so an empty or short list is not mistaken for the whole page.
+    queryFilter: query ? { query: opts.query, matches: matched.length } : undefined,
     truncated: omittedCount > 0,
     omitted: omittedCount ? { count: omittedCount, byHeading: Object.fromEntries(top) } : undefined,
     hidden: hidden.length ? hidden : undefined,
@@ -607,6 +620,7 @@ export async function captureSnapshot(
     headings: (data.headings || []).map(redactText),
     open: data.open,
     elements,
+    queryFilter: data.queryFilter ? { ...data.queryFilter, ...(data.queryFilter.matches ? {} : { hint: "No control's name holds these words. Use a word that is visible on the page, a shorter query, or no query." }) } : undefined,
     truncated: Boolean(data.truncated),
     omitted: data.omitted,
     hidden: data.hidden,

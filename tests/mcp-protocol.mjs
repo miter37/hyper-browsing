@@ -104,3 +104,11 @@ test('session listings keep long URLs short',async()=>{
   assert.equal(status.sessions[0].urlTruncated,true);
   assert.deepEqual(status.sessions[1],{id:'b',url:'https://x/'});
 });
+test('MCP results stay small: session id alias, short close, capped long text',async()=>{
+  const open=await runTool('session_open',{url:'https://x.test/'},async()=>({id:'task_1',title:'t'.repeat(500)}));
+  assert.equal(open.sessionId,'task_1');assert.equal(open.title.length,161);
+  const closed=await runTool('session_close',{sessionId:'task_1'},async()=>({closed:'task_1',learning:{journal:'x'.repeat(900),learningPending:false},requestId:'r'}));
+  assert.deepEqual(closed,{ok:true,closed:'task_1',requestId:'r'});
+  const read=await runTool('read_text',{sessionId:'s',locator:{css:'body'}},async()=>({value:'v'.repeat(9000)}));
+  assert.equal(read.value.length,4001);assert.ok(read.truncatedValues);
+});

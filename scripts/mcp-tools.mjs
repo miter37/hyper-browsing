@@ -28,7 +28,7 @@ export const TOOLS = [
   tool('back', 'Go back one step in the session tab history.', {sessionId}, ['sessionId']),
   tool('session_close', 'Close one session tab, not the whole browser.', {sessionId}, ['sessionId']),
   tool('snapshot', 'Compact observation of current page with short-lived element references.', {sessionId, query:S('Optional query for relevant controls.'), limit:N('Maximum elements to show.',1,100)}, ['sessionId'], true),
-  tool('list_items', 'Extract repeated result cards and their titles/links.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,50)}, ['sessionId'], true),
+  tool('list_items', 'Extract repeated result cards and their titles/links (text holds the rest of each card: price, rating, date). otherGroups counts other repeated lists on the page; narrow with query if the wrong list came back.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,50)}, ['sessionId'], true),
   tool('read_text', 'Read the text, value or an attribute of current elements. Use this to read page content; snapshot lists controls, not prose. '+targetMessage, {sessionId,...target, read:S('What to read: text (default), value or attribute.',{enum:['text','value','attribute']}), attribute:S('Attribute name when read is attribute, e.g. href.'), all:B('Return every visible match in order instead of requiring a unique one.'), limit:N('Maximum values when all is true.',1,100)}, ['sessionId'], true),
   tool('screenshot', 'Save a PNG of the session tab and return its local file path.', {sessionId, fullPage:B('Capture the whole scrollable page instead of the viewport.')}, ['sessionId'], true),
   tool('wait_for', 'Wait until a text or CSS match appears. Provide text or css.', {sessionId, text:S('Visible text to wait for.'), css:S('CSS selector to wait for.'), timeoutMs:N('Give up after this many milliseconds.',100,30000)}, ['sessionId'], true),
@@ -130,7 +130,28 @@ const rpc = (call,method,params) => call(method,params);
 
 /** runTool returns the daemon result, not a synthesized claim of task success. */
 export async function runTool(name,args,call) {
-  return toMcpDialect(await runDaemonTool(name,args,call), name==='browser_status'||name==='session_list');
+  return shapeForMcp(name, args, toMcpDialect(await runDaemonTool(name,args,call), name==='browser_status'||name==='session_list'));
+}
+
+// Keep results small enough for a model to read: no bookkeeping it cannot act on, no page-sized strings.
+const MAX_TITLE = 160, MAX_VALUE = 4000;
+function clip(text, max) { return typeof text === 'string' && text.length > max ? text.slice(0, max) + '…' : text; }
+function shapeForMcp(name, args, result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
+  if (name === 'session_open' && result.id && !result.sessionId) result = { sessionId: result.id, ...result };
+  if (name === 'session_close' && result.closed) {
+    return { ok: result.ok !== false, closed: result.closed, ...(result.learning?.learningPending ? { learningPending: true } : {}), requestId: result.requestId };
+  }
+  if (typeof result.title === 'string') result.title = clip(result.title, MAX_TITLE);
+  if (result.effect && typeof result.effect.title === 'string') result.effect = { ...result.effect, title: clip(result.effect.title, MAX_TITLE) };
+  if (name === 'read_text') {
+    let cut = false;
+    const cap = v => { if (typeof v === 'string' && v.length > MAX_VALUE) { cut = true; return clip(v, MAX_VALUE); } return v; };
+    if (Array.isArray(result.values)) result.values = result.values.map(cap);
+    if (result.value !== undefined) result.value = cap(result.value);
+    if (cut) result.truncatedValues = `Values longer than ${MAX_VALUE} characters were cut. Read a smaller element instead of the whole page.`;
+  }
+  return result;
 }
 async function runDaemonTool(name,args,call) {
   validateToolInput(name,args);

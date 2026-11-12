@@ -300,6 +300,14 @@ export async function actOn<T>(
   }
 
   const probeBefore = kind === "extract" ? null : await probePage(page);
+  // Links, and choices that apply a filter or sort, often change the URL only after a short delay (client routing,
+  // a debounced auto-submit). Decided before the click, since the element may be gone afterwards.
+  const mayNavigate = kind === "click" && await target.locator.evaluate((el) => {
+    const a = el.closest("a[href]");
+    const href = a ? a.getAttribute("href") || "" : "";
+    if (a && href && !href.startsWith("#") && !/^javascript:/i.test(href)) return true;
+    return Boolean(el.closest("label, input[type=checkbox], input[type=radio], [role=radio], [role=checkbox], [role=menuitemradio], [role=option], [role=tab]"));
+  }).catch(() => false);
   const nav = watchNavigation(page);
   let value: T;
   try {
@@ -330,6 +338,10 @@ export async function actOn<T>(
   if (kind === "extract") { nav.stop(); return { ok: true, value, ...resolved, execution: "completed" }; }
 
   await settle(page, { quietMs: 300, maxMs: 1500 });
+  if (mayNavigate && page.url() === before.url) {
+    const moved = await page.waitForURL((u) => u.toString() !== before.url, { timeout: 1500, waitUntil: "commit" }).then(() => true).catch(() => false);
+    if (moved) await settle(page, { quietMs: 300, maxMs: 1500 });
+  }
   if (page.url() !== before.url) await page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => {});
   nav.stop();
   const after = await readTarget(page, target.locator);

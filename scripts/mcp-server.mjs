@@ -23,7 +23,7 @@ function readCredentials(){
   return {endpoint:'http://127.0.0.1:'+port,token};
 }
 let started=false;
-async function defaultRpc(method,params){
+async function defaultRpc(method,params,retried=false){
   if(!started){
     // Launcher ensures a token-authenticated local daemon, reusing the existing
     // Chrome profile. It prints to stderr, never into MCP stdout.
@@ -40,6 +40,9 @@ async function defaultRpc(method,params){
   // repeated, but an outcome_unknown action must NEVER be retransmitted.
   if(response.fallbackAllowed){
     started=false;
+    // The daemon was restarted or stopped since the last call. The command never reached it, so starting the
+    // daemon again and sending it once more cannot repeat an action.
+    if(!retried)return defaultRpc(method,params,true);
     return {ok:false,execution:'not_started',reason:'daemon_unreachable',hint:'Restart the MCP connection or run hyper-browsing doctor. Original command was not transmitted.'};
   }
   return response.result;
