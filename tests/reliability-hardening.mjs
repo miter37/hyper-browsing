@@ -61,7 +61,7 @@ test('declarative actions propagate input into dynamic locators and verification
     elements:{choose:{strategies:[{css:"button.item_link:has-text('{{complexName}}')"}]},done:{strategies:[{css:'#done'}]}},
     extractors:{check:{element:'done',read:'text'}},
     actions:{pick:{risk:'read',implementation:{kind:'declarative',steps:[{op:'click',element:'choose'}]},
-      verify:[{type:'extractor_equals',extractor:'check',value:'yes'}]}}
+      verify:[{type:'extractor_equals',extractor:'check',value:'yes'}, {type:'element_visible',element:'choose'}]}}
   };
   await fs.writeFile(path.join(dir,'site.yaml'),JSON.stringify(doc));
   const result = await runKnownAction(c,page,await loadSite(c,'example'),

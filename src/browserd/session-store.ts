@@ -30,6 +30,7 @@ interface SessionRecord {
 
 export class SessionStore {
   private ignored = new WeakSet<Page>();
+  private watchedContexts = new WeakSet<BrowserContext>();
   ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
   private pendingPopups = new WeakMap<Page, Promise<PopupEffect>>();
@@ -56,6 +57,8 @@ export class SessionStore {
 
   /** Register unclaimed tabs and inherit preparation from their opener. */
   private watchForPopups(context: BrowserContext): void {
+    if (this.watchedContexts.has(context)) return;
+    this.watchedContexts.add(context);
     context.on("page", (page) => {
       setTimeout(async () => {
         // Ignore late events from a previous context after a Chrome restart.
