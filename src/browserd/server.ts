@@ -32,7 +32,7 @@ import crypto from "node:crypto";
 import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from "./headed-fallback";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
-import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
+import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, smartScroll, waitForElement, listItems } from "../runtime/discovery-tools";
 
 async function readJson(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
@@ -449,6 +449,13 @@ export class BrowserDaemon {
         times: params.times ? Number(params.times) : undefined,
         selector: params.selector,
         delayMs: params.delayMs ? Number(params.delayMs) : undefined,
+      });
+    }
+    if (method === "page.smartScroll") {
+      if (!page) throw new Error("sessionId required");
+      return await smartScroll(page, {
+        query: params.query, maxScrolls: params.maxScrolls,
+        limit: params.limit, distance: params.distance, selector: params.selector
       });
     }
     if (method === "page.waitFor") {

@@ -60,9 +60,9 @@ add("hb_list", "Inspect repeated items", "Extract compact titles, links and text
   { ...SESSION, query: S(200), limit: I(1, 50) }, ["sessionId"], "page.list",
   a => ({ sessionId: a.sessionId, query: a.query, limit: a.limit }), { readOnly: true });
 add("hb_smart_scroll", "Accumulate virtualized lists", "Scroll a bounded number of times, collecting uniquely observed item excerpts before virtual DOM unmounts them.",
-  { ...SESSION, query: S(200), maxScrolls: I(1, 10), limit: I(1, 100), distance: I(100, 3000) },
+  { ...SESSION, query: S(200), maxScrolls: I(1, 10), limit: I(1, 100), distance: I(100, 3000), selector: S(1000) },
   ["sessionId"], "page.smartScroll",
-  a => ({ sessionId: a.sessionId, query: a.query, maxScrolls: a.maxScrolls, limit: a.limit, distance: a.distance }));
+  a => ({ sessionId: a.sessionId, query: a.query, maxScrolls: a.maxScrolls, limit: a.limit, distance: a.distance, selector: a.selector }));
 add("hb_scroll", "Scroll page", "Scroll a page or a CSS-selected scroll container without taking another action.",
   { ...SESSION, direction: { type: "string", enum: ["up", "down"] }, distance: I(50, 4000), times: I(1, 10), selector: S(1000) },
   ["sessionId"], "page.scroll",
