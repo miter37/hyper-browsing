@@ -82,7 +82,7 @@ export function createMcpHandler(rpc=defaultRpc){
   };
 }
 
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+if(process.argv[1]&&fs.realpathSync(process.argv[1])===fs.realpathSync(fileURLToPath(import.meta.url))){
   const handle=createMcpHandler();
   // Keep stdout a *pure* MCP channel. Diagnostics go to stderr.
   const lines=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
