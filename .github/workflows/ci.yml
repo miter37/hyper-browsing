@@ -19,4 +19,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - run: npm test
+      # Headed-fallback scenarios need a display on Linux CI runners.
+      - name: Test on Linux (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm test
+      - name: Test on Windows
+        if: runner.os == 'Windows'
+        run: npm test
