@@ -4,7 +4,7 @@ import type { Page } from "playwright";
 import type { AppConfig } from "../config";
 import type { ActionDefinition, SiteDefinition, VerifyDefinition } from "../schema/site";
 import type { SiteActionContext } from "../sdk/types";
-import { locatorFor } from "./locators";
+import { locatorFor, materializeElement } from "./locators";
 import { runExtractor } from "./extractors";
 import { detectState } from "./state";
 import { evaluateCondition } from "./conditions";
@@ -12,7 +12,7 @@ import { effectiveRisk, isWriteLike, requiresConfirmation } from "./risk";
 import { verifyAction } from "./verify";
 import { appendMetric, type VerificationOutcome } from "../runtime/metrics";
 import { classifyError } from "./failure";
-import { interpolate } from "../utils/strings";
+import { interpolate, interpolateUrl } from "../utils/strings";
 import { loadActionModule, type LoadedSite } from "./site-loader";
 import { promoteAfterSuccess, type Lifecycle } from "./lifecycle";
 import { actionRevision, assetStatus, hasSemanticVerification, recordAssetFailure, recordAssetSuccess } from "./asset-state";
@@ -44,11 +44,11 @@ async function runDeclarative(page: Page, site: SiteDefinition, steps: any[], in
     if (step.op === "goto") {
       const template = site.urlTemplates[step.urlTemplate];
       if (!template) throw new Error(`Unknown URL template: ${step.urlTemplate}`);
-      const result = await navigate(page, resolveUrl(page, interpolate(template, input)));
+      const result = await navigate(page, resolveUrl(page, interpolateUrl(template, input)));
       results.push({ op: "goto", execution: "completed", ...result });
       if ((result.status || 0) >= 400 && result.interstitial !== "passed") throw new StepExecutionError(results, { ok: false, reason: result.status === 401 ? "auth" : [403, 429].includes(result.status || 0) ? "blocking" : "network", execution: "completed" });
     } else if (["click", "fill", "select", "press"].includes(step.op)) {
-      const element = step.element ? site.elements[step.element] : undefined;
+      const element = step.element && site.elements[step.element] ? materializeElement(site.elements[step.element], input) : undefined;
       if (step.element && !element) throw new Error(`Unknown element: ${step.element}`);
       const result = await executePrimitive(page, step.op, { element, confirmed,
         value: step.op === "fill" ? interpolate(step.value, input) : undefined,
@@ -155,8 +155,8 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
         site,
         sessionId: options.sessionId,
         variant,
-        locator: (id) => locatorFor(page, site, id),
-        extract: (id) => runExtractor(page, site, id),
+        locator: (id) => locatorFor(page, site, id, options.input),
+        extract: (id) => runExtractor(page, site, id, options.input),
         detectState: () => detectState(page, site),
         act: (kind, params) => executePrimitive(page, kind, { ...params, confirmed: options.confirmed }),
       };
@@ -168,7 +168,7 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
   }
 
   if (!executionError && action.returns?.extractor) {
-    try { returned = await runExtractor(page, site, action.returns.extractor); }
+    try { returned = await runExtractor(page, site, action.returns.extractor, options.input); }
     catch (error) { executionError = error; }
   }
 

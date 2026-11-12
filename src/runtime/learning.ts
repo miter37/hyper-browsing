@@ -46,11 +46,11 @@ function safeUrl(raw: string): string {
 }
 
 export function siteIdFromHost(host: string): string {
-  const parts = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
-  if (parts.length <= 1) return slug(parts[0] || "site");
-  const commonSubdomains = new Set(["www", "app", "admin", "portal", "dashboard", "secure", "m"]);
-  if (parts.length >= 3 && commonSubdomains.has(parts[0])) return slug(parts[parts.length - 2]);
-  return slug(parts[parts.length - 2]);
+  // Never infer the registrable domain by position: co.kr, co.uk, com.au, etc.
+  // Instead use the full normalized hostname. It is stable and collision-resistant
+  // even without a bundled Public Suffix List, and matches learningContext's key.
+  const hostname = host.trim().toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
+  return slug(hostname.replace(/\./g, "_"));
 }
 
 function journalPath(config: AppConfig, sessionId: string): string {
@@ -97,7 +97,7 @@ export async function learningContext(config: AppConfig, page: Page, sessionId: 
   const url = new URL(page.url());
   if (!["https:", "http:"].includes(url.protocol)) return null;
   const identified = await identifySite(config, page).catch(() => null);
-  const siteId = identified?.loaded.definition.site.id || slug(url.hostname.replace(/\./g, "_"));
+  const siteId = identified?.loaded.definition.site.id || siteIdFromHost(url.hostname);
   const key = identified ? `site:${siteId}` : `host:${url.hostname}`;
   await recordVisit(config, sessionId, url.hostname, key);
   if (identified) await migrateNotes(config, url.hostname, siteId);

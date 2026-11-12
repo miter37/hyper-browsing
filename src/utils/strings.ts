@@ -1,9 +1,22 @@
-export function interpolate(template: string, vars: Record<string, unknown>): string {
-  return template.replace(/\{([a-zA-Z0-9_.-]+)\}/g, (_m, key: string) => {
+/** Support both legacy {name} and the {{name}} templates shipped in site.yaml. */
+const PLACEHOLDER = /\{\{([a-zA-Z0-9_.-]+)\}\}|\{([a-zA-Z0-9_.-]+)\}/g;
+
+function substitute(template: string, vars: Record<string, unknown>, encode: (value: string) => string): string {
+  return template.replace(PLACEHOLDER, (_match, double: string | undefined, single: string | undefined) => {
+    const key = double || single;
     const value = vars[key];
     if (value === undefined || value === null) throw new Error(`Missing variable: ${key}`);
-    return String(value);
+    return encode(String(value));
   });
+}
+
+export function interpolate(template: string, vars: Record<string, unknown>): string {
+  return substitute(template, vars, value => value);
+}
+
+/** Each placeholder represents one URL component, not an entire untrusted URL. */
+export function interpolateUrl(template: string, vars: Record<string, unknown>): string {
+  return substitute(template, vars, encodeURIComponent);
 }
 
 export function redactText(value: string): string {
