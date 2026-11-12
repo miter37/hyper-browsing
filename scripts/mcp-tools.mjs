@@ -44,7 +44,9 @@ export const TOOLS = [
   tool('select', 'Select one native/custom option. '+targetMessage, {sessionId,...target, option:S('Visible option label.')}, ['sessionId','option']),
   tool('press', 'Press a key on current focus or a given target; Enter can submit. '+targetMessage, {sessionId,...target,key:S('Playwright key, e.g. Enter or Escape.'),confirmed:confirmation}, ['sessionId','key']),
   tool('site_identify', 'Identify the site of the current page and its known capabilities.', {sessionId}, ['sessionId'], true),
-  tool('learning_notes', 'Read saved know-how for the current site; pass capability to read one note body.', {sessionId, capability:S('Optional capability name from the notes index.')}, ['sessionId'], true),
+  tool('learning_notes', 'Read saved know-how for the current site; pass capability to read one note body, or "guide:<section>" to read a section of a known site\'s guide.', {sessionId, capability:S('Optional capability name from the notes index.')}, ['sessionId'], true),
+  tool('site_memory_save', 'Keep, write or delete saved knowledge for the site of this session. accept keeps facts the engine drafted (ids from siteMemory.draft or site_memory_draft); notes writes your own short facts (what worked, where things are, what to avoid); remove deletes wrong ones by capability.', {sessionId, accept:{type:'array',items:{type:'string'},description:'Draft fact ids to keep.'}, notes:{type:'array',items:{type:'object',properties:{capability:{type:'string'},text:{type:'string'}},required:['capability','text']},description:'Up to 5 {capability, text} facts, text up to 400 characters. No personal data.'}, remove:{type:'array',items:{type:'string'},description:'Capabilities of saved facts that turned out wrong.'}}, ['sessionId']),
+  tool('site_memory_draft', 'Show the facts the engine drafted from this session so far (URL parameters that controls set, how search is addressed, frames, blocks).', {sessionId}, ['sessionId'], true),
   tool('action_list', 'List saved actions for this page with lifecycle, risk and evidence.', {sessionId}, ['sessionId'], true),
   tool('run_saved_action', 'Run previously saved site action via shared risk/verification engine. External writes need explicit approval.', {sessionId, actionId:S('Existing saved action ID.'), siteId:S('Optional registered site ID.'), input:O('Action arguments.'), confirmed:confirmation}, ['sessionId','actionId']),
   tool('request_status', 'Inspect the result of a previous uncertain RPC request; never retransmit that request.', {requestId:S('Original RPC request ID.')}, ['requestId'], true),
@@ -53,6 +55,7 @@ export const TOOLS = [
 const BY_NAME = new Map(TOOLS.map(t => [t.name,t]));
 function typeOk(value, type) {
   if (type === 'integer') return Number.isInteger(value);
+  if (type === 'array') return Array.isArray(value);
   if (type === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
   return typeof value === type;
 }
@@ -141,7 +144,7 @@ function shapeForMcp(name, args, result) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
   if (name === 'session_open' && result.id && !result.sessionId) result = { sessionId: result.id, ...result };
   if (name === 'session_close' && result.closed) {
-    return { ok: result.ok !== false, closed: result.closed, ...(result.learning?.learningPending ? { learningPending: true } : {}), requestId: result.requestId };
+    return { ok: result.ok !== false, closed: result.closed, ...(result.siteMemory ? { siteMemory: result.siteMemory } : {}), ...(result.learning?.learningPending ? { learningPending: true } : {}), requestId: result.requestId };
   }
   if (typeof result.title === 'string') result.title = clip(result.title, MAX_TITLE);
   if (result.effect && typeof result.effect.title === 'string') result.effect = { ...result.effect, title: clip(result.effect.title, MAX_TITLE) };
@@ -171,6 +174,8 @@ async function runDaemonTool(name,args,rawCall) {
     case 'hover': return rpc(call,'page.hover',copy(args,['sessionId','locator','ref','nth','within']));
     case 'site_identify': return rpc(call,'site.identify',copy(args,['sessionId']));
     case 'learning_notes': return rpc(call,'learning.notes',copy(args,['sessionId','capability']));
+    case 'site_memory_save': return rpc(call,'memory.save',copy(args,['sessionId','accept','notes','remove']));
+    case 'site_memory_draft': return rpc(call,'memory.draft',copy(args,['sessionId']));
     case 'session_close': return rpc(call,'session.close',copy(args,['sessionId']));
     case 'snapshot': return rpc(call,'page.snapshot',copy(args,['sessionId','query','limit']));
     case 'list_items': return rpc(call,'page.list',copy(args,['sessionId','query','limit']));

@@ -1,0 +1,15 @@
+site:
+  id: github_com
+  name: "GitHub"
+  version: 1
+match:
+  hosts:
+    - github.com
+    - www.github.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

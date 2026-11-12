@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T17:29:58.285Z",
+  "generatedAt": "2026-11-12T11:23:49.313Z",
   "entries": [
     {
       "id": "airbnb",
@@ -49,6 +49,17 @@
       }
     },
     {
+      "id": "coinbase",
+      "name": "Coinbase",
+      "path": "sites\\coinbase",
+      "match": {
+        "hosts": [
+          "www.coinbase.com",
+          "coinbase.com"
+        ]
+      }
+    },
+    {
       "id": "finviz",
       "name": "finviz.com",
       "path": "sites\\finviz",
@@ -62,6 +73,17 @@
           "screener_page",
           "market_news_page",
           "calendar_page"
+        ]
+      }
+    },
+    {
+      "id": "github_com",
+      "name": "GitHub",
+      "path": "sites\\github_com",
+      "match": {
+        "hosts": [
+          "github.com",
+          "www.github.com"
         ]
       }
     },
@@ -82,6 +104,28 @@
       "match": {
         "hosts": [
           "app.hyperliquid.xyz"
+        ]
+      }
+    },
+    {
+      "id": "kream",
+      "name": "KREAM",
+      "path": "sites\\kream",
+      "match": {
+        "hosts": [
+          "kream.co.kr",
+          "www.kream.co.kr"
+        ]
+      }
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "path": "sites\\linkedin",
+      "match": {
+        "hosts": [
+          "www.linkedin.com",
+          "linkedin.com"
         ]
       }
     },
@@ -117,12 +161,49 @@
       }
     },
     {
+      "id": "skyscanner",
+      "name": "Skyscanner",
+      "path": "sites\\skyscanner",
+      "match": {
+        "hosts": [
+          "www.skyscanner.co.kr",
+          "skyscanner.co.kr",
+          "www.skyscanner.net",
+          "www.skyscanner.com"
+        ]
+      }
+    },
+    {
       "id": "threads",
       "name": "www.threads.com",
       "path": "sites\\threads",
       "match": {
         "hosts": [
           "www.threads.com"
+        ]
+      }
+    },
+    {
+      "id": "ticketmaster",
+      "name": "Ticketmaster",
+      "path": "sites\\ticketmaster",
+      "match": {
+        "hosts": [
+          "ticketmaster.sg",
+          "www.ticketmaster.sg",
+          "www.ticketmaster.com"
+        ]
+      }
+    },
+    {
+      "id": "tradingview",
+      "name": "TradingView",
+      "path": "sites\\tradingview",
+      "match": {
+        "hosts": [
+          "kr.tradingview.com",
+          "www.tradingview.com",
+          "tradingview.com"
         ]
       }
     },
@@ -139,7 +220,7 @@
     {
       "id": "www_instagram_com",
       "name": "www.instagram.com",
-      "path": "sites\\instagram.com",
+      "path": "sites\\www_instagram_com",
       "match": {
         "hosts": [
           "www.instagram.com"
@@ -163,6 +244,17 @@
       "match": {
         "hosts": [
           "www.tripadvisor.co.kr"
+        ]
+      }
+    },
+    {
+      "id": "x_com",
+      "name": "X (x.com)",
+      "path": "sites\\x.com",
+      "match": {
+        "hosts": [
+          "x.com",
+          "www.x.com"
         ]
       }
     }

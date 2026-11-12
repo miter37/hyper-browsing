@@ -1,0 +1,16 @@
+site:
+  id: tradingview
+  name: "TradingView"
+  version: 1
+match:
+  hosts:
+    - kr.tradingview.com
+    - www.tradingview.com
+    - tradingview.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}
