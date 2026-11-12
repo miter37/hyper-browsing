@@ -11,7 +11,10 @@ export async function ensureToken(config: AppConfig): Promise<string> {
   const file = tokenPath(config);
   try {
     const value = (await fs.readFile(file, "utf8")).trim();
-    if (value) return value;
+    if (value) {
+      if (process.platform !== "win32") await fs.chmod(file, 0o600);
+      return value;
+    }
   } catch (error: any) {
     if (error?.code !== "ENOENT") throw error;
   }

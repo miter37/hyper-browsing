@@ -36,7 +36,17 @@ import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdl
 
 async function readJson(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  let bytes = 0;
+  for await (const chunk of req) {
+    bytes += chunk.length;
+    if (bytes > 8 * 1024 * 1024) {
+      req.destroy();
+      const error = new Error("RPC body exceeds 8 MiB") as Error & { execution?: string };
+      error.execution = "not_started";
+      throw error;
+    }
+    chunks.push(Buffer.from(chunk));
+  }
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
@@ -67,7 +77,10 @@ export class BrowserDaemon {
     await this.sessions.adoptExisting();
 
     this.server = http.createServer(async (req, res) => {
-      if (req.method === "GET" && req.url === "/health") return json(res, 200, { status: "ok", pid: process.pid, chrome: this.chrome.getState() });
+      if (req.method === "GET" && req.url === "/health") {
+        if (req.headers["x-browserd-token"] !== this.token) return json(res, 401, { error: "unauthorized" });
+        return json(res, 200, { status: "ok", pid: process.pid, chrome: this.chrome.getState() });
+      }
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { error: "not_found" });
       if (req.headers.authorization !== `Bearer ${this.token}`) return json(res, 401, { error: "unauthorized" });
       try {
@@ -426,6 +439,11 @@ export class BrowserDaemon {
     }
     if (method === "page.evaluate") {
       if (!page) throw new Error("sessionId required");
+      if (!this.config.allowUnsafeEval) return { ok: false, execution: "not_started", reason: "unsafe_eval_disabled",
+        hint: "Raw page JavaScript can mutate the page and send network requests. Set WEBAGENT_ALLOW_UNSAFE_EVAL=1 only in a trusted environment." };
+      if (!params.confirmed) return { ok: false, execution: "not_started", confirmationRequired: true, risk: "unclassified" };
+      if (typeof params.expression !== "string" || !params.expression.trim() || params.expression.length > 16384)
+        return { ok: false, execution: "not_started", reason: "invalid_expression" };
       return await page.evaluate(params.expression);
     }
 

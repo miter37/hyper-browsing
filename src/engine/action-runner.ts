@@ -127,6 +127,10 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
     throw new Error(`Action ${options.actionId} has variant-specific knowledge but no implementation for UI variant ${variant}`);
   }
   const implementation = variantSpec?.implementation ?? action.implementation;
+  if (implementation.kind === "code" && !config.allowCodeActions) {
+    return { ok: false, execution: "not_started", reason: "code_actions_disabled", revision,
+      hint: "Code actions have full local Node privileges. Set WEBAGENT_ALLOW_CODE_ACTIONS=1 only for trusted local site code." };
+  }
   const verify = (variantSpec?.verify ?? action.verify) as VerifyDefinition[];
   const semanticVerified = hasSemanticVerification(verify);
   const storedLifecycle = (variantSpec?.lifecycle ?? action.lifecycle) as Lifecycle;

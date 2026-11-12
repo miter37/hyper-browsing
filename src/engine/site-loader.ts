@@ -32,9 +32,15 @@ export async function loadSite(config: AppConfig, sitePathOrId: string): Promise
   const dir = sitePathOrId.includes("/") || sitePathOrId.includes("\\")
     ? path.resolve(config.root, sitePathOrId)
     : path.join(config.sitesDir, sitePathOrId);
+  const sitesRoot = path.resolve(config.sitesDir);
+  // Registry paths may be "sites/foo", but must never escape the site directory.
+  if (dir === sitesRoot || !dir.startsWith(sitesRoot + path.sep)) throw new Error("Site path is outside sites directory");
   const yamlPath = path.join(dir, "site.yaml");
 
   try {
+    // Also reject symlinks that point outside the approved tree.
+    const [actualRoot, actualDir] = await Promise.all([fs.realpath(sitesRoot), fs.realpath(dir)]);
+    if (!actualDir.startsWith(actualRoot + path.sep)) throw new Error("Site directory symlink escapes sites directory");
     const stat = await fs.stat(yamlPath);
     const cached = siteCache.get(yamlPath);
     if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {

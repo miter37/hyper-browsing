@@ -12,6 +12,10 @@ export interface AppConfig {
   headless: boolean;
   /** Benchmark/offline evaluation: disable optional learning observations. */
   learningDisabled?: boolean;
+  /** Raw page JavaScript is not read-only and must be explicitly trusted. */
+  allowUnsafeEval?: boolean;
+  /** Local code actions run with the daemon's Node.js permissions. */
+  allowCodeActions?: boolean;
   browserChannel?: string;
   cdpPort?: number;
   /**
@@ -76,6 +80,8 @@ export function getConfig(): AppConfig {
     // resolveHeadless() in chrome-manager.ts.
     headless: boolEnv("WEBAGENT_HEADLESS", true),
     learningDisabled: boolEnv("WEBAGENT_LEARNING_DISABLED", false),
+    allowUnsafeEval: boolEnv("WEBAGENT_ALLOW_UNSAFE_EVAL", false),
+    allowCodeActions: boolEnv("WEBAGENT_ALLOW_CODE_ACTIONS", false),
     browserChannel: process.env.WEBAGENT_BROWSER_CHANNEL || "chrome",
     cdpPort: process.env.WEBAGENT_CDP_PORT ? Number(process.env.WEBAGENT_CDP_PORT) : 9223,
     chromeProfileName: strEnv("WEBAGENT_CHROME_PROFILE_NAME"),
