@@ -39,6 +39,8 @@ jobs:
         run: npm run test:mcp
       - name: Verify production CLI dependency tree
         run: npm ls tsx --omit=dev
+      - name: npm tarball installation smoke test
+        run: npm run test:install
       - name: Learning tests
         run: npm run test:learning
       - name: Execution and regression tests (Linux virtual display)
