@@ -30,6 +30,7 @@ interface SessionRecord {
 
 export class SessionStore {
   private ignored = new WeakSet<Page>();
+  private watchedContexts = new WeakSet<BrowserContext>();
   ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
   private pendingPopups = new WeakMap<Page, Promise<PopupEffect>>();
@@ -56,6 +57,8 @@ export class SessionStore {
 
   /** Register unclaimed tabs and inherit preparation from their opener. */
   private watchForPopups(context: BrowserContext): void {
+    if (this.watchedContexts.has(context)) return;
+    this.watchedContexts.add(context);
     context.on("page", (page) => {
       setTimeout(async () => {
         if (page.isClosed() || this.ignored.has(page)) return;
@@ -78,27 +81,58 @@ export class SessionStore {
     }
   }
 
+  /** Refresh URLs after every command, before Chrome gets relaunched. */
+  captureUrls(): void {
+    for (const rec of this.sessions.values()) {
+      if (!rec.page.isClosed()) rec.lastUrl = rec.page.url() || rec.lastUrl;
+    }
+  }
+
   async rebindContext(context: BrowserContext): Promise<void> {
-    const desired = [...this.sessions.entries()].map(([id, rec]) => ({ id, url: rec.lastUrl || "about:blank", prepare: rec.prepare }));
+    this.captureUrls();
+    const old = new Map(this.sessions);
+    const desired = [...old.entries()].map(([id, rec]) => ({
+      id, url: rec.lastUrl || "about:blank", prepare: rec.prepare,
+      setupStatus: rec.setupStatus, setupError: rec.setupError,
+    }));
     this.context = context;
     this.sessions.clear();
     this.watchForPopups(context);
-    const existing = context.pages();
-    let i = 0;
+
+    // Never bind a session to an unrelated tab by its array index.
+    // Reuse only the original live page or a *unique* exact URL match.
+    const available = new Set(context.pages());
+    const urlCounts = new Map<string, number>();
+    for (const row of desired) urlCounts.set(row.url, (urlCounts.get(row.url) || 0) + 1);
     let preparationError: unknown;
     for (const row of desired) {
-      const page = existing[i++] || await context.newPage();
-      this.sessions.set(row.id, { page, lastUrl: row.url, prepare: row.prepare });
-      this.watchParent(page,row.id);
+      const prior = old.get(row.id)?.page;
+      let page: Page | undefined;
+      if (prior && !prior.isClosed() && prior.context() === context) page = prior;
+      if (!page && row.url !== "about:blank" && urlCounts.get(row.url) === 1) {
+        const matches = [...available].filter(p => !p.isClosed() && p.url() === row.url);
+        if (matches.length === 1) page = matches[0];
+      }
+      if (!page) page = await context.newPage();
+      available.delete(page);
+      const record: SessionRecord = { page, lastUrl: row.url, prepare: row.prepare,
+        setupStatus: row.setupStatus || "ready", setupError: row.setupError };
+      this.sessions.set(row.id, record);
+      this.watchParent(page, row.id);
       if (row.prepare) {
-        try { await row.prepare(page); }
-        catch (error) { preparationError ||= error; }
+        try { await row.prepare(page); record.setupStatus = "ready"; record.setupError = undefined; }
+        catch (error) {
+          record.setupStatus = "partial";
+          record.setupError = "Page settings could not be restored";
+          preparationError ||= error;
+        }
       }
       if (row.url && row.url !== "about:blank" && page.url() !== row.url) {
         await navigate(page, row.url).catch(() => {});
       }
-      this.sessions.set(row.id, { page, lastUrl: page.url() || row.url, prepare: row.prepare });
+      record.lastUrl = page.url() === "about:blank" ? row.url : page.url();
     }
+    // Preserve unrelated tabs as separate sessions, without navigating them.
     await this.adoptExisting();
     if (preparationError) throw preparationError;
   }
