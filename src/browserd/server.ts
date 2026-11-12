@@ -34,6 +34,11 @@ import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMo
 import { navigate } from "../engine/navigate";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
+// A page-load popup watch stops at the first of these: from then on a new dialog may be the agent's own doing.
+const USER_ACTIONS = new Set(["page.click", "page.hover", "page.fill", "page.select", "page.press", "page.scroll", "page.evaluate",
+  "page.dismissAnnoyances", "batch.run", "action.run", "overview.run", "session.close"]);
+const LOAD_POPUP_WATCH_MS = 8000;
+
 async function readJson(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
   let bytes = 0;
@@ -100,7 +105,10 @@ export class BrowserDaemon {
       try {
         const { method, params = {}, requestId = crypto.randomUUID() } = await readJson(req);
         const started = Date.now();
+        if (params.sessionId && USER_ACTIONS.has(method)) await this.loadPopupWatch.get(params.sessionId)?.stop();
+        if (method === "session.closeAll") for (const watch of this.loadPopupWatch.values()) await watch.stop();
         const result = method === "request.status" ? await this.dispatch(method, params) : await this.requests.run(requestId, method, params, () => this.dispatch(method, params));
+        await this.afterLoadPopups(method, params, result);
         // How long each command took, so slow steps are visible to the agent and in transcripts.
         if (result && typeof result === "object" && !Array.isArray(result)) (result as any).durationMs = Date.now() - started;
         const full = params.verbose || params.observe || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
@@ -111,6 +119,41 @@ export class BrowserDaemon {
     });
 
     await new Promise<void>((resolve) => this.server!.listen(this.config.port, this.config.host, resolve));
+  }
+
+  // Popups that open by themselves after a page load (sign-in promos, consent banners) are closed without being
+  // asked. The watch ends at the first user action on the tab, so a dialog the agent opened itself is never touched.
+  private loadPopupWatch = new Map<string, { log: string[]; stop: () => Promise<void> }>();
+  private async afterLoadPopups(method: string, params: any, result: any): Promise<void> {
+    if (!result || typeof result !== "object" || Array.isArray(result)) return;
+    const sessionId = method === "session.open" ? result.id : params.sessionId;
+    if (!sessionId) return;
+    if (method === "session.close") { this.loadPopupWatch.delete(sessionId); return; }
+    const loaded = method === "session.open" ? Boolean(params.url) && !result.navigationError
+      : ["page.goto", "page.back", "page.forward"].includes(method) && result.ok !== false;
+    if (!loaded || result.blocked) {
+      const watch = this.loadPopupWatch.get(sessionId);
+      if (watch?.log.length) result.autoDismissed = watch.log.splice(0);
+      return;
+    }
+    if (process.env.WEBAGENT_AUTO_DISMISS === "0") return;
+    let page: Page;
+    try { page = this.store().get(sessionId); } catch { return; }
+    await this.loadPopupWatch.get(sessionId)?.stop();
+    const first = await dismissAnnoyances(page, { fast: true }).catch(() => null);
+    if (first?.actions.length) result.autoDismissed = first.actions;
+    const log: string[] = [];
+    let active = true;
+    const until = Date.now() + LOAD_POPUP_WATCH_MS;
+    const running = (async () => {
+      while (active && Date.now() < until && !page.isClosed()) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        if (!active || page.isClosed()) break;
+        const later = await dismissAnnoyances(page, { fast: true }).catch(() => null);
+        if (later?.actions.length) log.push(...later.actions);
+      }
+    })();
+    this.loadPopupWatch.set(sessionId, { log, stop: async () => { active = false; await running; } });
   }
 
   private store(): SessionStore {

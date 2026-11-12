@@ -21,6 +21,9 @@ const DISMISS_SCAN_SCRIPT = `(mark) => {
     const DISMISS = ["닫기", "다음에", "나중에 하기", "오늘 하루 보지 않기", "close", "dismiss", "not now", "maybe later",
       "no thanks", "×", "✕"];
     const CONSENT_TEXT = /cookie|consent|gdpr|privacy|tracking|쿠키|개인정보|동의/i;
+    const DIALOG = "dialog, [role=dialog], [role=alertdialog], [aria-modal=true]";
+    const CLOSE_LABEL_KO = /(창|팝업|레이어|배너|알림|안내|모달|대화상자|메시지)\\s*닫기\\.?$/;
+    const CLOSE_LABEL_EN = /^(close|dismiss)( (the|this))?( [\\w-]+){0,3} (dialog|modal|popup|pop-up|window|banner|message|notification|overlay|panel|info|information|prompt|tooltip|ad)\\.?$/i;
     const clean = (s) => (s || "").replace(/\\s+/g, " ").trim();
     const visible = (el) => {
       const r = el.getBoundingClientRect();
@@ -29,7 +32,7 @@ const DISMISS_SCAN_SCRIPT = `(mark) => {
     };
     const overlayOf = (el) => {
       for (let n = el; n && n !== document.body; n = n.parentElement) {
-        if (n.matches("dialog, [role=dialog], [role=alertdialog], [aria-modal=true]")) return n;
+        if (n.matches(DIALOG)) return n;
         const pos = getComputedStyle(n).position;
         if (pos === "fixed" || pos === "sticky") return n;
       }
@@ -48,10 +51,16 @@ const DISMISS_SCAN_SCRIPT = `(mark) => {
       const aria = clean(el.getAttribute("aria-label"));
       const phrase = (text || aria).toLowerCase();
       const isAccept = ACCEPT.includes(phrase);
-      const isClose = DISMISS.includes(phrase) || DISMISS.includes(aria.toLowerCase()) ||
+      const exactClose = DISMISS.includes(phrase) || DISMISS.includes(aria.toLowerCase()) ||
         el.matches(".modal-close, .popup-close, [data-testid='close-button']");
+      // A descriptive close label ("Close sign-in info dialog", "혜택 안내 창 닫기.") names the thing it closes.
+      // It counts only inside a real dialog, never on a sticky bar, and never for "Close account"-style actions.
+      const label = aria || text;
+      const labelledClose = label.length <= 60 && (CLOSE_LABEL_KO.test(label) || CLOSE_LABEL_EN.test(label));
+      const isClose = exactClose || labelledClose;
       if (!isAccept && !isClose) continue;
       const overlay = overlayOf(el);
+      if (!isAccept && !exactClose && !(overlay && overlay.matches(DIALOG))) continue;
       const consent = Boolean(overlay && CONSENT_TEXT.test(clean(overlay.innerText).slice(0, 2000)));
       if (isAccept && !consent) {
         if (!isClose) { skipped.push(\`\${describe(el, text || aria)}: no cookie/consent overlay around it\`); continue; }
@@ -102,7 +111,7 @@ const OVERLAY_SCAN_SCRIPT = `(forceHide) => {
  * - button text must equal the phrase ("Close account" is not "Close").
  * Keyword-matched overlays are hidden only when they show consent text, or with forceHide; otherwise reported.
  */
-export async function dismissAnnoyances(page: Page, options: { forceHide?: boolean } = {}): Promise<AnnoyanceResult> {
+export async function dismissAnnoyances(page: Page, options: { forceHide?: boolean; fast?: boolean } = {}): Promise<AnnoyanceResult> {
   const actions: string[] = [];
 
   // Pass 1: mark evidence-backed consent / close buttons in the page, then click them with real input.
@@ -113,12 +122,14 @@ export async function dismissAnnoyances(page: Page, options: { forceHide?: boole
   for (const c of found.clicks) {
     const el = page.locator(`[${DISMISS_MARK}="${c.id}"]`).first();
     if (!(await el.isVisible().catch(() => false))) continue; // an earlier click already closed it
-    await waitBeforeInput();
+    // fast: a popup that opened by itself is closed at once, the way a person swats it away.
+    if (options.fast) await page.waitForTimeout(120 + Math.floor(Math.random() * 180));
+    else await waitBeforeInput();
     if (!(await el.isVisible().catch(() => false))) continue;
     const ok = await el.click({ force: true, timeout: 500 }).then(() => true).catch(() => false);
     if (ok) {
       actions.push(`Clicked: ${c.what}`);
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(options.fast ? 150 : 300);
     }
   }
   await page.evaluate((mark) => document.querySelectorAll(`[${mark}]`).forEach((el) => el.removeAttribute(mark)), DISMISS_MARK).catch(() => {});

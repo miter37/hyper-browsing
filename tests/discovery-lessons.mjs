@@ -107,6 +107,20 @@ try {
   check("dialog 'Close' is skipped while the dialog holds a filled field", !clicked.includes("dialog-close"), JSON.stringify(res.skipped));
   const backdropShown = await page.evaluate(() => getComputedStyle(document.querySelector(".modal-backdrop")).display !== "none");
   check("non-consent backdrop is reported, not hidden", backdropShown && res.overlays.some((o) => o.includes("modal-backdrop")), JSON.stringify(res));
+  await page.setContent(`<script>window.clicked = [];</script>
+    <div role="dialog" aria-modal="true" style="position:fixed;top:20px;left:20px;width:300px;height:200px">
+      <button aria-label="로그인 혜택 안내 창 닫기." onclick="clicked.push('promo-x')"><svg width="12" height="12"></svg></button>
+      <button aria-label="Close sign-in info dialog" onclick="clicked.push('info-x')"><svg width="12" height="12"></svg></button>
+      <button aria-label="Close account" onclick="clicked.push('account')">x</button>
+      <button aria-label="예약 내역 닫기" onclick="clicked.push('booking')">x</button></div>
+    <div style="position:sticky;top:0"><button aria-label="메뉴 창 닫기" onclick="clicked.push('sticky')">x</button></div>`);
+  await dismissAnnoyances(page, { fast: true });
+  const labelled = await page.evaluate(() => window.clicked);
+  check("a descriptive close label on a dialog is clicked", labelled.includes("promo-x") && labelled.includes("info-x"), JSON.stringify(labelled));
+  check("a close label naming something else, or outside a dialog, is left alone",
+    !labelled.includes("account") && !labelled.includes("booking") && !labelled.includes("sticky"), JSON.stringify(labelled));
+
+  await page.setContent(ANNOYANCES);
   await dismissAnnoyances(page, { forceHide: true });
   const backdropHidden = await page.evaluate(() => getComputedStyle(document.querySelector(".modal-backdrop")).display === "none");
   check("forceHide hides the remaining backdrop", backdropHidden);
