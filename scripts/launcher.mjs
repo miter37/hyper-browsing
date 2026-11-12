@@ -21,6 +21,8 @@ const IS_WINDOWS = process.platform === "win32";
 process.env.WEBAGENT_HOME = process.env.WEBAGENT_HOME || ROOT;
 
 const RUNTIME_DIR = path.resolve(process.env.WEBAGENT_RUNTIME_DIR || path.join(ROOT, ".runtime"));
+const GENERATED_DIR = path.resolve(process.env.WEBAGENT_GENERATED_DIR || path.join(ROOT, ".generated"));
+const SITES_DIR = path.resolve(process.env.WEBAGENT_SITES_DIR || path.join(ROOT, "sites"));
 /** Set by the user: the port is then pinned and never auto-selected. */
 const PINNED_PORT = process.env.WEBAGENT_PORT ? Number(process.env.WEBAGENT_PORT) : undefined;
 const BASE_PORT = PINNED_PORT || 3219;
@@ -30,11 +32,11 @@ const ENDPOINT_FILE = path.join(RUNTIME_DIR, "browserd-endpoint.json");
 
 function log(message) {
   if (process.env.WEBAGENT_QUIET === "1") return;
-  process.stderr.write("[adaptive-web-agent] " + message + "\n");
+  process.stderr.write("[hyper-browsing] " + message + "\n");
 }
 
 function fail(message, code = 1) {
-  process.stderr.write("[adaptive-web-agent] " + message + "\n");
+  process.stderr.write("[hyper-browsing] " + message + "\n");
   process.exit(code);
 }
 
@@ -102,7 +104,7 @@ function npmInstall() {
 
 function bootstrap() {
   if (nodeMajor() < 20) fail("Node.js >= 20 is required; found " + process.version + ".", 2);
-  for (const dir of [RUNTIME_DIR, path.join(ROOT, ".generated"), path.join(ROOT, "sites")]) {
+  for (const dir of [RUNTIME_DIR, GENERATED_DIR, SITES_DIR]) {
     fs.mkdirSync(dir, { recursive: true });
   }
   let tsx = resolveTsx();
@@ -302,7 +304,7 @@ async function main() {
 
   if (target === "self-check") {
     selfCheck();
-    process.stdout.write("adaptive-web-agent self-check: OK\n");
+    process.stdout.write("hyper-browsing self-check: OK\n");
     return;
   }
   if (target === "bootstrap") {

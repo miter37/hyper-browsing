@@ -1,7 +1,6 @@
 {
   "name": "hyper-browsing",
-  "version": "0.3.0",
-  "private": true,
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "browserd": "node scripts/launcher.mjs browserd",
@@ -17,20 +16,58 @@
     "test:learning": "node --import tsx --test tests/learning-policy.mjs tests/asset-recovery.mjs tests/learning-assets.mjs tests/learning-cli.mjs tests/learning-status.mjs",
     "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs tests/headed-fallback.mjs tests/improvements.mjs tests/input-pacing.mjs tests/reliability.mjs",
     "test:discovery": "node --import tsx tests/discovery-lessons.mjs",
-    "test": "npm run typecheck && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery"
+    "test": "npm run typecheck && npm run test:mcp && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery",
+    "mcp": "node bin/hyper-browsing.mjs mcp",
+    "test:mcp": "node --test tests/mcp.mjs tests/package-cli.mjs"
   },
   "dependencies": {
     "dotenv": "^16.0.0",
     "playwright": "^1.55.0",
     "yaml": "^2.0.0",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "tsx": "^4.0.0"
   },
   "devDependencies": {
-    "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "@types/node": "^22.0.0"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "description": "Local-first Chrome automation for AI agents: native MCP, reusable site workflows and typed CLI.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miter37/hyper-browsing.git"
+  },
+  "homepage": "https://github.com/miter37/hyper-browsing",
+  "bugs": {
+    "url": "https://github.com/miter37/hyper-browsing/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "browser-automation",
+    "playwright",
+    "chrome",
+    "agents"
+  ],
+  "bin": {
+    "hyper-browsing": "bin/hyper-browsing.mjs"
+  },
+  "files": [
+    "bin/hyper-browsing.mjs",
+    "scripts/",
+    "src/",
+    "sites/",
+    "templates/",
+    "mcp/",
+    "docs/",
+    "SKILL.md",
+    "HERMES_INSTALL.md",
+    "README.md",
+    "README.ko.md",
+    ".env.example",
+    "LICENSE"
+  ]
 }
