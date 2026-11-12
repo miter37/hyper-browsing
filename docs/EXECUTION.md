@@ -1,6 +1,6 @@
 # 실행 규칙과 일회성 도구
 
-직접 click/fill/select/press, 저장된 선언형 액션, 일회성 batch는 같은 대상 선택·5초 기본 시간제한·오류 분류·변화 보고·입력 확인 규칙을 사용한다. 코드 액션은 `ctx.act(kind, params)`로 같은 경로를 사용할 수 있다. 기존 `ctx.page`는 호환성을 위한 고급 경로이며, 임의의 raw Playwright 코드를 자동으로 이 규칙에 맞춰 바꾸지는 않는다. `ctx.locator()`도 모호한 요소를 거부하고 기본 시간제한을 적용한다.
+직접 click/fill/select/press, 저장된 선언형 액션, 일회성 batch는 같은 대상 선택·5초 기본 시간제한·오류 분류·변화 보고·입력 확인 규칙을 사용한다. 코드 액션은 `ctx.act(kind, params)`로 같은 경로를 사용할 수 있다. 기존 `ctx.page`는 호환성을 위한 고급 경로이며, 임의의 raw Playwright 코드를 자동으로 이 규칙에 맞춰 바꾸지는 않는다. 코드 액션은 선언한 위험도가 `read`여도 Node/Playwright 전권한 실행이므로 현재 작업에 명시적 `--confirm`이 필요하다. `webctl eval`도 임의 JavaScript 실행이므로 `--confirm`이 필요하며, 단순 읽기는 extract/snapshot/verify를 우선한다. 정규식 코드 스캔은 샌드박스가 아니다. `ctx.locator()`도 모호한 요소를 거부하고 기본 시간제한을 적용한다.
 
 ## 현재 화면의 요소 참조
 

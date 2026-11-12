@@ -149,7 +149,7 @@ test('global Enter and fill-submit cannot bypass a payment form confirmation',as
  assert.equal(await page.evaluate(()=>window.paid||0),0);
 });
 
-test('PowerShell carries canonical and quoted legacy refs through both CLI surfaces',async t=>{
+test('PowerShell carries canonical and quoted legacy refs through both CLI surfaces',{skip:process.platform!=='win32'},async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'hb-shell-'));const calls=[];
  const server=http.createServer(async(req,res)=>{let data='';for await(const b of req)data+=b;calls.push(JSON.parse(data));res.setHeader('content-type','application/json');res.end(JSON.stringify({ok:true,result:{ok:true,execution:'completed'}}));});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));

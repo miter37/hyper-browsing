@@ -1,5 +1,37 @@
 import type { Locator, Page } from "playwright";
 import type { ElementDefinition, LocatorStrategy, SiteDefinition } from "../schema/site";
+import { interpolate } from "../utils/strings";
+
+/** Substitutions in CSS selectors must stay inside a quoted CSS string (e.g. :has-text('{{name}}')). */
+function materializeStrategy(strategy: LocatorStrategy, vars: Record<string, unknown>): LocatorStrategy {
+  const out = { ...strategy };
+  for (const [key, value] of Object.entries(strategy)) {
+    if (typeof value !== "string" || !/\{\{?[a-zA-Z0-9_.-]+\}\}?/.test(value)) continue;
+    if (key !== "css") {
+      (out as unknown as Record<string, unknown>)[key] = interpolate(value, vars);
+      continue;
+    }
+    const css = value;
+    (out as unknown as Record<string, unknown>)[key] = css.replace(/\{\{([a-zA-Z0-9_.-]+)\}\}|\{([a-zA-Z0-9_.-]+)\}/g,
+      (placeholder: string, _double: string, _single: string, offset: number) => {
+        let quote: string | undefined;
+        for (let i = 0; i < offset; i++) {
+          if (css[i] === "\\") { i++; continue; }
+          if (css[i] === "'" || css[i] === '"') quote = quote === css[i] ? undefined : quote || css[i];
+        }
+        if (!quote) throw new Error("Dynamic CSS locator values must be inside quoted strings");
+        return [...interpolate(placeholder, vars)].map(ch =>
+          ch === "\\" ? "\\\\" : ch === quote ? "\\" + ch : ch === "\n" ? "\\a " : ch === "\r" ? "\\d " : ch
+        ).join("");
+      });
+  }
+  return out;
+}
+
+export function materializeElement(element: ElementDefinition, vars: Record<string, unknown>): ElementDefinition {
+  return { ...element, strategies: element.strategies.map(strategy => materializeStrategy(strategy, vars)) };
+}
+
 
 export function locatorFromStrategy(page: Page, strategy: LocatorStrategy): Locator {
   if (strategy.role) return page.getByRole(strategy.role as any, { name: strategy.name, exact: strategy.exact });
@@ -215,8 +247,8 @@ export class LocatorResolutionError extends Error {
   constructor(public result: UniqueResolution) { super("Locator did not resolve uniquely"); this.name = "LocatorResolutionError"; }
 }
 
-export async function locatorFor(page: Page, site: SiteDefinition, elementId: string): Promise<Locator> {
+export async function locatorFor(page: Page, site: SiteDefinition, elementId: string, vars: Record<string, unknown> = {}): Promise<Locator> {
   const element = site.elements[elementId];
   if (!element) throw new Error(`Unknown element: ${elementId}`);
-  return resolveElement(page, element);
+  return resolveElement(page, materializeElement(element, vars));
 }

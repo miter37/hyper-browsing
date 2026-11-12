@@ -179,7 +179,7 @@ test('missing code can be replaced after discovery without frequency gating',asy
   const dir=path.join(c.sitesDir,'example');await fs.mkdir(dir,{recursive:true});
   const doc={site:{id:'example'},match:{hosts:['example.test']},elements:{result:{strategies:[{css:'#result'}]}},extractors:{count:{element:'result',read:'text'}},actions:{count:{risk:'read',implementation:{kind:'code',export:'count'},returns:{extractor:'count'},verify:[]}}};
   await fs.writeFile(path.join(dir,'site.yaml'),YAML.stringify(doc));
-  const failed=await runKnownAction(c,page,await loadSite(c,'example'),{sessionId:'s',actionId:'count',input:{}});
+  const failed=await runKnownAction(c,page,await loadSite(c,'example'),{sessionId:'s',actionId:'count',input:{},confirmed:true});
   assert.equal(failed.recovery.suspended,true);
   await recordLearningEvent(c,page,'s','extract',{locator:{css:'#result'},read:'text'});
   const repaired=await saveObservedAction(c,page,'s',{id:'count',capability:'count',scope:'Listings',action:{...doc.actions.count,implementation:{kind:'declarative',steps:[]},verify:[{type:'extractor_equals',extractor:'count',value:'0'}]},validationInput:{}});

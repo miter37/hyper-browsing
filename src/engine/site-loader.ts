@@ -68,8 +68,11 @@ export async function loadActionModule(site: LoadedSite): Promise<SiteActionModu
     const actions = (mod.actions ?? mod.default ?? {}) as SiteActionModule;
     actionCache.set(file, { mtimeMs: stat.mtimeMs, size: stat.size, module: actions });
     return actions;
-  } catch {
+  } catch (error: any) {
     actionCache.delete(file);
-    return {};
+    // Preserve the recoverable "missing code action" path; do not hide
+    // security-scan failures or other import errors as missing exports.
+    if (error?.code === "ENOENT") return {};
+    throw error;
   }
 }

@@ -30,6 +30,7 @@ interface SessionRecord {
 
 export class SessionStore {
   private ignored = new WeakSet<Page>();
+  private watchedContexts = new WeakSet<BrowserContext>();
   ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
   private pendingPopups = new WeakMap<Page, Promise<PopupEffect>>();
@@ -56,9 +57,12 @@ export class SessionStore {
 
   /** Register unclaimed tabs and inherit preparation from their opener. */
   private watchForPopups(context: BrowserContext): void {
+    if (this.watchedContexts.has(context)) return;
+    this.watchedContexts.add(context);
     context.on("page", (page) => {
       setTimeout(async () => {
-        if (page.isClosed() || this.ignored.has(page)) return;
+        // Ignore late events from a previous context after a Chrome restart.
+        if (context !== this.context || page.isClosed() || this.ignored.has(page)) return;
         const claimed = [...this.sessions.values()].some((r) => r.page === page);
         if (!claimed) {
           // Adopt user-opened tabs/OAuth popups instead of closing them
@@ -79,26 +83,46 @@ export class SessionStore {
   }
 
   async rebindContext(context: BrowserContext): Promise<void> {
-    const desired = [...this.sessions.entries()].map(([id, rec]) => ({ id, url: rec.lastUrl || "about:blank", prepare: rec.prepare }));
+    // An old session ID is not a tab index. Capture the live URL while the old
+    // context still exists; Chrome may reorder, restore or add tabs on restart.
+    const desired = [...this.sessions.entries()]
+      .map(([id, rec]) => ({ id,
+        // Repair can close every old Page before rebindContext is called. Keep
+        // its previously observed URL and ID even if its handle is now closed.
+        url: rec.page.isClosed() ? rec.lastUrl || "about:blank" : rec.page.url() || rec.lastUrl || "about:blank",
+        prepare: rec.prepare }));
     this.context = context;
     this.sessions.clear();
     this.watchForPopups(context);
-    const existing = context.pages();
-    let i = 0;
+    const available = context.pages().filter(page => !page.isClosed());
     let preparationError: unknown;
     for (const row of desired) {
-      const page = existing[i++] || await context.newPage();
-      this.sessions.set(row.id, { page, lastUrl: row.url, prepare: row.prepare });
-      this.watchParent(page,row.id);
+      // Reuse only a uniquely matching URL. If identity is ambiguous, create a
+      // new tab instead of navigating an unrelated user tab to the old URL.
+      const matches = available.filter(page => page.url() === row.url);
+      // Multiple blank tabs are interchangeable and never need navigation.
+      // Nonblank duplicates are ambiguous and must not be repurposed.
+      const existing = row.url === "about:blank" ? matches[0] : matches.length === 1 ? matches[0] : undefined;
+      const page = existing || await context.newPage();
+      if (existing) available.splice(available.indexOf(existing), 1);
+      const record: SessionRecord = { page, lastUrl: row.url, prepare: row.prepare, setupStatus: "ready" };
+      this.sessions.set(row.id, record);
+      this.watchParent(page, row.id);
       if (row.prepare) {
         try { await row.prepare(page); }
-        catch (error) { preparationError ||= error; }
+        catch (error: any) {
+          preparationError ||= error;
+          record.setupStatus = "partial";
+          record.setupError = error?.message || "Page preparation failed";
+        }
       }
       if (row.url && row.url !== "about:blank" && page.url() !== row.url) {
-        await navigate(page, row.url).catch(() => {});
+        try { await navigate(page, row.url); }
+        catch { record.setupStatus = "partial"; record.setupError = "Session URL could not be restored"; }
       }
-      this.sessions.set(row.id, { page, lastUrl: page.url() || row.url, prepare: row.prepare });
+      record.lastUrl = page.url() === "about:blank" && row.url !== "about:blank" ? row.url : page.url() || row.url;
     }
+    // Leave unmatched Chrome tabs untouched and expose them as independent sessions.
     await this.adoptExisting();
     if (preparationError) throw preparationError;
   }

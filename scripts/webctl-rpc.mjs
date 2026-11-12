@@ -237,6 +237,7 @@ function mapCommandToRpcBase(positionals, flags, boolFlags) {
       params: {
         sessionId: flags.session,
         expression: flags.expr,
+        confirmed: boolFlags.has("confirm"),
       },
     };
   }

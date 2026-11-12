@@ -106,6 +106,7 @@ Discovery primitives (same browser session):
   webctl forms --session ID
   webctl diff --session ID --before SNAPSHOT_FILE_OR_JSON
   webctl api-sniff --session ID [--duration-ms MS]
+  webctl eval --session ID --expr JS --confirm  # privileged, arbitrary JavaScript
   webctl wait-idle --session ID [--timeout-ms MS]
 
 Knowledge/known mode:
@@ -236,6 +237,7 @@ async function main() {
   if (a === "eval") return print(await client.call("page.evaluate", {
     sessionId: required("session"),
     expression: required("expr"),
+    confirmed: boolFlag("confirm"),
   }));
 
   if (a === "identify") return print(await client.call("site.identify", { sessionId: required("session") }));
