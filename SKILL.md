@@ -1,7 +1,7 @@
 ---
 name: hyper-browsing
 description: Operate websites through a real Chrome session, verify every result, and save what you learned as reusable site knowledge.
-version: 0.3.0
+version: 0.4.0
 platforms: [macos, linux, windows]
 metadata:
   tags: [browser, automation, playwright, web, agents, hyper-browsing]
@@ -21,6 +21,14 @@ metadata:
 | macOS / Linux | <skill>/bin/webctl |
 
 이 문서의 webctl은 위 경로의 약칭이다. 런처가 의존성과 데몬을 준비한다. setup은 사용자 작업의 완료를 뜻하지 않는다.
+
+### MCP와 신규 CLI
+
+MCP 지원 클라이언트에서는 `node <skill>/bin/hyper-browsing.mjs mcp`를 stdio 서버로 등록한다. 이 서버는 `hb_session_open`, `hb_snapshot`, `hb_forms`, `hb_smart_scroll`, `hb_click`, `hb_fill`, `hb_verify` 등의 도구를 제공한다. MCP와 기존 webctl은 동일한 인증 데몬과 쓰기 승인 로직을 사용한다. `hb_request_status`는 이전 요청을 조회할 뿐 재전송하지 않는다.
+
+패키지 CLI는 `node <skill>/bin/hyper-browsing.mjs init`, `doctor`, `mcp`, `webctl <command>`를 제공한다. npm 패키지가 공개된 후 `npx hyper-browsing@0.4.0 mcp` 사용을 의도하지만 **현재 브랜치 생성만으로 npm 배포가 이루어지지는 않는다**. 패키지 CLI의 사용자 데이터는 기본 `~/.hyper-browsing/`에 저장된다. 세부 설정은 [MCP 가이드](docs/MCP.md)를 참조한다.
+
+MCP 호출에서 `confirmed=true` 또는 `approved=true`는 특정 작업을 사용자에게 승인받았을 때에만 전달한다. 이 플래그를 자동으로 채우지 않는다. 모든 브라우저 입력은 모델 제공자에게 전달될 수 있으므로 계정 데이터와 비밀번호의 노출 범위에 주의한다.
 
 ## 기본 흐름
 

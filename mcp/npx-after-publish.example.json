@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hyper-browsing": {
+      "command": "npx",
+      "args": ["-y", "hyper-browsing@0.4.0", "mcp"]
+    }
+  }
+}

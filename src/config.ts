@@ -68,8 +68,8 @@ export function getConfig(): AppConfig {
   return {
     root,
     runtimeDir,
-    generatedDir: path.join(root, ".generated"),
-    sitesDir: path.join(root, "sites"),
+    generatedDir: path.resolve(process.env.WEBAGENT_GENERATED_DIR || path.join(root, ".generated")),
+    sitesDir: path.resolve(process.env.WEBAGENT_SITES_DIR || path.join(root, "sites")),
     profileDir: path.resolve(process.env.WEBAGENT_PROFILE_DIR || path.join(runtimeDir, "browser-profile")),
     port: Number(process.env.WEBAGENT_PORT || 3219),
     host: "127.0.0.1",

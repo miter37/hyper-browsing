@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'fix/**'
+      - 'feat/**'
   pull_request:
 
 permissions:
@@ -34,6 +35,12 @@ jobs:
         run: npx playwright install chromium
       - run: npm run typecheck
       - run: npm run validate:sites
+      - name: Native MCP, CLI packaging and smart-scroll tests
+        run: npm run test:mcp
+      - name: Verify production CLI dependency tree
+        run: npm ls tsx --omit=dev
+      - name: npm tarball installation smoke test
+        run: npm run test:install
       - name: Learning tests
         run: npm run test:learning
       - name: Execution and regression tests (Linux virtual display)

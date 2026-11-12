@@ -4,6 +4,31 @@
 
 ---
 
+## Native MCP + package CLI
+
+The new stdio MCP entry point is `bin/hyper-browsing.mjs mcp`. It implements the MCP JSON-RPC tool handshake and forwards the 23 typed tools to the **existing** BrowserDaemon RPC over authenticated loopback. No separate Chrome Playwright instance is constructed by the MCP adapter. Browsing is lazy: a daemon is bootstrapped on the first tool call unless `WEBAGENT_MCP_AUTOSTART=0`.
+
+```text
+AI agent / MCP host                  CLI / agent skill
+        |                                   |
+   JSON-RPC stdio                         webctl
+        |                                   |
+   mcp/server.mjs ── rpc-transport ────────┤
+                                            |
+                               BrowserDaemon (127.0.0.1 + token)
+                                            |
+                         unique locators, approval, request IDs
+                                            |
+                                SessionStore + ChromeManager
+                                            |
+                                      Playwright CDP
+```
+
+The package CLI uses `scripts/workspace.mjs` to keep mutable runtime data and learned site assets in `~/.hyper-browsing` by default instead of npx's ephemeral cache. It copies only missing bundled site assets, and links supporting modules on platforms where links are permitted. The legacy Git checkout launcher remains checkout-local by default. `getConfig()` accepts explicit sites and generated directories, while loaded site paths remain restricted to the configured site root.
+
+The MCP server does not surface raw `page.evaluate`, direct Node code execution or forced overlay hiding. Privileged functions stay behind the daemon's existing explicit local opt-ins. MCP tool approvals are caller-supplied and must represent actual user consent; they do not constitute an authentication sandbox. For command examples and data-handling limitations, see [MCP.md](MCP.md).
+
+---
 ## Current Execution Rules
 
 Direct interactions and stored declarative steps use `executePrimitive` for unique target selection, confirmation, input readback and effect reporting. Snapshot references pin live DOM handles and reject replacements, document changes and changed identifying context. Input-only batches share this layer and stop on ambiguity, mismatch or structural change without rollback. RPC requests have bounded in-memory deduplication and status lookup; uncertain responses never replay a transmitted operation. Raw Playwright code remains available for compatibility. See [execution rules](./EXECUTION.md).

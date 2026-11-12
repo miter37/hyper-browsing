@@ -5,16 +5,86 @@
 </p>
 
 <p>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="라이선스: MIT"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT 라이선스"></a>
+  <a href="https://github.com/miter37/hyper-browsing/actions"><img src="https://img.shields.io/github/actions/workflow/status/miter37/hyper-browsing/ci.yml?branch=main&label=CI" alt="GitHub Actions CI"></a>
 </p>
 
-> - **사용자의 크롬(Chrome) 브라우저를 기반으로 플레이라이트(Playwright)를 통해 어떤 웹사이트든 빠르게 파악하여 조작할 수 있게 하며,**
-> - **성공한 상호작용을 전용 스크립트와 지식 문서로 자산화하여 다음 방문 시 초고속으로 실행하는**
-> - **초고속 적응형 브라우징 에이전트 스킬**
+> **내 크롬을, AI 에이전트의 브라우저로.**
+>
+> **네이티브 MCP + CLI + 재사용 가능한 사이트 지식**을 하나의 로컬 브라우저 런타임으로 제공합니다. 별도 호스팅 브라우저 구독, Docker, 외부 자격증명 저장소 없이 AI 에이전트가 실제 Chrome을 관찰하고 조작할 수 있습니다.
 
-학습은 작업 흐름을 방해하지 않는 범위에서 수행합니다. 첫 작업에는 짧은 노하우만, 최근 30일의 독립 작업 2회부터 액션을, 7회부터 기존 액션을 살리는 얕은 탐색 러너를 저장할 수 있습니다. 탐색 러너는 시작 화면과 한 단계 아래의 구조·액션 후보만 파악합니다. 실패한 자산은 에이전트가 재탐색으로 현재 요청을 수행한 뒤 성공 경로로 수정·검증합니다. 자세한 기준과 명령은 [학습·복구 안내](docs/LEARNING.md)를 참고하세요.
+**Hyper-Browsing**은 Playwright와 로컬 인증 데몬을 기반으로 동작하는 AI 브라우징 도구입니다. 거대한 DOM을 통째로 전달하는 대신 필요한 화면 정보를 구조화하고, 클릭 결과를 재검증하며, 확인된 사이트 작업을 재사용 가능한 자산으로 보존합니다.
 
-직접 명령과 저장 액션은 대상의 모호함 검사, 입력 확인, 변화 보고를 공유합니다. 스냅샷의 임시 `--ref`로 관찰한 요소를 조작하고, `batch --input-file`로 최대 10개 입력을 영구 자산 없이 처리합니다. RPC 응답을 잃으면 자동 재전송하지 않고 `outcome_unknown`과 요청 ID를 반환합니다. 자세한 사용법은 [실행 안내](docs/EXECUTION.md)와 [명령 참조](docs/COMMANDS.md)를 참고하세요.
+## Hyper-Browsing이 다른 점
+
+| 핵심 기능 | 사용자가 얻는 가치 |
+|---|---|
+| **네이티브 MCP 서버** | 세션, DOM 스냅샷, 폼, 가상 목록 누적, 조작·검증·저장 액션을 23개 도구로 제공 |
+| **하나의 실행 엔진** | MCP와 CLI가 동일한 요소 확인·승인·요청 추적 로직 사용 |
+| **내 PC의 Chrome** | 조건에 맞으면 실제 또는 에이전트 관리 프로필의 로그인 상태 활용 |
+| **반복 작업 가속** | 구조화된 관찰과 검증된 사이트 지식으로 불필요한 재탐색 감소 |
+| **로컬 우선 보안** | 쿠키·프로필·실행 데이터는 로컬에 유지. AI 모델에 전달한 웹페이지 내용은 해당 제공자 정책을 따름 |
+| **쉬운 설치** | Windows / macOS / Linux, Node.js 20+ 지원, npm 배포 준비 및 지속성 있는 작업공간 |
+
+**캡차 자동 우회나 모든 사이트의 성공을 보장하지 않습니다.** 로그인·2FA는 사용자 개입이 필요할 수 있고, 결제·게시·삭제 등 외부에 영향을 주는 작업은 별도 승인을 받아야 합니다. 검증하지 않은 속도 향상률을 제품 성능으로 주장하지 않습니다.
+
+## 빠른 시작 — 지금은 GitHub 소스로 사용
+
+**준비물:** Node.js 20 이상, Google Chrome. 최초 브라우징 시 관리 Chrome 프로필을 사용할 수 있으며, 로그인이 필요하면 `browser reveal`로 화면을 표시합니다.
+
+```bash
+git clone https://github.com/miter37/hyper-browsing.git
+cd hyper-browsing
+npm ci
+node bin/hyper-browsing.mjs init
+node bin/hyper-browsing.mjs doctor
+```
+
+**MCP 서버 실행:**
+
+```bash
+node bin/hyper-browsing.mjs mcp
+```
+
+**CLI로 바로 작업:**
+
+```bash
+node bin/hyper-browsing.mjs webctl session open --url https://example.com
+node bin/hyper-browsing.mjs webctl session list
+```
+
+MCP는 표준 JSON-RPC **stdio** 연결입니다. 일반적으로 Claude Desktop, Cursor, Hermes 등 MCP 클라이언트가 위 프로그램을 직접 실행하므로 사용자가 도구 호출 JSON을 셸에 입력할 필요는 없습니다. 자세한 설정은 [MCP 설치·보안 안내](docs/MCP.md)를 참고하세요.
+
+### npx 한 줄 설치 경험 (npm 공개 배포 후)
+
+`package.json`의 실행 명령과 배포 파일 구성을 준비했지만, **이번 변경은 npm에 패키지를 실제 게시하지 않습니다.** 저장소 소유자가 검증한 릴리스를 등록한 뒤 아래 명령을 사용할 수 있도록 설계했습니다.
+
+```bash
+npx -y hyper-browsing@0.4.0 init
+npx -y hyper-browsing@0.4.0 doctor
+npx -y hyper-browsing@0.4.0 mcp
+```
+
+npm CLI로 실행한 세션·학습 자산은 임시 npx 캐시가 아니라 기본 `~/.hyper-browsing/`에 저장됩니다. 기존에 수정한 사이트 자산은 초기화 과정에서 덮어쓰지 않습니다. `WEBAGENT_WORKSPACE_DIR`로 저장 위치를 변경할 수 있습니다.
+
+### Claude Desktop · Cursor · Hermes 등 MCP 클라이언트 연결
+
+앱의 MCP 설정에 현재 체크아웃의 절대 경로를 등록하세요.
+
+```json
+{
+  "mcpServers": {
+    "hyper-browsing": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/hyper-browsing/bin/hyper-browsing.mjs", "mcp"]
+    }
+  }
+}
+```
+
+npm 배포 후에는 명령을 `npx`로, 인수를 `["-y", "hyper-browsing@0.4.0", "mcp"]`로 교체하면 됩니다. 각 클라이언트의 설정 위치는 다를 수 있습니다.
+
+**에이전트 작업 흐름:** `hb_session_open` → `hb_snapshot` / `hb_forms` → `hb_click` / `hb_fill` → `hb_verify`. 가상 리스트는 `hb_smart_scroll`, 검증된 사이트 작업은 `hb_action_list` · `hb_action_run`으로 처리합니다. 위험한 쓰기에는 `confirmationRequired`를 반환하고, 통신이 불명확하면 `hb_request_status`로 확인하지 같은 작업을 무작정 재실행하지 않습니다.
 
 ---
 
@@ -27,7 +97,7 @@
 <table align="center">
   <tr>
     <td>
-      <img src="./assets/rec_airbnb.gif" width="800" alt="Airbnb 전용 스크립트 실행 데모">
+      <img src="https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_airbnb.gif" width="800" alt="Airbnb 전용 스크립트 실행 데모">
     </td>
   </tr>
 </table>
@@ -39,7 +109,7 @@
 <table align="center">
   <tr>
     <td>
-      <img src="./assets/rec_investing.gif" width="800" alt="Investing.com 기본 도구 탐색 데모">
+      <img src="https://raw.githubusercontent.com/miter37/hyper-browsing/main/assets/rec_investing.gif" width="800" alt="Investing.com 기본 도구 탐색 데모">
     </td>
   </tr>
 </table>
@@ -164,40 +234,25 @@ npm run clean
 
 ---
 
-### 7. 설치 및 환경 구성 (Installation)
+### 7. 설치, MCP, npx
 
-Node.js 20+와 구글 크롬(Google Chrome)이 설치되어 있다면 즉시 사용 가능합니다.
+기존 소스 체크아웃과 새 패키지형 CLI를 모두 지원합니다. 네이티브 MCP stdio 서버는 **기존 데몬을 재사용하는 어댑터**이며 Chrome 제어 엔진을 별도로 복제하지 않습니다.
 
-#### AI 에이전트에게 다음과 같이 시키세요
-터미널에서 직접 명령어를 칠 필요 없이, 사용하시는 AI 에이전트(Claude Code, Antigravity, Hermes 등)의 대화창에 아래 한 줄만 입력하시면 모든 세팅이 완료됩니다:
+**지금 바로 사용할 수 있는 소스 방식:**
 
-> 💬 *"https://github.com/miter37/hyper-browsing 저장소를 내 스킬 폴더에 클론하고, npm install 및 헬스체크까지 완료해서 바로 쓸 수 있게 세팅해줘."*
+```bash
+git clone https://github.com/miter37/hyper-browsing.git
+cd hyper-browsing
+npm ci
+node bin/hyper-browsing.mjs init
+node bin/hyper-browsing.mjs mcp
+```
 
-##### 🤖 사용자 또는 에이전트가 이 문서를 읽고 수행해야 할 단계:
-1. **스킬 폴더 확인 및 클론**:
-   사용자의 에이전트 스킬 디렉터리(`~/.agents/skills/` 또는 프로젝트 내 `.agents/skills/`) 아래에 저장소를 클론하거나 심볼릭 링크(Junction)를 연결합니다:
-   ```bash
-   git clone https://github.com/miter37/hyper-browsing.git
-   cd hyper-browsing
-   ```
-   *(※ 에이전트는 폴더 내의 `SKILL.md`를 인식하여 브라우징 작업 시 자동으로 이 도구를 채택합니다.)*
+**기존 스킬 명령도 그대로 유지합니다:** macOS/Linux `./bin/webctl health`, Windows `bin\webctl.cmd health`. 에이전트 스킬 디렉터리에 Git 저장소를 복제해 사용하는 방식도 가능합니다. 새 패키지형 CLI는 기본 `~/.hyper-browsing/`에 상태를 저장하고 기존 저장소 런처는 체크아웃별 기본 경로를 유지합니다.
 
-2. **의존성 설치**:
-   ```bash
-   npm install
-   ```
-   *(※ Playwright 패키지는 `npm install` 시 함께 설치되며, 본 스킬은 사용자의 실제 구글 크롬 브라우저를 CDP로 직접 제어하므로 별도의 수백 MB짜리 Chromium 바이너리 다운로드(`npx playwright install`)는 필요하지 않습니다. 단, 헤드리스 격리 테스트가 필요할 경우 `npx playwright install chromium`을 선택적으로 실행할 수 있습니다.)*
+**npx는 npm 공개 배포 이후:** `npx -y hyper-browsing@0.4.0 mcp`. 이 PR은 npm 게시를 수행하지 않습니다. 릴리스 전에 패키지명 권한, 배포 아카이브와 플랫폼 호환성을 확인해야 합니다.
 
-3. **데몬 구동 및 크롬 연결 헬스체크**:
-   OS에 맞는 명령어를 실행하여 크롬 브라우저 데몬을 띄우고 `status: "ok"`를 확인합니다:
-   ```bash
-   # Windows
-   bin\webctl.cmd health
-
-   # macOS / Linux
-   ./bin/webctl health
-   ```
-   *(※ 최초 1회 실행 시 크롬 브라우저 데몬이 자동으로 백그라운드에 구동됩니다.)*
+설정 예시와 도구 목록, 승인 규칙 및 장애 해결은 [docs/MCP.md](docs/MCP.md), Chrome 동작은 [docs/BROWSER.md](docs/BROWSER.md)를 확인하세요.
 
 ---
 

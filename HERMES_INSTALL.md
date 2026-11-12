@@ -66,3 +66,20 @@ The daemon port defaults to 3219 and moves to the next free port when that one i
 `WEBAGENT_PORT` to pin it. Generated site knowledge stays under `sites/<site>/`; runtime browser
 profiles, observations, metrics, and logs stay under `.runtime/` and should not be committed or
 shared.
+
+## Native MCP integration (optional)
+
+Hyper-Browsing now includes a **local stdio MCP server** in addition to its existing skill/CLI workflow. Use it if your Hermes environment supports configuring local MCP servers. Register the executable as:
+
+```json
+{
+  "mcpServers": {
+    "hyper-browsing": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/hyper-browsing/bin/hyper-browsing.mjs", "mcp"]
+    }
+  }
+}
+```
+
+This is a generic MCP client example, **not** a claim that every Hermes version loads this JSON directly. Follow your Hermes version's MCP configuration guidance. The published npm CLI (`npx hyper-browsing@0.4.0 mcp`) is planned, not already published. The skill/CLI installation above continues to work unchanged. [MCP tools and security notes](docs/MCP.md).

@@ -489,6 +489,48 @@ export async function scrollPage(
   return { scrolled: true, times, totalDistance };
 }
 
+
+/**
+ * Bounded virtual-DOM accumulator for the native MCP interface. Collect
+ * observed items before scrolling makes them unmount; do not infer unobserved
+ * data or claim exhaustive completion on an infinite feed.
+ */
+export async function smartScroll(
+  page: Page,
+  options: { query?: string; maxScrolls?: number; limit?: number; distance?: number; selector?: string } = {}
+) {
+  const maxScrolls = Math.max(1, Math.min(Number(options.maxScrolls) || 5, 10));
+  const limit = Math.max(1, Math.min(Number(options.limit) || 40, 100));
+  const distance = Math.max(100, Math.min(Number(options.distance) || 750, 3000));
+  const items = new Map<string, { title?: string; href?: string; text?: string }>();
+  let observedLists = 0;
+  let container: string | undefined;
+  const read = async () => {
+    const data = await listItems(page, { query: options.query, limit: Math.min(limit, 50) }).catch(() => null) as
+      null | { found?: boolean; container?: string; items?: Array<{ title?: string; href?: string; text?: string }> };
+    if (!data?.found || !Array.isArray(data.items)) return;
+    observedLists++;
+    container ||= data.container;
+    for (const item of data.items) {
+      if (items.size >= limit) break;
+      const key = JSON.stringify([item.href || "", item.title || "", item.text || ""]);
+      if (!items.has(key)) items.set(key, item);
+    }
+  };
+  await read();
+  let scrolled = 0;
+  for (; scrolled < maxScrolls && items.size < limit; scrolled++) {
+    await scrollPage(page, { direction: "down", distance, times: 1, selector: options.selector });
+    await read();
+  }
+  return {
+    found: observedLists > 0, container, items: [...items.values()], total: items.size,
+    scrolled, observations: observedLists,
+    capped: items.size >= limit,
+    observation: { complete: false, reason: "bounded_virtual_scroll", maxScrolls }
+  };
+}
+
 /**
  * 7. waitForElement
  * Waits for an element matching a CSS selector or visible text to appear in DOM within timeout.
