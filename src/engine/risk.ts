@@ -5,7 +5,7 @@ export type Risk = "read" | "local_write" | "external_write" | "irreversible" | 
 
 const rank: Record<Risk, number> = { read: 0, local_write: 1, external_write: 2, irreversible: 3, unclassified: 4 };
 export const irreversible = /\b(delete|destroy|remove[_ ]account|close[_ ]account|erase|terminate)\b|삭제|계정.{0,4}탈퇴/i;
-export const externalWrite = /\b(pay|payment|purchase|buy|checkout|submit|send|post|comment|invite|refund|transfer|publish|permission|grant|revoke|update|edit|save)\b|add to (cart|bag)|구매|결제|발송|전송|송금|게시|저장/i;
+export const externalWrite = /\b(pay|payment|purchase|buy|checkout|submit|send|post|comment|invite|refund|transfer|publish|permission|grant|revoke|update|edit|save|follow|subscribe|register|sign\s*up|upload|book\s*now|place\s+(?:an?\s+)?order|confirm\s+(?:reservation|booking|order|purchase|payment))\b|add to (cart|bag)|구매|결제|발송|전송|송금|게시|저장|예약\s*확정|주문\s*(?:확정|완료)|팔로우/i;
 
 export function effectiveRisk(actionId: string, action: ActionDefinition): Risk {
   // A declarative extraction has no state-changing steps; names like account_status do not make it a write.
@@ -62,6 +62,7 @@ export async function riskFromTarget(target: ActionTarget, submission=false): Pr
       name:names.read(control)+' '+(clickable!==control?names.read(clickable):'')+' '+submitNames,
       href:submits ? control.getAttribute('formaction')||form?.getAttribute('action')||control.getAttribute('href') : control.getAttribute('href'),base:location.href,
       context:scope?.getAttribute('aria-label')||scope?.querySelector('legend')?.textContent||(clickable.closest('ul,[role=tablist]') as HTMLElement)?.innerText||'',
+      submits,
       formSearch:Boolean(form?.querySelector('input[type=search],input[name=q],input[name=k]'))};
   },submission).catch(() => null);
   if (!data) return 'unclassified';
@@ -69,9 +70,12 @@ export async function riskFromTarget(target: ActionTarget, submission=false): Pr
   try { if (data.href) { const u = new URL(data.href,data.base); path=decodeURIComponent(u.pathname)+' '+[...u.searchParams.keys()].join(' '); } } catch { return 'unclassified'; }
   const label = data.name.replace(/([a-z])([A-Z])/g,'$1 $2');
   const direct = heuristicRiskFromText(label+' '+path);
-  if (direct==='irreversible') return direct;
+  // Never downgrade an identified write because its label also mentions search/filter.
+  if (direct !== 'read') return direct;
   if (/\b(checkout|payment|purchase|delete|transfer)\b/i.test(path)) return 'external_write';
+  // An unknown form submission may create an account, booking or payment even if
+  // the submit control itself is merely called "Continue" or "Confirm".
+  if (data.submits) return data.formSearch && /search|검색/i.test(label) ? 'read' : 'unclassified';
   if (/^(checkbox|radio)$/.test(data.type || data.role || '') && /filter|sort/i.test(data.context)) return 'read';
-  if (/search|검색/i.test(label) && (data.formSearch || /^(button|submit|search)$/.test(data.type || '') || data.tag==='BUTTON') && !/pay|purchase|delete|checkout/i.test(label)) return 'read';
   return direct;
 }

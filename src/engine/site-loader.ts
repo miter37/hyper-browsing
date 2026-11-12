@@ -68,8 +68,8 @@ export async function loadActionModule(site: LoadedSite): Promise<SiteActionModu
     const actions = (mod.actions ?? mod.default ?? {}) as SiteActionModule;
     actionCache.set(file, { mtimeMs: stat.mtimeMs, size: stat.size, module: actions });
     return actions;
-  } catch {
+  } catch (error) {
     actionCache.delete(file);
-    return {};
+    throw error;
   }
 }

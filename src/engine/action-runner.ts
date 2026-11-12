@@ -132,9 +132,11 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
   const storedLifecycle = (variantSpec?.lifecycle ?? action.lifecycle) as Lifecycle;
   const evidence = await (await import("../runtime/metrics")).evidenceFor(config, site.site.id, options.actionId, variant, revision);
   const lifecycle: Lifecycle = evidence.successfulSessions >= 2 ? "verified" : evidence.successes >= 1 ? "candidate" : "encoded";
-  const risk = effectiveRisk(options.actionId, action as ActionDefinition);
+  // Code actions receive the raw Playwright page / Node process. They are privileged,
+  // regardless of the action's self-declared risk or the static advisory scan.
+  const risk = implementation.kind === "code" ? "unclassified" : effectiveRisk(options.actionId, action as ActionDefinition);
   if (requiresConfirmation(risk) && !options.confirmed) {
-    return { ok: false, confirmationRequired: true, risk, lifecycle, state: detected.state, variant };
+    return { ok: false, confirmationRequired: true, risk, reason: implementation.kind === "code" ? "privileged_code_action" : "write_requires_confirmation", execution: "not_started", lifecycle, state: detected.state, variant };
   }
 
   const started = Date.now();

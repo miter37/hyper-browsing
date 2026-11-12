@@ -426,6 +426,11 @@ export class BrowserDaemon {
     }
     if (method === "page.evaluate") {
       if (!page) throw new Error("sessionId required");
+      // Arbitrary JavaScript cannot be reliably classified as read-only. The
+      // safe alternative for ordinary reads is page.extract/snapshot/verify.
+      if (!params.confirmed) return { ok: false, confirmationRequired: true, risk: "unclassified",
+        reason: "arbitrary_javascript", execution: "not_started",
+        hint: "Raw JavaScript is privileged. Review the expression and use eval --confirm explicitly." };
       return await page.evaluate(params.expression);
     }
 
