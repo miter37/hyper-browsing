@@ -263,7 +263,8 @@ export async function actOn<T>(
     el.getAttribute('target')==='_blank'||/\bwindow\.open\b/.test(el.getAttribute('onclick')||'')||(el as HTMLInputElement).form?.target==='_blank').catch(()=>false);
 
   let before = await readTarget(page, target.locator);
-  if (before.clipped && before.scrollClipped) {
+  if (before.clipped) {
+    // Often only scrolled out of a scrolling area: bring it into view before calling it collapsed.
     await target.locator.scrollIntoViewIfNeeded({ timeout: 1500 }).catch(() => {});
     before = await readTarget(page, target.locator);
   }
@@ -285,7 +286,9 @@ export async function actOn<T>(
       }
       return undefined;
     }).catch(() => undefined);
-    return {
+    // No zero-size overflow container around it: nothing is collapsed, so let the action try (Playwright waits for it).
+    if (!collapsedUnder) before = { ...before, clipped: false };
+    else return {
       ok: false,
       reason: "clipped",
       execution: "not_started",
@@ -314,7 +317,7 @@ export async function actOn<T>(
     value = await act(target.locator, timeoutMs);
   } catch (error) {
     nav.stop();
-    const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: "outcome_unknown" };
+    const failure: Record<string, any> = { ok: false, ...classifyActionError(error), ...resolved, execution: (error as any)?.notStarted ? "not_started" : "outcome_unknown" };
     // Playwright waits for the point to be free and gives up without clicking: nothing was sent to the page.
     if (failure.reason === "intercepted") {
       failure.execution = "not_started";
@@ -477,7 +480,17 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
     if (params.submit && matches) {
       const refused=authorize ? await authorize(locator) : undefined;
       if (refused) return {kind:element,actual:read?.value,secret:read?.secret,submissionRefusal:refused};
-      await locator.press("Enter", { timeout });
+      try { await locator.press("Enter", { timeout }); }
+      catch (error) {
+        // Suggestion lists often re-render the field after typing. If the focused field still holds the text, Enter
+        // goes there; otherwise nothing was pressed and the caller may act again.
+        const focused = await page.evaluate((w) => {
+          const el = document.activeElement as HTMLInputElement | null;
+          return Boolean(el && ("value" in el) && String(el.value).replace(/\s+/g, " ").trim() === w);
+        }, wanted.replace(/\s+/g, " ").trim()).catch(() => false);
+        if (!focused) throw Object.assign(new Error("Enter was not pressed: the field was replaced before submitting. " + String((error as any)?.message || error).split("\n")[0]), { notStarted: true });
+        await page.keyboard.press("Enter");
+      }
     }
     return { kind: element, actual: read?.value, secret: read?.secret,submissionSkipped:params.submit&&!matches };
   },authorize);

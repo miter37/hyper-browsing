@@ -70,7 +70,11 @@ export async function riskFromTarget(target: ActionTarget, submission=false): Pr
       context:scope?.getAttribute('aria-label')||scope?.querySelector('legend')?.textContent||(clickable.closest('ul,[role=tablist]') as HTMLElement)?.innerText||'',
       submits,
       formGet:Boolean(form && (form.getAttribute('method')||'').trim().toLowerCase()==='get'),
-      formSearch:Boolean(form?.querySelector('input[type=search],input[name=q],input[name=k]'))};
+      // A search form names itself: role=search, a search field, a query-like field name or label, or a search address.
+      formSearch:Boolean(form && (form.closest('[role=search]') || form.querySelector('[role=search],input[type=search],[role=searchbox]')
+        || [...form.querySelectorAll('input:not([type=hidden]):not([type=password])')].some(i=>/^(q|k|s|kw|ss|query|keyword|keywords|search[_-]?\w*|\w*[_-]?query|term)$/i.test(i.getAttribute('name')||'')
+          || /search|query|검색|찾기|探す|搜索/i.test([i.getAttribute('placeholder'),i.getAttribute('aria-label'),i.id].join(' ')))
+        || /\/(search|results?|find)\b/i.test(form.getAttribute('action')||'')))};
   },submission).catch(() => null);
   if (!data) return 'unclassified';
   let path = '';

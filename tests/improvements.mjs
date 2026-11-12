@@ -395,3 +395,25 @@ test('a search whose Enter changes nothing is reported as unconfirmed',async t=>
  const r=await executePrimitive(page,'fill',{locator:{css:'#q'},value:'파이썬',submit:true});
  assert.equal(r.submitted,'unconfirmed',JSON.stringify(r));assert.ok(r.warning);
 });
+
+test('a search form is recognised by what it calls itself, and a heading reads its section',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><form action="/results" onsubmit="event.preventDefault();window.searched=1"><input name="search_query" placeholder="Search"><button>Search</button></form>
+  <form action="/account/update" onsubmit="event.preventDefault();window.updated=1"><input name="nickname"><button>Go</button></form>
+  <div class="heading"><h2 id="Legacy">Legacy</h2><span>[edit]</span></div><p>First paragraph of legacy.</p><p>Second one.</p>
+  <div class="heading"><h3>Sub</h3></div><p>Sub text.</p><div class="heading"><h2>Next</h2></div><p>Not this.</p>`);
+ const s=await executePrimitive(page,'fill',{locator:{css:'input[name=search_query]'},value:'파이썬 강의',submit:true});
+ assert.equal(s.confirmationRequired,undefined,JSON.stringify(s));assert.equal(await page.evaluate(()=>window.searched),1);
+ const u=await executePrimitive(page,'click',{locator:{role:'button',name:'Go',exact:true}});
+ assert.equal(u.confirmationRequired,true);
+ const sec=await executePrimitive(page,'extract',{locator:{role:'heading',name:'Legacy'},read:'section'});
+ assert.equal(sec.value,'First paragraph of legacy.\nSecond one.\nSub\nSub text.',JSON.stringify(sec));
+});
+
+test('Enter still reaches a search field that suggestions re-rendered after typing',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><form role="search" onsubmit="event.preventDefault();window.sent=document.activeElement.value"><div id="box"><input id="q" name="search"></div></form>
+  <script>document.getElementById('q').addEventListener('input',e=>{const v=e.target.value;setTimeout(()=>{const n=document.createElement('input');n.id='q';n.name='search';n.value=v;document.getElementById('box').replaceChildren(n);n.focus();},0);},{once:true});</script>`);
+ const r=await executePrimitive(page,'fill',{locator:{css:'#q'},value:'Marie Curie',submit:true});
+ assert.notEqual(r.execution,'outcome_unknown',JSON.stringify(r));
+ if (r.ok) assert.equal(await page.evaluate(()=>window.sent),'Marie Curie');
+ else assert.equal(r.execution,'not_started');
+});
