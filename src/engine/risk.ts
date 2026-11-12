@@ -33,6 +33,11 @@ export function isWriteLike(risk: Risk): boolean {
   return risk !== "read";
 }
 
+// Words that describe a state rather than ask for one: "예약 가능합니다" on a calendar day, "Sold out", "Available
+// to book". Removed before the keyword test so an availability label does not read as a booking action.
+const STATUS_PHRASES = /예약\s*(?:이\s*)?(?:가능|불가능?|마감|대기)(?:합니다|해요|함|한|하신)?|\b(?:not\s+)?available(?:\s+(?:to|for)\s+(?:book|booking|reserve|reservation|purchase))?\b|\bsold\s*out\b|\bfully\s+booked\b/gi;
+export function withoutStatusPhrases(text: string): string { return text.replace(STATUS_PHRASES, ' '); }
+
 export function heuristicRiskFromText(text: string): Risk {
   text = text.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ');
   if (irreversible.test(text)) return "irreversible";
@@ -64,19 +69,21 @@ export async function riskFromTarget(target: ActionTarget, submission=false): Pr
       href:submits ? control.getAttribute('formaction')||form?.getAttribute('action')||control.getAttribute('href') : control.getAttribute('href'),base:location.href,
       context:scope?.getAttribute('aria-label')||scope?.querySelector('legend')?.textContent||(clickable.closest('ul,[role=tablist]') as HTMLElement)?.innerText||'',
       submits,
+      formGet:Boolean(form && (form.getAttribute('method')||'').trim().toLowerCase()==='get'),
       formSearch:Boolean(form?.querySelector('input[type=search],input[name=q],input[name=k]'))};
   },submission).catch(() => null);
   if (!data) return 'unclassified';
   let path = '';
   try { if (data.href) { const u = new URL(data.href,data.base); path=decodeURIComponent(u.pathname)+' '+[...u.searchParams.keys()].join(' '); } } catch { return 'unclassified'; }
-  const label = data.name.replace(/([a-z])([A-Z])/g,'$1 $2');
+  const label = withoutStatusPhrases(data.name.replace(/([a-z])([A-Z])/g,'$1 $2'));
   const direct = heuristicRiskFromText(label+' '+path);
   // Search wording must never downgrade an explicitly identified write.
   if (direct !== 'read') return direct;
   if (/\b(checkout|payment|purchase|delete|transfer)\b/i.test(path)) return 'external_write';
   if (/^(checkbox|radio)$/.test(data.type || data.role || '') && /filter|sort/i.test(data.context)) return 'read';
   // Unknown form submissions may mutate state even without a write keyword.
-  if (data.submits) return data.formSearch ? 'read' : 'unclassified';
+  // A form that declares method="get" only builds a URL to load (HTTP GET is a safe method).
+  if (data.submits) return data.formSearch || data.formGet ? 'read' : 'unclassified';
   if (/\b(confirm|continue|complete|finish|proceed|done)\b|확정|완료/i.test(label)
     && (data.tag === 'BUTTON' || data.role === 'button' || data.type === 'button')) return 'unclassified';
   return 'read';

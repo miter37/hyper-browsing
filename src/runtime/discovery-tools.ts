@@ -286,6 +286,23 @@ const LIST_SCRIPT = `(opts) => {
     for (const k of u) { out.push(...k.querySelectorAll("a[href]")); if (k.shadowRoot) out.push(...k.shadowRoot.querySelectorAll("a[href]")); }
     return out;
   }
+  // The accessible name a screen reader gives the item: heading, then the main link's name, then the card's.
+  function nameOf(n) {
+    if (!n) return "";
+    const root = n.getRootNode();
+    const byIds = (n.getAttribute("aria-labelledby") || "").split(/\\s+/).filter(Boolean)
+      .map((id) => root.getElementById ? (root.getElementById(id) || {}).innerText || "" : "").join(" ");
+    return clean(n.getAttribute("aria-label") || byIds || "");
+  }
+  // First visible line: drops visually hidden helper text such as "opens in a new window".
+  function firstLine(n) { return n ? clean(((n.innerText || n.textContent || "").split("\\n").find((l) => l.trim())) || "") : ""; }
+  function titleOf(u, h, a) {
+    if (h) return nameOf(h) || firstLine(h);
+    for (const l of links(u)) { const t = nameOf(l) || firstLine(l) || clean(l.getAttribute("title")); if (t.length > 1) return t; }
+    for (const k of u) { const t = nameOf(k); if (t) return t.replace(/,\\s*[^,]{1,12}$/, ""); }
+    const img = q(u, "img[alt]");
+    return img ? clean(img.getAttribute("alt")) : (a ? firstLine(a) : "");
+  }
   function textOf(u) { return clean(u.map((k) => k.innerText || (k.shadowRoot ? k.shadowRoot.textContent : "")).join(" ")); }
   function headingOf(k) { return q(k, "h1, h2, h3, h4, h5, h6, [role=heading]"); }
   const query = (opts.query || "").toLowerCase();
@@ -295,16 +312,17 @@ const LIST_SCRIPT = `(opts) => {
     if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.tagName === "HEAD") return false;
     // Site chrome (nav menus, header, footer, sidebars) repeats links too, but is never the result list.
     if (el.matches(CHROME) || el.closest(CHROME)) return false;
-    const kids = Array.from(el.children);
+    // Only rendered siblings count: zero-height spacers and slots repeat more often than the cards around them.
+    const kids = Array.from(el.children).filter((k) => shown(k));
     if (kids.length < 3) return;
     const counts = {};
     for (const k of kids) counts[shape(k)] = (counts[shape(k)] || 0) + 1;
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    if (top[1] < 3) return;
+    const repeated = Object.keys(counts).filter((s) => counts[s] >= 3).sort((a, b) => counts[b] - counts[a]);
+    if (!repeated.length) return;
+    const candidates = repeated.map((s) => kids.filter((k) => shape(k) === s).map((k) => [k]));
     // Striped records: one item spread over a repeating run of sibling shapes (a title row followed by a
-    // details row and a spacer). Reading only the most frequent shape would return the details rows alone.
-    const stripe = Object.keys(counts).filter((s) => counts[s] >= 3 && Math.abs(counts[s] - top[1]) <= 2);
-    let units = null;
+    // details row and a spacer). Reading one shape alone would return the details rows without their titles.
+    const stripe = repeated.filter((s) => Math.abs(counts[s] - counts[repeated[0]]) <= 2);
     if (stripe.length > 1) {
       const seq = kids.filter((k) => stripe.includes(shape(k)));
       const period = stripe.length;
@@ -312,22 +330,29 @@ const LIST_SCRIPT = `(opts) => {
       for (let i = period; i < seq.length; i++) if (shape(seq[i]) === shape(seq[i - period])) periodic++;
       if (seq.length > period && periodic / (seq.length - period) >= 0.8) {
         const anchor = shape(seq[0]);
-        units = [];
+        const units = [];
         for (const k of seq) {
           if (shape(k) === anchor) units.push([k]);
           else if (units.length && units[units.length - 1].length < period) units[units.length - 1].push(k);
         }
+        candidates.unshift(units);
       }
     }
-    if (!units) units = kids.filter((k) => shape(k) === top[0]).map((k) => [k]);
-    const items = units.filter((u) => shown(u[0]) && q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading]"));
-    if (items.length < 3) return;
-    const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
-    if (query && !hits) return;
-    const sample = items.slice(0, 5);
-    const textLen = sample.reduce((sum, k) => sum + textOf(k).length, 0) / sample.length;
-    const inMain = Boolean(el.closest("main, [role=main]"));
-    groups.push({ el, items, score: ((query ? hits * 100 : 0) + items.length * Math.min(textLen, 200)) * (inMain ? 2 : 1) });
+    for (const units of candidates) {
+      const items = units.filter((u) => q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading]"));
+      if (items.length < 3) continue;
+      const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
+      if (query && !hits) continue;
+      const sample = items.slice(0, 5);
+      const textLen = sample.reduce((sum, k) => sum + textOf(k).length, 0) / sample.length;
+      const inMain = Boolean(el.closest("main, [role=main]"));
+      // Filter and facet panels repeat too, but their rows are form controls. Result cards link to distinct places.
+      const controlRows = items.filter((u) => q(u, "input[type=checkbox], input[type=radio], input[type=range], [role=checkbox], [role=radio], [role=switch], [role=slider]")).length / items.length;
+      const hrefs = items.map((u) => { const l = links(u)[0]; return l ? l.href : ""; }).filter(Boolean);
+      const distinctLinks = hrefs.length ? new Set(hrefs).size / items.length : 0;
+      const weight = (inMain ? 2 : 1) * (controlRows >= 0.5 ? 0.2 : 1) * (distinctLinks >= 0.8 ? 1.5 : 1);
+      groups.push({ el, items, score: ((query ? hits * 100 : 0) + items.length * Math.min(textLen, 400)) * weight });
+    }
   });
   groups.sort((a, b) => b.score - a.score);
   if (!groups.length) return { found: false };
@@ -339,7 +364,7 @@ const LIST_SCRIPT = `(opts) => {
     const named = all.find((l) => clean(l.innerText || l.textContent).length > 1);
     const a = h || !all.length || clean(all[0].innerText || all[0].textContent) ? all[0] : (named || all[0]);
     return {
-      title: clean(h ? (h.innerText || h.textContent) : (a ? (a.innerText || a.textContent) : "")).slice(0, 120) || undefined,
+      title: (titleOf(k, h, a) || "").slice(0, 120) || undefined,
       href: a ? a.href : undefined,
       text: textOf(k).slice(0, 200),
     };

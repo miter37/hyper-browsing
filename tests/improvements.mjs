@@ -252,3 +252,41 @@ test('same-search filter parameters never grant a site-specific confirmation exe
  const result=await executePrimitive(page,'click',{locator:{role:'link',name:'Buy It Now (531) Items',exact:true}});
  assert.equal(result.confirmationRequired,true);assert.equal(result.risk,'external_write');assert.equal(result.execution,'not_started');
 });
+
+test('availability wording is state, not a booking action; GET forms only load a URL',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><div role="application" aria-label="calendar">
+   <div role="button" tabindex="0" aria-label="10, Thursday, December 2026. 예약 가능합니다. 체크인 날짜로 선택하세요." onclick="window.day=1">10</div>
+   <div role="button" tabindex="0" aria-label="11, Friday, December 2026. Available to book" onclick="window.day2=1">11</div></div>
+  <form method="get" action="/searchresults"><input name="ss"><button type="submit">Search</button></form>
+  <form method="post" action="/x"><input name="n"><button type="submit">Go</button></form>
+  <button onclick="window.booked=1">예약하기</button><button onclick="window.booked2=1">Book now</button>`);
+ for(const label of ['10, Thursday','11, Friday']){
+  const r=await executePrimitive(page,'click',{locator:{css:`[aria-label^="${label}"]`}});
+  assert.equal(r.confirmationRequired,undefined,label);
+ }
+ assert.equal(await page.evaluate(()=>window.day&&window.day2),1);
+ const post=await executePrimitive(page,'click',{locator:{role:'button',name:'Go',exact:true}});
+ assert.equal(post.confirmationRequired,true);assert.equal(post.risk,'unclassified');
+ for(const name of ['예약하기','Book now']){
+  const r=await executePrimitive(page,'click',{locator:{role:'button',name,exact:true}});
+  assert.equal(r.confirmationRequired,true,name+' '+JSON.stringify(r));assert.equal(r.risk,'external_write',name);
+ }
+ assert.equal(await page.evaluate(()=>window.booked||window.booked2||0),0);
+ await page.evaluate(()=>document.querySelector('form[method=get]').addEventListener('submit',e=>{e.preventDefault();window.searched=1;}));
+ const get=await executePrimitive(page,'click',{locator:{role:'button',name:'Search',exact:true}});
+ assert.equal(get.confirmationRequired,undefined);assert.equal(await page.evaluate(()=>window.searched),1);
+});
+
+test('a date query finds the day however the page writes it',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><div role="button" tabindex="0" aria-label="10, Thursday, December 2026. Available">10</div>
+  <div role="button" tabindex="0" aria-label="11, Friday, December 2026">11</div>
+  <div role="gridcell" tabindex="0" aria-label="2026년 12월 12일 토요일">12</div>
+  <button data-testid="calendar-day-12/13/2026">13</button>
+  <button aria-label="Dec 14, 2026">14</button>`);
+ const names=async q=>(await captureSnapshot(page,{query:q})).elements.map(e=>[e.name,e.testId].filter(Boolean).join(' '));
+ assert.ok((await names('2026년 12월 10일')).some(n=>n.startsWith('10, Thursday')));
+ assert.ok(!(await names('12월 10일')).some(n=>n.startsWith('11, Friday')));
+ assert.ok((await names('December 12')).some(n=>n.includes('12월 12일')));
+ assert.ok((await names('2026-12-13')).some(n=>String(n).includes('12/13/2026')));
+ assert.ok((await names('12월 14일')).some(n=>n==='Dec 14, 2026'));
+});

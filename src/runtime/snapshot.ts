@@ -289,6 +289,36 @@ const SNAPSHOT_SCRIPT = `(opts) => {
     const name = cleanStr(el.getAttribute("aria-label")) || (cleanStr(el.innerText) || cleanStr(el.textContent) || "").slice(0, 60) || undefined;
     return { tag, role, name };
   }
+
+  // Dates are written many ways ("12월 10일", "2026-12-10", "10, Thursday, December 2026", "Dec 10"). A query that
+  // names a day matches an element naming the same day in any of these forms.
+  const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const monthOf = (w) => { const i = MONTHS.indexOf(String(w).slice(0, 3).toLowerCase()); return i < 0 ? 0 : i + 1; };
+  const MONTH_WORD = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  function datesIn(text) {
+    const out = [];
+    if (!text) return out;
+    const s = String(text).toLowerCase();
+    const add = (y, m, d) => { m = Number(m); d = Number(d); if (m >= 1 && m <= 12 && d >= 1 && d <= 31) out.push({ y: y ? Number(y) : 0, m, d }); };
+    let r;
+    const ko = /(?:(\\d{4})\\s*년\\s*)?(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일/g;
+    while ((r = ko.exec(s))) add(r[1], r[2], r[3]);
+    const iso = /\\b(\\d{4})[-.\\/](\\d{1,2})[-.\\/](\\d{1,2})\\b/g;
+    while ((r = iso.exec(s))) add(r[1], r[2], r[3]);
+    const us = /\\b(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\b/g;
+    while ((r = us.exec(s))) { if (Number(r[1]) > 12) add(r[3], r[2], r[1]); else add(r[3], r[1], r[2]); }
+    const md = new RegExp("\\\\b" + MONTH_WORD + "\\\\.?\\\\s+(\\\\d{1,2})(?:st|nd|rd|th)?\\\\b(?:,?\\\\s+(\\\\d{4}))?", "g");
+    while ((r = md.exec(s))) add(r[3], monthOf(r[1]), r[2]);
+    const dm = new RegExp("\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?,?\\\\s+(?:[a-z]+day,?\\\\s+)?(?:of\\\\s+)?" + MONTH_WORD + "\\\\b(?:,?\\\\s+(\\\\d{4}))?", "g");
+    while ((r = dm.exec(s))) add(r[3], monthOf(r[2]), r[1]);
+    return out;
+  }
+  const queryDates = datesIn(query);
+  function sameDay(text) {
+    if (!queryDates.length || !text) return false;
+    const found = datesIn(text);
+    return queryDates.some((q) => found.some((f) => f.m === q.m && f.d === q.d && (!q.y || !f.y || q.y === f.y)));
+  }
   function score(e) {
     if (!query) return 1;
     let best = 0;
@@ -299,6 +329,7 @@ const SNAPSHOT_SCRIPT = `(opts) => {
       else if (strong && s.startsWith(query)) best = Math.max(best, 2);
       else if (s.includes(query)) best = Math.max(best, 1);
     }
+    if (best < 2 && [e.name, e.label, e.text, e.testId].some((v) => sameDay(v))) best = 2;
     return best;
   }
 
