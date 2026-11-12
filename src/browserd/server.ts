@@ -1,5 +1,5 @@
 import http from "node:http";
-import type { BrowserContext } from "playwright";
+import type { BrowserContext, Page } from "playwright";
 import type { AppConfig } from "../config";
 import { ensureRuntime } from "../runtime/paths";
 import { ensureToken } from "./token";
@@ -54,9 +54,26 @@ export class BrowserDaemon {
   private requests = new RequestStore();
   private server?: http.Server;
   private networkLogs = new Map<string, any[]>();
-  private networkListeners = new Map<string, { request: (req: any) => void; response: (res: any) => void }>();
+  private networkListeners = new Map<string, { page: Page; request: (req: any) => void; response: (res: any) => void }>();
 
   constructor(private config: AppConfig) { this.chrome = new ChromeManager(config); }
+
+  private stopNetworkCapture(sessionId: string): any[] {
+    const listener = this.networkListeners.get(sessionId);
+    if (listener) {
+      listener.page.off("request", listener.request);
+      listener.page.off("response", listener.response);
+    }
+    this.networkListeners.delete(sessionId);
+    const events = this.networkLogs.get(sessionId) || [];
+    this.networkLogs.delete(sessionId);
+    return events;
+  }
+
+  private clearNetworkCaptures(): void {
+    for (const sessionId of this.networkListeners.keys()) this.stopNetworkCapture(sessionId);
+    this.networkLogs.clear();
+  }
 
   async start(): Promise<void> {
     await ensureRuntime(this.config);
@@ -115,6 +132,7 @@ export class BrowserDaemon {
     try {
       // Capture up-to-date URLs before destroying Playwright handles.
       await this.store().list();
+      this.clearNetworkCaptures();
       await this.chrome.writeDisplayPreference({ headless: false });
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
@@ -149,17 +167,20 @@ export class BrowserDaemon {
       return await learningStatus(this.config, params.sessionId).catch((e: any) => ({ active: false, learningPending: false, warning: e.message }));
     }
     if (method === "session.close") {
+      this.stopNetworkCapture(params.sessionId);
       await this.store().close(params.sessionId);
       const learning = await finishObservedLearning(this.config, params.sessionId).catch((e: any) => ({ learningPending: false, warning: e.message }));
       return { closed: params.sessionId, learning, learning_pending: false };
     }
     if (method === "session.closeAll") {
+      this.clearNetworkCaptures();
       const closed = await this.store().closeAll();
       for (const sessionId of closed) await finishObservedLearning(this.config, sessionId).catch(() => {});
       return { closed, count: closed.length };
     }
     const current = await this.chrome.ensureConnected();
     if (current !== this.context) {
+      this.clearNetworkCaptures();
       this.context = current;
       if (this.sessions) await this.sessions.rebindContext(current);
       else { this.sessions = new SessionStore(current); await this.sessions.adoptExisting(); }
@@ -184,6 +205,8 @@ export class BrowserDaemon {
       };
       const resolved = await resolveChromeProfile(this.config, { preference });
       const saved = await this.chrome.writePreference(preference);
+      if (this.sessions) await this.sessions.list();
+      this.clearNetworkCaptures();
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
@@ -191,6 +214,8 @@ export class BrowserDaemon {
       return { status: "switched", preference: saved, resolved, chrome: repaired.state, takeover: repaired.takeover };
     }
     if (method === "browser.repair") {
+      if (this.sessions) await this.sessions.list();
+      this.clearNetworkCaptures();
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
@@ -201,6 +226,8 @@ export class BrowserDaemon {
       // Changing headless is launch-time only in Chrome - there is no live CDP toggle - so
       // this relaunches the browser. Open tabs are not lost: rebindContext() reopens every
       // tracked session at its last known URL in the new window, same as browser.repair does.
+      if (this.sessions) await this.sessions.list();
+      this.clearNetworkCaptures();
       await this.chrome.writeDisplayPreference({ headless: method === "browser.hide" });
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
@@ -356,8 +383,7 @@ export class BrowserDaemon {
     }
     if (method === "network.start") {
       if (!page) throw new Error("sessionId required");
-      const old = this.networkListeners.get(params.sessionId);
-      if (old) { page.off("request", old.request); page.off("response", old.response); }
+      this.stopNetworkCapture(params.sessionId);
       const logs: any[] = [];
       const safeUrl = (raw: string) => {
         try { const u = new URL(raw); for (const key of [...u.searchParams.keys()]) u.searchParams.set(key, "<redacted>"); return redactText(u.toString()); }
@@ -367,17 +393,12 @@ export class BrowserDaemon {
       const response = (res: any) => { if (logs.length < 500) logs.push({ type: "response", at: new Date().toISOString(), status: res.status(), url: safeUrl(res.url()) }); };
       page.on("request", request); page.on("response", response);
       this.networkLogs.set(params.sessionId, logs);
-      this.networkListeners.set(params.sessionId, { request, response });
+      this.networkListeners.set(params.sessionId, { page, request, response });
       return { started: true };
     }
     if (method === "network.stop") {
       if (!page) throw new Error("sessionId required");
-      const listeners = this.networkListeners.get(params.sessionId);
-      if (listeners) { page.off("request", listeners.request); page.off("response", listeners.response); }
-      this.networkListeners.delete(params.sessionId);
-      const events = this.networkLogs.get(params.sessionId) || [];
-      this.networkLogs.delete(params.sessionId);
-      return { events };
+      return { events: this.stopNetworkCapture(params.sessionId) };
     }
 
     // --- Discovery Tools for Unknown Sites ---
@@ -507,6 +528,7 @@ export class BrowserDaemon {
   }
 
   async stop(): Promise<void> {
+    this.clearNetworkCaptures();
     await new Promise<void>((resolve) => this.server?.close(() => resolve()));
     await this.chrome.stop();
   }
