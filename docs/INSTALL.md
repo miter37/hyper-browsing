@@ -43,7 +43,7 @@ npx --yes hyper-browsing browser start
 
 ## Stable local state
 
-The npm CLI sets `WEBAGENT_RUNTIME_DIR` to `~/.hyper-browsing` unless overridden. This keeps local profiles, browserd token, endpoint and logs outside ephemeral npx package caches. Project source scripts retain their existing project-root `.runtime` default when invoked directly.
+Installed as a package (npx cache or `npm install -g`), the CLI sets `WEBAGENT_RUNTIME_DIR` to `~/.hyper-browsing` unless overridden. This keeps local profiles, browserd token, endpoint and logs outside ephemeral package caches. Run from a source checkout or skill folder, `bin/hyper-browsing.mjs` and `bin/webctl` both use the project-root `.runtime`, so the MCP server and the skill CLI share one daemon and Chrome profile.
 
 The browser RPC listener binds to `127.0.0.1`, requires a local token, and does not expose a remote cloud browser. Avoid sharing runtime directories or MCP process access with untrusted users.
 

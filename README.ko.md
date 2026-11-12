@@ -122,7 +122,7 @@ node bin/hyper-browsing.mjs session list
 node bin/hyper-browsing.mjs mcp
 ```
 
-npm CLI 사용 시 런타임 정보는 기본적으로 `~/.hyper-browsing`에 저장됩니다. `WEBAGENT_RUNTIME_DIR`로 변경할 수 있습니다. 기존 `./bin/webctl`, Windows `bin\\webctl.cmd`도 지원합니다. [전체 명령](docs/COMMANDS.md).
+패키지로 설치하면 런타임 정보는 `~/.hyper-browsing`에, 소스 체크아웃·스킬 폴더에서 실행하면 그 폴더의 `.runtime`에 저장되어 MCP와 `bin/webctl`이 같은 데몬·프로필을 씁니다. `WEBAGENT_RUNTIME_DIR`로 변경할 수 있습니다. 기존 `./bin/webctl`, Windows `bin\\webctl.cmd`도 지원합니다. [전체 명령](docs/COMMANDS.md).
 
 ## 개인정보·보안 원칙
 

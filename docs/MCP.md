@@ -15,7 +15,7 @@ npm ci
 node bin/hyper-browsing.mjs mcp
 ```
 
-The MCP process speaks JSON-RPC over stdin/stdout. It is meant to be started by an MCP client, not used as an interactive terminal. The first actual tool call starts or reuses the browser daemon. The CLI wrapper stores local runtime state in `~/.hyper-browsing` by default so an npm/npx cache cleanup does not discard local sessions. Override with `WEBAGENT_RUNTIME_DIR`.
+The MCP process speaks JSON-RPC over stdin/stdout. It is meant to be started by an MCP client, not used as an interactive terminal. The first actual tool call starts or reuses the browser daemon. A source checkout or skill folder keeps runtime state in its own `.runtime`, the same directory `bin/webctl` uses, so the MCP server and the skill CLI share one daemon, Chrome profile and set of sessions. A packaged copy (npx cache, `npm install -g`) stores it in `~/.hyper-browsing` so a cache cleanup does not discard local sessions. Override either with `WEBAGENT_RUNTIME_DIR`.
 
 ## Client configuration
 
@@ -55,13 +55,20 @@ The npm package name/availability must be verified at publication time. The repo
 | --- | --- |
 | `browser_status` | Inspect Chrome status |
 | `session_open`, `session_list`, `session_close` | Manage tabs |
+| `navigate`, `back` | Move an existing tab |
 | `snapshot`, `list_items`, `forms` | Compact page inspection |
+| `read_text` | Read text, values or attributes of elements |
+| `screenshot`, `wait_for` | Capture the tab; wait for a text or CSS match |
+| `scroll`, `hover` | Reach lazy content and hover menus |
 | `smart_scroll` | Accumulate result items during bounded scrolling |
 | `dismiss_annoyances` | Evidence-based popup handling |
 | `verify` | Read-only page assertions |
 | `click`, `fill`, `select`, `press` | Verified actions on observed targets |
+| `site_identify`, `learning_notes` | Read what is already known about the site |
 | `action_list`, `run_saved_action` | Reuse site assets |
 | `request_status` | Check uncertain requests without replay |
+
+Targets take exactly one of `locator` or `ref`. An ambiguous locator is rejected with its candidates; retry with `nth` (0-based) or `within`. Locator suggestions in results are returned as `locator` objects, ready to pass back as arguments.
 
 **Safety contract:** `click`, `fill`, `press` and `run_saved_action` use the existing shared risk/confirmation engine. If a tool returns `confirmationRequired`, stop and ask the user. Only pass `confirmed: true` for a specific operation that the user has explicitly authorized. No raw arbitrary JavaScript `eval` or unrestricted Node execution is exposed through MCP.
 

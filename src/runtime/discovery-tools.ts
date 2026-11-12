@@ -265,8 +265,17 @@ const LIST_SCRIPT = `(opts) => {
   }
   function shape(el) { return el.tagName + "." + Array.from(el.classList).slice(0, 2).sort().join("."); }
   // Items may be web components whose content lives in their own shadow root.
-  function q(k, sel) { return k.querySelector(sel) || (k.shadowRoot ? k.shadowRoot.querySelector(sel) : null); }
-  function textOf(k) { return clean(k.innerText || (k.shadowRoot ? k.shadowRoot.textContent : "")); }
+  // An item is a unit: one element, or the sibling rows that together form one record.
+  function q(u, sel) {
+    for (const k of u) { const hit = k.querySelector(sel) || (k.shadowRoot ? k.shadowRoot.querySelector(sel) : null); if (hit) return hit; }
+    return null;
+  }
+  function links(u) {
+    const out = [];
+    for (const k of u) { out.push(...k.querySelectorAll("a[href]")); if (k.shadowRoot) out.push(...k.shadowRoot.querySelectorAll("a[href]")); }
+    return out;
+  }
+  function textOf(u) { return clean(u.map((k) => k.innerText || (k.shadowRoot ? k.shadowRoot.textContent : "")).join(" ")); }
   function headingOf(k) { return q(k, "h1, h2, h3, h4, h5, h6, [role=heading]"); }
   const query = (opts.query || "").toLowerCase();
   const CHROME = "nav, header, footer, aside, [role=navigation], [role=banner], [role=contentinfo], [role=complementary], [role=menu], [role=menubar]";
@@ -281,7 +290,26 @@ const LIST_SCRIPT = `(opts) => {
     for (const k of kids) counts[shape(k)] = (counts[shape(k)] || 0) + 1;
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
     if (top[1] < 3) return;
-    const items = kids.filter((k) => shape(k) === top[0] && shown(k) && q(k, "a[href], h1, h2, h3, h4, h5, h6, [role=heading]"));
+    // Striped records: one item spread over a repeating run of sibling shapes (a title row followed by a
+    // details row and a spacer). Reading only the most frequent shape would return the details rows alone.
+    const stripe = Object.keys(counts).filter((s) => counts[s] >= 3 && Math.abs(counts[s] - top[1]) <= 2);
+    let units = null;
+    if (stripe.length > 1) {
+      const seq = kids.filter((k) => stripe.includes(shape(k)));
+      const period = stripe.length;
+      let periodic = 0;
+      for (let i = period; i < seq.length; i++) if (shape(seq[i]) === shape(seq[i - period])) periodic++;
+      if (seq.length > period && periodic / (seq.length - period) >= 0.8) {
+        const anchor = shape(seq[0]);
+        units = [];
+        for (const k of seq) {
+          if (shape(k) === anchor) units.push([k]);
+          else if (units.length && units[units.length - 1].length < period) units[units.length - 1].push(k);
+        }
+      }
+    }
+    if (!units) units = kids.filter((k) => shape(k) === top[0]).map((k) => [k]);
+    const items = units.filter((u) => shown(u[0]) && q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading]"));
     if (items.length < 3) return;
     const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
     if (query && !hits) return;
@@ -295,7 +323,10 @@ const LIST_SCRIPT = `(opts) => {
   const g = groups[0];
   const items = g.items.slice(0, opts.limit).map((k) => {
     const h = headingOf(k);
-    const a = q(k, "a[href]");
+    // Without a heading, an icon-only first link (vote arrow, thumbnail) is not the item's title link.
+    const all = links(k);
+    const named = all.find((l) => clean(l.innerText || l.textContent).length > 1);
+    const a = h || !all.length || clean(all[0].innerText || all[0].textContent) ? all[0] : (named || all[0]);
     return {
       title: clean(h ? (h.innerText || h.textContent) : (a ? (a.innerText || a.textContent) : "")).slice(0, 120) || undefined,
       href: a ? a.href : undefined,

@@ -14,25 +14,36 @@ const tool = (name, description, properties, required, readOnly = false) => ({
 const sessionId = S('Session ID returned by session_open or session_list.');
 const locator = O('One locator such as {"role":"button","name":"Search","exact":true} or {"css":"button.save"}.');
 const ref = S('Current snapshot element reference, e.g. e27. Never reuse after navigation.');
-const target = { locator, ref };
+const nth = { type: 'integer', minimum: 0, maximum: 500, description: 'With locator only: pick the N-th visible match (0-based), using the index from the candidates of an ambiguous result.' };
+const within = S('With locator only: keep matches whose card heading, form or landmark contains this text.');
+const target = { locator, ref, nth, within };
 const confirmation = B('Set true ONLY after the user explicitly approved this external write. Never infer approval.');
-const targetMessage = 'Provide exactly one of locator or ref, never both. Ambiguous targets are rejected; take a new snapshot.';
+const targetMessage = 'Provide exactly one of locator or ref, never both. Ambiguous targets are rejected with candidates; narrow with nth or within, or take a new snapshot.';
 
 export const TOOLS = [
   tool('browser_status', 'Inspect local Chrome/browser daemon status and current sessions.', {}, [], true),
   tool('session_open', 'Open a browser tab and return its stable session ID.', { url: S('HTTP(S) URL to open.'), locale: S('Optional locale, e.g. ko-KR.'), viewport: S('Optional viewport, e.g. 1440x900.') }, ['url']),
   tool('session_list', 'List open browser tabs/sessions.', {}, [], true),
+  tool('navigate', 'Load a URL in an existing session tab and return the resulting page state.', {sessionId, url:S('HTTP(S) URL to load.')}, ['sessionId','url']),
+  tool('back', 'Go back one step in the session tab history.', {sessionId}, ['sessionId']),
   tool('session_close', 'Close one session tab, not the whole browser.', {sessionId}, ['sessionId']),
   tool('snapshot', 'Compact observation of current page with short-lived element references.', {sessionId, query:S('Optional query for relevant controls.'), limit:N('Maximum elements to show.',1,100)}, ['sessionId'], true),
   tool('list_items', 'Extract repeated result cards and their titles/links.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,50)}, ['sessionId'], true),
+  tool('read_text', 'Read the text, value or an attribute of current elements. Use this to read page content; snapshot lists controls, not prose. '+targetMessage, {sessionId,...target, read:S('What to read: text (default), value or attribute.',{enum:['text','value','attribute']}), attribute:S('Attribute name when read is attribute, e.g. href.'), all:B('Return every visible match in order instead of requiring a unique one.'), limit:N('Maximum values when all is true.',1,100)}, ['sessionId'], true),
+  tool('screenshot', 'Save a PNG of the session tab and return its local file path.', {sessionId, fullPage:B('Capture the whole scrollable page instead of the viewport.')}, ['sessionId'], true),
+  tool('wait_for', 'Wait until a text or CSS match appears. Provide text or css.', {sessionId, text:S('Visible text to wait for.'), css:S('CSS selector to wait for.'), timeoutMs:N('Give up after this many milliseconds.',100,30000)}, ['sessionId'], true),
   tool('forms', 'Inspect visible form structure (labels, fields and submit buttons).', {sessionId}, ['sessionId'], true),
   tool('smart_scroll', 'Accumulate distinct visible list items across successive scrolls; no background action or auto-submission.', {sessionId, query:S('Optional text filter.'), rounds:N('Number of scroll rounds, max 8.',1,8), limit:N('Maximum aggregated items, max 100.',1,100)}, ['sessionId']),
+  tool('scroll', 'Scroll the page to trigger lazy loading or reach lower content.', {sessionId, direction:S('down (default) or up.',{enum:['down','up']}), distance:N('Pixels per step.',50,5000), times:N('Number of steps.',1,10)}, ['sessionId']),
+  tool('hover', 'Hover a uniquely identified element to open hover menus or collapsed sub-lists. '+targetMessage, {sessionId,...target}, ['sessionId']),
   tool('dismiss_annoyances', 'Dismiss supported cookie banners and blocking popups using evidence-based UI rules (no forced hiding).', {sessionId}, ['sessionId']),
   tool('verify', 'Read-only assertions for the current page, returning APPLIED/NOT_APPLIED/UNKNOWN.', {sessionId, input:O('Verification JSON with a checks array (max 20).')}, ['sessionId','input'], true),
   tool('click', 'Click a uniquely identified current element. '+targetMessage, {sessionId,...target, confirmed:confirmation}, ['sessionId']),
   tool('fill', 'Fill one input, verify readback; submit is false by default. '+targetMessage, {sessionId,...target, value:S('Text to enter.'), submit:B('Submit with Enter after readback.'),confirmed:confirmation}, ['sessionId','value']),
   tool('select', 'Select one native/custom option. '+targetMessage, {sessionId,...target, option:S('Visible option label.')}, ['sessionId','option']),
   tool('press', 'Press a key on current focus or a given target; Enter can submit. '+targetMessage, {sessionId,...target,key:S('Playwright key, e.g. Enter or Escape.'),confirmed:confirmation}, ['sessionId','key']),
+  tool('site_identify', 'Identify the site of the current page and its known capabilities.', {sessionId}, ['sessionId'], true),
+  tool('learning_notes', 'Read saved know-how for the current site; pass capability to read one note body.', {sessionId, capability:S('Optional capability name from the notes index.')}, ['sessionId'], true),
   tool('action_list', 'List saved actions for this page with lifecycle, risk and evidence.', {sessionId}, ['sessionId'], true),
   tool('run_saved_action', 'Run previously saved site action via shared risk/verification engine. External writes need explicit approval.', {sessionId, actionId:S('Existing saved action ID.'), siteId:S('Optional registered site ID.'), input:O('Action arguments.'), confirmed:confirmation}, ['sessionId','actionId']),
   tool('request_status', 'Inspect the result of a previous uncertain RPC request; never retransmit that request.', {requestId:S('Original RPC request ID.')}, ['requestId'], true),
@@ -57,6 +68,7 @@ export function validateToolInput(name, value) {
     if (!typeOk(v,s.type)) throw new Error('Invalid type for '+key+': expected '+s.type);
     if (s.type==='string' && (v.length===0 || v.length>8192)) throw new Error('Invalid length for '+key);
     if (s.type==='integer' && (v<s.minimum || v>s.maximum)) throw new Error('Out of range: '+key);
+    if (s.enum && !s.enum.includes(v)) throw new Error('Invalid value for '+key+': expected one of '+s.enum.join(', '));
   }
   if (Object.hasOwn(properties,'locator')) {
     const a=value.locator!==undefined,b=value.ref!==undefined;
@@ -67,22 +79,74 @@ export function validateToolInput(name, value) {
       if(keys.filter(k=>typeof value.locator[k]==='string'&&value.locator[k]).length!==1)throw new Error('Locator requires exactly one primary strategy');
     }
     if (b && !/^@?e\d+$/.test(value.ref))throw new Error('Invalid element ref');
+    if (!a && (value.nth!==undefined || value.within!==undefined)) throw new Error('nth and within require a locator');
   }
-  if (name==='session_open' && !/^https?:\/\//i.test(value.url)) throw new Error('Only HTTP(S) navigation is accepted');
+  if ((name==='session_open'||name==='navigate') && !/^https?:\/\//i.test(value.url)) throw new Error('Only HTTP(S) navigation is accepted');
+  if (name==='wait_for' && (value.text===undefined)===(value.css===undefined)) throw new Error('Provide exactly one of text or css');
+  if (name==='read_text' && value.read==='attribute' && !value.attribute) throw new Error('read attribute requires attribute');
   if (name==='verify' && (!Array.isArray(value.input.checks) || value.input.checks.length>20)) throw new Error('verify.input.checks must be an array with at most 20 checks');
   return t;
 }
 const copy = (v,keys) => Object.fromEntries(keys.filter(k=>v[k]!==undefined).map(k=>[k,v[k]]));
-const actionArgs = v => ({...copy(v,['sessionId','locator','ref','value','option','key','submit','confirmed'])});
+const actionArgs = v => ({...copy(v,['sessionId','locator','ref','nth','within','value','option','key','submit','confirmed'])});
+
+// The daemon phrases its guidance for the CLI. MCP clients have no flags, so translate that
+// guidance into tool arguments and keep listings small enough to read.
+const MAX_URL = 200;
+const FLAG_KEYS = {role:'role',name:'name',text:'text',label:'label',placeholder:'placeholder',css:'css',testid:'testId',within:'within'};
+/** '--role button --name "Save" --exact' -> {role:'button',name:'Save',exact:true}; null when not understood. */
+export function locatorFromCliFlags(use) {
+  const out = {}; let rest = String(use).trim();
+  const flag = /^--([a-z-]+)(?:\s+("(?:[^"\\]|\\.)*"|(?!--)\S+))?\s*/;
+  while (rest) {
+    const m = flag.exec(rest); if (!m) return null;
+    rest = rest.slice(m[0].length);
+    const key = m[1]; let v = m[2];
+    if (v !== undefined && v.startsWith('"')) { try { v = JSON.parse(v); } catch { return null; } }
+    if (key === 'exact' && v === undefined) out.exact = true;
+    else if (key === 'nth' && /^\d+$/.test(v || '')) out.nth = Number(v);
+    else if (FLAG_KEYS[key] && v !== undefined) out[FLAG_KEYS[key]] = v;
+    else return null;
+  }
+  return Object.keys(out).length ? out : null;
+}
+const MCP_AMBIGUOUS_HINT = 'Several visible elements match. Retry with nth (0-based index from candidates), within (heading or section text), or a more specific locator.';
+export function toMcpDialect(value, trimUrls = false, depth = 0) {
+  if (depth > 12 || value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(v => toMcpDialect(v, trimUrls, depth + 1));
+  const out = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === 'use' && typeof v === 'string' && v.startsWith('--')) {
+      const parsed = locatorFromCliFlags(v);
+      if (parsed) { const {nth: n, within: w, ...loc} = parsed; out.locator = loc; if (n !== undefined) out.nth = n; if (w !== undefined) out.within = w; }
+      else out.use = v;
+    } else if (key === 'hint' && typeof v === 'string' && v.includes('--nth')) out.hint = MCP_AMBIGUOUS_HINT;
+    else if (trimUrls && key === 'url' && typeof v === 'string' && v.length > MAX_URL) { out.url = v.slice(0, MAX_URL) + '…'; out.urlTruncated = true; }
+    else out[key] = toMcpDialect(v, trimUrls, depth + 1);
+  }
+  return out;
+}
 const rpc = (call,method,params) => call(method,params);
 
 /** runTool returns the daemon result, not a synthesized claim of task success. */
 export async function runTool(name,args,call) {
+  return toMcpDialect(await runDaemonTool(name,args,call), name==='browser_status'||name==='session_list');
+}
+async function runDaemonTool(name,args,call) {
   validateToolInput(name,args);
   switch(name){
     case 'browser_status': return rpc(call,'browser.status',{});
     case 'session_open': return rpc(call,'session.open',copy(args,['url','viewport','locale']));
     case 'session_list': return rpc(call,'session.list',{});
+    case 'navigate': return rpc(call,'page.goto',copy(args,['sessionId','url']));
+    case 'back': return rpc(call,'page.back',copy(args,['sessionId']));
+    case 'read_text': return rpc(call,'page.extract',{...copy(args,['sessionId','locator','ref','nth','within','attribute','all','limit']),read:args.read||'text',learn:false});
+    case 'screenshot': return rpc(call,'page.screenshot',{sessionId:args.sessionId,fullPage:Boolean(args.fullPage)});
+    case 'wait_for': return rpc(call,'page.waitFor',copy(args,['sessionId','text','css','timeoutMs']));
+    case 'scroll': return rpc(call,'page.scroll',{sessionId:args.sessionId,direction:args.direction||'down',distance:args.distance,times:args.times});
+    case 'hover': return rpc(call,'page.hover',copy(args,['sessionId','locator','ref','nth','within']));
+    case 'site_identify': return rpc(call,'site.identify',copy(args,['sessionId']));
+    case 'learning_notes': return rpc(call,'learning.notes',copy(args,['sessionId','capability']));
     case 'session_close': return rpc(call,'session.close',copy(args,['sessionId']));
     case 'snapshot': return rpc(call,'page.snapshot',copy(args,['sessionId','query','limit']));
     case 'list_items': return rpc(call,'page.list',copy(args,['sessionId','query','limit']));

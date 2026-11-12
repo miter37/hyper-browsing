@@ -20,7 +20,11 @@ process.stdout.write('Hyper-Browsing — local-first browser automation for AI a
 };
 if(!argv.length||['help','--help','-h'].includes(argv[0])){help();process.exit(0);}
 if(argv[0]==='--version'||argv[0]==='-v'){process.stdout.write('0.3.0\n');process.exit(0);}
-const runtime=process.env.WEBAGENT_RUNTIME_DIR||path.join(os.homedir(),'.hyper-browsing');
+// One install = one runtime. A checkout or skill folder shares <root>/.runtime with bin/webctl,
+// so the MCP server and the skill CLI drive the same daemon, Chrome profile and sessions.
+// Only a packaged copy (npx cache, npm -g) keeps its state in ~/.hyper-browsing, outside node_modules.
+const packaged=ROOT.split(path.sep).includes('node_modules');
+const runtime=process.env.WEBAGENT_RUNTIME_DIR||(packaged?path.join(os.homedir(),'.hyper-browsing'):path.join(ROOT,'.runtime'));
 const env={...process.env,WEBAGENT_HOME:ROOT,WEBAGENT_RUNTIME_DIR:runtime};
 const command=argv[0];
 let target,args;

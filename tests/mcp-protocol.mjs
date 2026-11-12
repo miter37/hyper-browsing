@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {createMcpHandler} from '../scripts/mcp-server.mjs';
-import {TOOLS,runTool,validateToolInput} from '../scripts/mcp-tools.mjs';
+import {TOOLS,runTool,validateToolInput,locatorFromCliFlags} from '../scripts/mcp-tools.mjs';
 
 const msg=(method,id,params)=>({jsonrpc:'2.0',id,method,params});
 test('MCP initialize, tools/list, ping and notification contract',async()=>{
@@ -69,4 +69,38 @@ test('stdio wire contains only JSON-RPC and exits after stdin closes',async()=>{
   const events=stdout.trim().split('\n').map(JSON.parse);
   assert.deepEqual(events.map(e=>e.id).sort(),[1,2,3]);
   assert.equal(events.find(e=>e.id===2).result.tools.length,TOOLS.length);
+});
+test('read and navigation tools reach the daemon with narrowing arguments',async()=>{
+  const calls=[];const call=async(method,params)=>{calls.push({method,params});return {ok:true};};
+  await runTool('read_text',{sessionId:'s',locator:{css:'.temp'},nth:1,all:true},call);
+  assert.deepEqual(calls[0],{method:'page.extract',params:{sessionId:'s',locator:{css:'.temp'},nth:1,all:true,read:'text',learn:false}});
+  await runTool('navigate',{sessionId:'s',url:'https://example.com/'},call);
+  assert.equal(calls[1].method,'page.goto');
+  await runTool('click',{sessionId:'s',locator:{role:'link',name:'hide'},nth:2,within:'Top'},call);
+  assert.deepEqual(calls[2].params,{sessionId:'s',locator:{role:'link',name:'hide'},nth:2,within:'Top'});
+  for(const [name,args] of [
+    ['read_text',{sessionId:'s',ref:'e1',nth:0}],
+    ['read_text',{sessionId:'s',locator:{css:'a'},read:'html'}],
+    ['navigate',{sessionId:'s',url:'file:///etc/passwd'}],
+    ['wait_for',{sessionId:'s'}],
+  ]) assert.throws(()=>validateToolInput(name,args),undefined,name);
+  assert.equal(calls.length,3);
+});
+test('daemon guidance is translated from CLI flags to tool arguments',async()=>{
+  assert.deepEqual(locatorFromCliFlags('--role button --name "Save \\"all\\"" --exact'),{role:'button',name:'Save "all"',exact:true});
+  assert.equal(locatorFromCliFlags('free text'),null);
+  const ambiguous=await runTool('click',{sessionId:'s',locator:{role:'link',name:'hide'}},async()=>({ok:false,ambiguous:true,
+    hint:'Several visible elements match. Re-run with --nth N (from candidates), --within "<heading/section text>", or a more specific locator.'}));
+  assert.equal(/--nth|--within/.test(ambiguous.hint),false);
+  assert.match(ambiguous.hint,/\bnth\b.*\bwithin\b/);
+  const snap=await runTool('snapshot',{sessionId:'s'},async()=>({snapshot:{url:'https://x/'+'a'.repeat(400),collapsed:[{tag:'a',name:'More',use:'--text "More" --exact'}]}}));
+  assert.deepEqual(snap.snapshot.collapsed[0],{tag:'a',name:'More',locator:{text:'More',exact:true}});
+  assert.equal(snap.snapshot.url.length,410); // page URLs stay whole outside listings
+});
+test('session listings keep long URLs short',async()=>{
+  const long='https://accounts.example/signin?'+'q'.repeat(2000);
+  const status=await runTool('browser_status',{},async()=>({status:'ok',sessions:[{id:'a',url:long},{id:'b',url:'https://x/'}]}));
+  assert.equal(status.sessions[0].url.length,201);
+  assert.equal(status.sessions[0].urlTruncated,true);
+  assert.deepEqual(status.sessions[1],{id:'b',url:'https://x/'});
 });

@@ -184,6 +184,17 @@ try {
   const list = await listItems(page, { limit: 5 });
   check("list reads repeated items in order", list.found && list.items[0].title === "Alpha crate" && list.total === 3, JSON.stringify(list));
 
+  // One record spread over sibling rows: icon-only vote link + title row, then a details row, then a spacer.
+  await page.setContent(`<table><tbody>${[["Alpha story", "ann"], ["Beta story", "bob"], ["Gamma story", "cy"], ["Delta story", "di"]].map(([t, u], i) => `
+    <tr class="athing"><td>${i + 1}.</td><td><a href="/vote?id=${i}"><div style="width:10px;height:10px"></div></a></td><td><a href="https://example.com/${i}">${t}</a></td></tr>
+    <tr><td colspan="2"></td><td>${10 + i} points by <a href="/user?id=${u}">${u}</a> | <a href="/item?id=${i}">${i} comments</a></td></tr>
+    <tr class="spacer" style="height:5px"><td></td></tr>`).join("")}
+    <tr><td><a href="/more">More</a></td></tr></tbody></table>`);
+  const striped = await listItems(page, { limit: 5 });
+  check("list reads a record spread over sibling rows by its title link",
+    striped.found && striped.total === 4 && striped.items[0].title === "Alpha story" && striped.items[0].href === "https://example.com/0"
+      && striped.items[0].text.includes("points by ann") && striped.items[3].title === "Delta story", JSON.stringify(striped));
+
   await page.setContent(`<nav><ul><li><a href="/x">Home</a></li><li><a href="/y">About</a></li><li><a href="/z">Blog</a></li><li><a href="/w">Jobs</a></li></ul></nav>
     <main><div id="res"></div></main>
     <script>

@@ -122,7 +122,7 @@ node bin/hyper-browsing.mjs session list
 node bin/hyper-browsing.mjs mcp
 ```
 
-The npm entry point retains runtime data at `~/.hyper-browsing` (override via `WEBAGENT_RUNTIME_DIR`). The existing `./bin/webctl` and Windows `bin\\webctl.cmd` remain compatible. [Full command reference](docs/COMMANDS.md).
+A packaged install keeps runtime data at `~/.hyper-browsing`; a source checkout or skill folder uses its own `.runtime`, shared by MCP and `bin/webctl` (override via `WEBAGENT_RUNTIME_DIR`). The existing `./bin/webctl` and Windows `bin\\webctl.cmd` remain compatible. [Full command reference](docs/COMMANDS.md).
 
 ## Safety, privacy and transparency
 
