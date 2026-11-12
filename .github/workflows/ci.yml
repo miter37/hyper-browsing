@@ -36,8 +36,11 @@ jobs:
       - run: npm run validate:sites
       - name: Learning tests
         run: npm run test:learning
-      - name: Execution and regression tests
-        if: ${{ !cancelled() }}
+      - name: Execution and regression tests (Linux virtual display)
+        if: ${{ !cancelled() && runner.os == 'Linux' }}
+        run: xvfb-run -a npm run test:execution
+      - name: Execution and regression tests (Windows)
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         run: npm run test:execution
       - name: Chrome manager scenarios
         if: ${{ !cancelled() }}
