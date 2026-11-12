@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -17,20 +18,12 @@ function run(args, env = {}) {
 }
 test("CLI exposes help/version without starting the daemon", () => {
   assert.match(run(["--help"]), /hyper-browsing mcp/);
-  const pkg = JSON.parse(requireFile("package.json"));
+  const pkg = JSON.parse(fsSync.readFileSync(path.join(ROOT, "package.json"), "utf8"));
   assert.equal(run(["--version"]).trim(), pkg.version);
   assert.equal(pkg.bin["hyper-browsing"], "bin/hyper-browsing.mjs");
   assert.equal(pkg.private, undefined);
   assert.equal(typeof pkg.dependencies.tsx, "string");
 });
-function requireFile(name) {
-  const fsSync = requireFromNode();
-  return fsSync.readFileSync(path.join(ROOT, name), "utf8");
-}
-function requireFromNode() { return requireCompat(); }
-import { createRequire } from "node:module";
-const requireCompat = createRequire(import.meta.url);
-
 test("npx-style invocation saves site assets in a persistent workspace", async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hb-cli-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
