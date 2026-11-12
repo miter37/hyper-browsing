@@ -37,6 +37,12 @@ export async function validateSites(config: AppConfig, siteId?: string) {
         for (const fp of state.variants) if (!site.fingerprints[fp]) errors.push(`state ${stateId} references missing fingerprint: ${fp}`);
         if (state.readyWhen) checkCondition(state.readyWhen, `state ${stateId}.readyWhen`);
       }
+      for (const [elementId, element] of Object.entries(site.elements)) {
+        for (const strategy of element.strategies) {
+          if (strategy.css && /\{\{?[a-zA-Z0-9_.-]+\}?\}/.test(strategy.css))
+            errors.push(`element ${elementId} interpolates CSS; use css + hasText to bind dynamic text`);
+        }
+      }
       for (const [extractorId, ex] of Object.entries(site.extractors)) if (!site.elements[ex.element]) errors.push(`extractor ${extractorId} references missing element: ${ex.element}`);
       for (const [pcId, pc] of Object.entries(site.preconditions)) checkCondition(pc, `precondition ${pcId}`);
 

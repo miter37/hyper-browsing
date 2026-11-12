@@ -72,3 +72,6 @@ external_write / irreversible / unclassified 동작은 현재 작업에 대한 �
 observation.complete=false는 부분 관찰이다. pageState의 blocked/navigation_error/loading/partial/unknown이면 필요한 현재 증거를 다시 확인한다. 새 탭의 setupStatus=partial은 부모 설정 적용 실패를 뜻한다.
 
 verify는 읽기 전용이며 자산을 저장하지 않는다. APPLIED는 지정한 모든 조건 충족, NOT_APPLIED는 확인된 불일치, UNKNOWN은 판독 불가 또는 빈 조건이다. 요청에 필요한 조건을 빠뜨리면 검증 명령이 성공해도 과업 완료가 아니다. 사용법은 [결과 검증](docs/VERIFICATION.md)을 읽는다.
+
+
+Advanced privilege boundary: `webctl eval` is disabled unless `WEBAGENT_ALLOW_UNSAFE_EVAL=1` and the command includes `--confirm`. Saved TypeScript code actions are disabled unless `WEBAGENT_ALLOW_CODE_ACTIONS=1`; they run with local Node privileges and are not sandboxed. Do not treat either as an ordinary read-only tool.

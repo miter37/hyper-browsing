@@ -231,6 +231,8 @@ Hyper-Browsing is designed around local browser control and reusable local autom
 ### 10. Privacy & Security Policy
 
 - **No credentials, login cookies, tokens, or personal identifiers are stored in this repository.**
+- **Privileged operations are opt-in:** `webctl eval` requires `WEBAGENT_ALLOW_UNSAFE_EVAL=1` and `--confirm`; saved `actions.ts` code modules require `WEBAGENT_ALLOW_CODE_ACTIONS=1`. Both are disabled by default. Raw evaluation and custom code are not sandboxed and can bypass the ordinary click safety checks.
+- **Trusted local scripts:** Scripts directly invoked with `node sites/<site>/scripts/*.mjs` are trusted local programs outside the daemon permission gate. Review them before use.
 - Session profiles and cookies are kept in your local `.runtime/` directory and excluded from Git tracking. Data surfaced to the AI agent is subject to the privacy behavior of the agent/model provider you connect.
 
 ---

@@ -33,7 +33,7 @@ webctl diff --session ID --before FILE     # compare before/after snapshot to de
 webctl api-sniff --session ID              # capture clean JSON API calls from backend
 webctl network start --session ID          # begin recording raw requests
 webctl network stop  --session ID          # stop and return them
-webctl eval --session ID --expr "JS..."    # evaluate JavaScript & extract structured data directly
+webctl eval --session ID --expr "JS..." --confirm  # privileged: requires WEBAGENT_ALLOW_UNSAFE_EVAL=1
 
 # --- act on the page ----------------------------------------------------
 webctl goto    --session ID --url URL
@@ -174,3 +174,16 @@ webctl verify --session ID --input-file checks.json
 ```
 
 최대 20개 명시 조건, 전체 기본 5초. 조건별 기대값·관찰값과 APPLIED/NOT_APPLIED/UNKNOWN을 반환한다. 실행이나 자산 저장은 하지 않는다. 입력 형식과 예시는 [VERIFICATION.md](VERIFICATION.md). 기존 @e27 참조를 PowerShell에 직접 전달할 때는 `--ref '@e27'`처럼 감싼다.
+
+
+## 고급 실행 권한과 템플릿
+
+`webctl eval`은 브라우저 상태 변경 및 임의 네트워크 전송이 가능하므로 기본 비활성화됩니다. 신뢰할 수 있는 로컬 실행에서만 `WEBAGENT_ALLOW_UNSAFE_EVAL=1`을 설정하고 명시적으로 `--confirm`을 전달하세요. 저장된 `actions.ts` 코드 액션은 Node.js 프로세스 권한으로 실행되며 기본 비활성화됩니다. 신뢰할 수 있는 코드에만 `WEBAGENT_ALLOW_CODE_ACTIONS=1`을 설정하세요. 코드 스캔은 샌드박스가 아닙니다.
+
+사이트 설정의 `{{variable}}`과 이전 `{variable}` 표기를 지원합니다. URL의 변수는 URL 구성요소로 인코딩됩니다. 동적 CSS 부분 문자열 대신 안전한 텍스트 필터를 사용합니다:
+
+```yaml
+strategies:
+  - css: a.item_link
+    hasText: "{{complexName}}"
+```
