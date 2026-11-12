@@ -1,0 +1,15 @@
+site:
+  id: linkedin
+  name: "LinkedIn"
+  version: 1
+match:
+  hosts:
+    - www.linkedin.com
+    - linkedin.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

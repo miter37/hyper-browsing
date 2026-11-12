@@ -1,0 +1,15 @@
+site:
+  id: coinbase
+  name: "Coinbase"
+  version: 1
+match:
+  hosts:
+    - www.coinbase.com
+    - coinbase.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

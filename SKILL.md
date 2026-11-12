@@ -49,6 +49,12 @@ external_write / irreversible / unclassified 동작은 현재 작업에 대한 �
 
 쓰기 결과가 불명확하면 먼저 APPLIED / NOT_APPLIED / UNKNOWN을 확인한다. APPLIED는 재실행하지 않는다. UNKNOWN이면 중복 실행을 중지하고 사용자에게 상태를 알린다. 로그인·CAPTCHA·2FA는 browser reveal로 사용자의 직접 처리를 요청하며 강제로 우회하지 않는다.
 
+## 아는 사이트와 사이트 메모
+
+사이트를 처음 열면 결과에 `siteMemory`가 붙을 수 있다. 등록 사이트의 저장 액션(`actions`), 가이드 섹션(`guide`), 이전 방문에서 관찰된 사실(`notes`: 검색 URL 형태, 필터·정렬이 바꾸는 파라미터, 내용이 든 frame, 차단)이다. 맞는 저장 액션이 있으면 직접 조작보다 먼저 `run_saved_action`(입력은 설명의 중괄호 이름)으로 실행하고 결과 화면에서 조건을 확인한다. 가이드 섹션은 `learning_notes` capability `guide:<섹션>`으로 읽는다. 메모는 엔진이 세션 종료 때 관찰로부터 자동 저장한다(`WEBAGENT_SITE_MEMORY=auto|suggest|off`, 기본 auto). 틀린 메모는 `site_memory_save`의 remove로 지운다.
+
+저장 액션이 실패하면 결과의 `repair`를 읽는다. 사용자 작업을 관찰로 끝낸 뒤 실제로 쓴 컨트롤을 `site_repair`로 저장한다(현재 페이지에서 유일하게 보이는 요소일 때만 저장된다). 읽기 액션은 느슨한 매칭으로 다시 찾고 검증되면 스스로 고쳐진다.
+
 ## 최소 학습과 자산 복구
 
 첫 작업에는 사이트 고유 노하우만 짧게 저장한다. 최근 30일 내 독립 작업 2회부터 관찰한 액션을, 7회부터 기존 액션을 참조하는 얕은 탐색 러너를 저장할 수 있다. 생성은 의무가 아니다. 노하우·생성 예산·갱신 주기·명시 요청 예외는 docs/LEARNING.md를 따른다.

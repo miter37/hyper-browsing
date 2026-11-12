@@ -1,0 +1,32 @@
+site:
+  id: cnn
+  name: CNN
+  version: 1
+match:
+  hosts:
+    - www.cnn.com
+    - edition.cnn.com
+    - cnn.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.cnn.com/search?q={query}&sort=newest
+actions:
+  search:
+    description: News search for {query}, newest first
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://*cnn.com/search*q=*

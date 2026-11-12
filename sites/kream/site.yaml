@@ -1,0 +1,15 @@
+site:
+  id: kream
+  name: "KREAM"
+  version: 1
+match:
+  hosts:
+    - kream.co.kr
+    - www.kream.co.kr
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

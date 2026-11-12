@@ -6,7 +6,7 @@ import { ensureToken } from "./token";
 import { SessionStore } from "./session-store";
 import { captureSnapshot, saveSnapshot } from "../runtime/snapshot";
 import { actOn, fillOrSelect, goHistory } from "../engine/interact";
-import { locatorFromStrategy } from "../engine/locators";
+import { locatorFromStrategy, resolveUnique } from "../engine/locators";
 import { detectBlock, settle } from "../engine/page-state";
 import { identifySite } from "../engine/identify";
 import { runKnownAction } from "../engine/action-runner";
@@ -33,6 +33,7 @@ import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from ".
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
 import { findFrame, frameView, listFrames, FRAME_HINT } from "./frame-view";
+import { recordMemoryStep, describeUrlChange, rememberTyped, memoryFor, closeMemory, draftMemory, acceptDraft, saveFacts, removeNotes, siteGuide } from "../runtime/site-memory";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
 // A page-load popup watch stops at the first of these: from then on a new dialog may be the agent's own doing.
@@ -157,6 +158,72 @@ export class BrowserDaemon {
     this.loadPopupWatch.set(sessionId, { log, stop: async () => { active = false; await running; } });
   }
 
+  // Which site memories a session has already been shown, so a site's notes appear once per session.
+  private memoryShown = new Map<string, Set<string>>();
+  private async memoryKey(page: Page, sessionId: string): Promise<{ key: string; host: string } | undefined> {
+    const ctx: any = await learningContext(this.config, page, sessionId).catch(() => null);
+    return ctx?.key ? { key: ctx.key, host: ctx.host } : undefined;
+  }
+  /** After a page loads: note what the load showed, and hand over saved memory for a site seen for the first time. */
+  private async afterLoadMemory(page: Page, sessionId: string, kind: "open" | "goto", before: string, result: any) {
+    if (!page || !sessionId || !result || typeof result !== "object") return;
+    const site = await this.memoryKey(page, sessionId);
+    if (!site) return;
+    const url = page.url();
+    const blocked = result.blocked || result.effect?.blocked || result.pageState?.blocked;
+    if (blocked) await recordMemoryStep(this.config, sessionId, { kind: "blocked", host: site.host, key: site.key, path: new URL(url).origin + new URL(url).pathname, blocked: { kind: blocked.kind, evidence: blocked.evidence || "" } });
+    else {
+      const change = describeUrlChange(sessionId, before, url);
+      if (change.queryParam) await recordMemoryStep(this.config, sessionId, { kind, host: site.host, key: site.key, path: new URL(url).origin + new URL(url).pathname, ...change });
+    }
+    const shown = this.memoryShown.get(sessionId) || new Set<string>();
+    if (!shown.has(site.key)) {
+      const memory: any = await memoryFor(this.config, site.key, site.host).catch(() => undefined);
+      const known = await this.knownSiteBriefing(page).catch(() => undefined);
+      if (memory || known) result.siteMemory = { ...(known || {}), ...(memory || {}),
+        hint: [known?.hint, memory?.hint].filter(Boolean).join(" ") };
+      shown.add(site.key); this.memoryShown.set(sessionId, shown);
+    }
+  }
+
+  /** A registered site: its saved actions and the sections of its guide, so they are used without being asked for. */
+  private async knownSiteBriefing(page: Page) {
+    const identified = await identifySite(this.config, page);
+    if (!identified) return undefined;
+    const def: any = identified.loaded.definition;
+    const actions = Object.entries(def.actions || {}).slice(0, 8).map(([id, a]: [string, any]) => `${id}${a.description ? ": " + String(a.description).slice(0, 90) : ""}`);
+    const guide = await siteGuide(identified.loaded.dir);
+    if (!actions.length && !guide?.sections.length) return undefined;
+    return {
+      site: def.site.id,
+      ...(actions.length ? { actions } : {}),
+      ...(guide?.sections.length ? { guide: guide.sections } : {}),
+      hint: `Known site "${def.site.id}".` + (actions.length ? " Saved actions run with run_saved_action (check the result)." : "")
+        + (guide?.sections.length ? " Read a guide section with learning_notes capability \"guide:<section>\"." : ""),
+    };
+  }
+
+  private async recordStepMemory(page: Page, params: any, kind: string, before: string, result: any) {
+    const site = await this.memoryKey(page, params.sessionId);
+    if (!site) return;
+    const after = page.url();
+    const blocked = result.effect?.blocked;
+    const base = { host: site.host, key: site.key, path: (() => { try { const u = new URL(after); return u.origin + u.pathname; } catch { return ""; } })() };
+    if (blocked) return recordMemoryStep(this.config, params.sessionId, { ...base, kind: "blocked", blocked: { kind: blocked.kind, evidence: blocked.evidence || "" } });
+    const frameUrl = params.frame !== undefined ? (page as any).mainFrame?.().url?.() : undefined;
+    const change: any = after !== before ? describeUrlChange(params.sessionId, before, after) : {};
+    // No URL change, but the control itself became checked/selected/pressed: a filter or sort applied in place.
+    const changedState = Object.keys(result.effect?.targetChanged || {}).find((k) => ["checked", "selected", "pressed"].includes(k));
+    let stateChange: string | undefined;
+    if (after === before && changedState && ["click", "select"].includes(kind)) {
+      stateChange = changedState;
+      change.keptParams = describeUrlChange(params.sessionId, after, after).keptParams;
+    }
+    if (!change.queryParam && !change.setParams && !stateChange && params.frame === undefined) return;
+    const control = params.locator ? { ...params.locator } : referencesFor(page).semanticLocator(params.ref) || undefined;
+    await recordMemoryStep(this.config, params.sessionId, { ...base, kind: kind as any, control: control as any, frame: params.frame, frameUrl, submit: Boolean(params.submit), stateChange, ...change });
+  }
+
   private store(): SessionStore {
     if (!this.sessions) throw new Error("browserd not started");
     return this.sessions;
@@ -227,7 +294,9 @@ export class BrowserDaemon {
       this.clearNetwork(params.sessionId);
       await this.store().close(params.sessionId);
       const learning = await finishObservedLearning(this.config, params.sessionId).catch((e: any) => ({ learningPending: false, warning: e.message }));
-      return { closed: params.sessionId, learning, learning_pending: false };
+      const siteMemory = await closeMemory(this.config, params.sessionId).catch(() => undefined);
+      this.memoryShown.delete(params.sessionId);
+      return { closed: params.sessionId, learning, learning_pending: false, ...(siteMemory ? { siteMemory } : {}) };
     }
     if (method === "session.closeAll") {
       this.clearNetwork();
@@ -314,6 +383,7 @@ export class BrowserDaemon {
       if (params.url && !opened.navigationError) {
         const blocked = await detectBlock(this.store().get(opened.id));
         if (blocked) opened.blocked = blocked;
+        await this.afterLoadMemory(this.store().get(opened.id), opened.id, "open", "", opened).catch(() => {});
       }
       return opened;
     }
@@ -348,7 +418,10 @@ export class BrowserDaemon {
     }
     if (page && ["page.click", "page.hover", "page.fill", "page.select", "page.press"].includes(method)) {
       const kind = method.slice(5) as "click" | "hover" | "fill" | "select" | "press";
+      const urlBefore = page.url();
+      if (kind === "fill") rememberTyped(params.sessionId, params.value);
       const result = await executePrimitive(page, kind, params);
+      if (result.ok && kind !== "hover") await this.recordStepMemory(page, params, kind, urlBefore, result).catch(() => {});
       if (result.ok && kind !== "hover") await recordLearningEvent(this.config, page, params.sessionId, kind === "select" ? "fill" : kind, {
         locator: params.locator ? { ...params.locator, ...(params.within ? { within: params.within } : {}) } : referencesFor(page).semanticLocator(params.ref),
         valuePresent: Boolean(params.value || params.option), key: params.key,
@@ -360,13 +433,44 @@ export class BrowserDaemon {
     }
     if(method==='page.verify'){
       if(!page)throw new Error('sessionId required');
-      return verifyPage(page,params.input);
+      const verdict = await verifyPage(page,params.input);
+      const ok = (verdict?.details || []).filter((d: any) => d.ok && d.type === "url_param");
+      if (ok.length) {
+        const site = await this.memoryKey(page, params.sessionId);
+        const checks = (params.input?.checks || []).filter((c: any) => c?.type === "url_param");
+        const verified = ok.map((d: any) => ({ name: String(checks[d.index]?.name ?? ""), expected: String(d.expected ?? "") })).filter((v: any) => v.name);
+        if (site && verified.length) await recordMemoryStep(this.config, params.sessionId, { kind: "verify", host: site.host, key: site.key, path: "", verified });
+      }
+      return verdict;
+    }
+    if (method === "memory.draft" || method === "memory.save") {
+      const facts = await draftMemory(this.config, params.sessionId);
+      if (method === "memory.draft") return { draft: facts.map((f) => ({ id: f.id, text: f.text })) };
+      const key = page ? (await this.memoryKey(page, params.sessionId))?.key : facts[0]?.key;
+      const out: any = {};
+      if (Array.isArray(params.accept) && params.accept.length) out.accepted = await acceptDraft(this.config, params.sessionId, params.accept.map(String));
+      if (Array.isArray(params.notes) && params.notes.length) {
+        if (!key) throw new Error("Open the site in this session first");
+        const notes = params.notes.slice(0, 5).map((n: any) => ({ id: String(n.capability || "note").slice(0, 100), capability: String(n.capability || "note").slice(0, 100), text: String(n.text || "").trim().slice(0, 400), key, evidence: "written by the agent" })).filter((n: any) => n.text);
+        out.noted = await saveFacts(this.config, notes, "agent");
+      }
+      if (Array.isArray(params.remove) && params.remove.length) {
+        if (!key) throw new Error("Open the site in this session first");
+        out.removed = await removeNotes(this.config, key, params.remove.map(String));
+      }
+      return { ok: true, ...out };
     }
     let learningPolicy: any;
     if (page) learningPolicy = await learningContext(this.config, page, params.sessionId).catch((e: any) => ({ warning: e.message }));
     if (method === "learning.notes" || method === "learning.notes.save") {
       if (!page || !learningPolicy?.key) throw new Error("Observe an HTTP(S) site first");
       if (method === "learning.notes.save") return saveNotes(this.config, params.sessionId, learningPolicy.key, params.notes || params.input?.notes);
+      if (typeof params.capability === "string" && params.capability.startsWith("guide:")) {
+        const identified = await identifySite(this.config, page);
+        const guide = identified ? await siteGuide(identified.loaded.dir, params.capability.slice(6).trim()) : undefined;
+        return guide ? { site: identified!.loaded.definition.site.id, section: params.capability.slice(6).trim(), text: guide.text ?? null, sections: guide.text ? undefined : guide.sections }
+          : { ok: false, reason: "no_guide", hint: "This site has no guide (sites/<id>/SKILL.md)." };
+      }
       const notes = await readNotes(this.config, learningPolicy.key, params.capability);
       // Index first; text is only loaded for a selected capability.
       return { policy: learningPolicy, notes: params.capability ? notes : notes.map(({ text, ...index }) => index) };
@@ -395,9 +499,11 @@ export class BrowserDaemon {
     }
     if (method === "page.goto") {
       if (!page) throw new Error("sessionId required");
+      const urlBefore = page.url();
       const res: any = await navigate(page, params.url);
       const blocked = await detectBlock(page);
       if (blocked) res.blocked = blocked;
+      await this.afterLoadMemory(page, params.sessionId, "goto", urlBefore, res).catch(() => {});
       if (!blocked) await recordLearningEvent(this.config, page, params.sessionId, "goto", { status: res.status });
       if (params.observe) {
         res.snapshot = await captureSnapshot(page, { references: referencesFor(page) });
@@ -413,7 +519,13 @@ export class BrowserDaemon {
     }
     if (method === "page.list") {
       if (!page) throw new Error("sessionId required");
-      return await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
+      // Result lists often render a moment after the page reports ready: look again briefly before saying none.
+      let list: any = await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
+      for (let i = 0; i < 3 && list && list.found === false; i++) {
+        await page.waitForTimeout(1000);
+        list = await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
+      }
+      return list;
     }
     if (method === "page.back" || method === "page.forward") {
       if (!page) throw new Error("sessionId required");
@@ -618,6 +730,21 @@ export class BrowserDaemon {
       return { known: true, site: site.site.id, state: state.state, variant, actions };
     }
 
+    if (method === "site.repair") {
+      if (!page) throw new Error("sessionId required");
+      const { loadSite } = await import("../engine/site-loader");
+      const identified = params.siteId ? { loaded: await loadSite(this.config, params.siteId) } : await identifySite(this.config, page);
+      if (!identified) throw new Error("No registered site matches the current page; pass siteId");
+      const { saveElementStrategy, saveUrlTemplate } = await import("../engine/self-repair");
+      if (params.urlTemplate) return saveUrlTemplate(this.config, identified.loaded, String(params.urlTemplate), String(params.template || ""), params.sessionId);
+      if (!params.element) throw new Error("Pass element (with locator or ref) or urlTemplate (with template)");
+      const strategy = params.locator || referencesFor(page).semanticLocator(params.ref);
+      if (!strategy) return { ok: false, reason: "no_strategy", hint: "Pass a locator, or a ref from a fresh snapshot." };
+      const { within, ...plain } = strategy as any;
+      const check = await resolveUnique(page, plain, undefined, 3000, within, {});
+      if (!("locator" in check)) return { ok: false, reason: "not_unique", detail: check, hint: "The locator must point at exactly one visible element on this page." };
+      return { ok: true, ...(await saveElementStrategy(this.config, identified.loaded, String(params.element), strategy, "agent", params.sessionId)) };
+    }
     if (method === "action.run") {
       if (!page) throw new Error("sessionId required");
       const identified = params.siteId

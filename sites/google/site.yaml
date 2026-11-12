@@ -1,10 +1,11 @@
 site:
   id: google
-  name: www.google.com
+  name: Google Search
   version: 1
 match:
   hosts:
     - www.google.com
+    - google.com
 fingerprints: {}
 states: {}
 elements:
@@ -17,7 +18,8 @@ extractors:
     element: body
     read: text
 preconditions: {}
-urlTemplates: {}
+urlTemplates:
+  search: https://www.google.com/search?q={query}&hl=en
 actions:
   get_body:
     description: Read read_body learned from discovery
@@ -31,3 +33,18 @@ actions:
     verify:
       - type: extractor_exists
         extractor: read_body
+  search:
+    description: Web search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.google.com/search*q=*

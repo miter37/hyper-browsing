@@ -1,0 +1,31 @@
+site:
+  id: zillow
+  name: Zillow
+  version: 1
+match:
+  hosts:
+  - www.zillow.com
+  - zillow.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  homes: https://www.zillow.com/homes/{place}_rb/
+actions:
+  homes:
+    description: Homes for sale in {place} (for example 'Austin, TX')
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: homes
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+      - op: goto
+        urlTemplate: homes
+    verify:
+    - type: url_matches
+      pattern: https://www.zillow.com/*

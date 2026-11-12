@@ -1,80 +1,123 @@
 site:
   id: x_com
-  name: x.com
-  version: 2
+  name: X (x.com)
+  version: 3
 match:
   hosts:
     - x.com
+    - www.x.com
 fingerprints:
-  logged_in: "textarea[data-testid='tweetTextarea_0']"
+  logged_in:
+    any:
+      - element: compose_box
+states: {}
 elements:
   compose_box:
-    - {testid: tweetTextarea_0}
-    - {css: "div[contenteditable='true'][role='textbox']"}
+    strategies:
+      - testId: tweetTextarea_0
+      - css: "div[contenteditable='true'][role='textbox']"
+    description: Inline post composer
   post_button:
-    - {testid: tweetButtonInline}
-    - {testid: tweetButton}
-  file_input:
-    - {css: "input[type='file'][accept*='image']"}
+    strategies:
+      - testId: tweetButtonInline
+      - testId: tweetButton
+    description: Post button of the composer
   like_button:
-    - {css: "article [data-testid='like']"}
+    strategies:
+      - css: "article [data-testid='like']"
+    description: Like button of a post
   reply_button:
-    - {testid: reply}
+    strategies:
+      - testId: reply
+    description: Reply button of a post
   reply_submit:
-    - {testid: tweetButton}
+    strategies:
+      - testId: tweetButton
+    description: Reply submit button
   caret:
-    - {testid: caret}
+    strategies:
+      - testId: caret
+    description: Post menu button
+  delete_menuitem:
+    strategies:
+      - role: menuitem
+        name: Delete
+    description: Delete item of the post menu
   confirm_delete:
-    - {testid: confirmationSheetConfirm}
-states:
-  home_timeline:
-    url: "https://x.com/home"
-  profile:
-    url: "https://x.com/{handle}"
+    strategies:
+      - testId: confirmationSheetConfirm
+    description: Final delete confirmation
+extractors: {}
+preconditions: {}
+urlTemplates:
+  home: "https://x.com/home"
+  profile: "https://x.com/{handle}"
 actions:
   open_compose_home:
-    description: Open home timeline with the inline composer visible
+    description: Open the home timeline with the inline composer visible
     risk: read
-    steps:
-      - goto: "https://x.com/home"
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: home
     verify:
-      element: compose_box
+      - type: element_visible
+        element: compose_box
   type_compose:
-    description: Insert text into the inline composer (Input.insertText; snapshot/verify before submit)
-    risk: read
-    steps:
-      - fill: {element: compose_box, value: "{{text}}"}
+    description: Type text into the inline composer (does not post; check before posting)
+    risk: local_write
+    implementation:
+      kind: declarative
+      steps:
+        - op: fill
+          element: compose_box
+          value: "{text}"
     verify:
-      state: home_timeline
+      - type: element_visible
+        element: compose_box
   post:
-    description: Submit the composed post. NEVER replay blindly; verify on profile page after.
+    description: Submit the composed post. Never replay; check the profile afterwards.
     risk: irreversible
-    steps:
-      - click: {element: post_button}
-    verify:
-      url: "https://x.com/home"
-  delete_own_post:
-    description: Delete a post via caret menu. Final confirm must NOT be clicked in drills.
-    risk: irreversible
-    steps:
-      - click: {element: caret}
-      - click: {role: menuitem, name: "Delete"}
-      - click: {element: confirm_delete}
-    verify:
-      url: "profile"
+    implementation:
+      kind: declarative
+      steps:
+        - op: click
+          element: post_button
+    verify: []
   reply:
-    description: Reply to a tweet. scrollIntoView the target first (virtualized list).
+    description: Reply to a post (scroll the post into view first; the list is virtualized)
     risk: external_write
-    steps:
-      - click: {element: reply_button}
-      - fill: {element: compose_box, value: "{{text}}"}
-      - click: {element: reply_submit}
-    verify:
-      state: home_timeline
+    implementation:
+      kind: declarative
+      steps:
+        - op: click
+          element: reply_button
+        - op: fill
+          element: compose_box
+          value: "{text}"
+        - op: click
+          element: reply_submit
+    verify: []
   like:
-    description: Toggle like on a tweet (state change is reversible; allowed in drills).
+    description: Toggle like on a post
     risk: external_write
-    steps:
-      - click: {element: like_button}
-    verify:
-      state: home_timeline
+    implementation:
+      kind: declarative
+      steps:
+        - op: click
+          element: like_button
+    verify: []
+  delete_own_post:
+    description: Delete an own post through its menu (irreversible)
+    risk: irreversible
+    implementation:
+      kind: declarative
+      steps:
+        - op: click
+          element: caret
+        - op: click
+          element: delete_menuitem
+        - op: click
+          element: confirm_delete
+    verify: []

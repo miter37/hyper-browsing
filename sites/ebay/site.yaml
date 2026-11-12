@@ -1,0 +1,47 @@
+site:
+  id: ebay
+  name: eBay
+  version: 1
+match:
+  hosts:
+    - www.ebay.com
+    - ebay.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.ebay.com/sch/i.html?_nkw={query}
+  search_price_low: https://www.ebay.com/sch/i.html?_nkw={query}&_sop=15
+actions:
+  search:
+    description: Listing search for {query}
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.ebay.com/sch/*_nkw=*
+  search_price_low:
+    description: Listing search for {query}, lowest price plus shipping first
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search_price_low
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search_price_low
+    verify:
+      - type: url_matches
+        pattern: https://www.ebay.com/sch/*_sop=15*

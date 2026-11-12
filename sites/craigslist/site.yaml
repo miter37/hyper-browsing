@@ -1,0 +1,49 @@
+site:
+  id: craigslist
+  name: craigslist
+  version: 1
+match:
+  hosts:
+    - www.craigslist.org
+    - craigslist.org
+    - "*.craigslist.org"
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  for_sale: https://{area}.craigslist.org/search/sss?query={query}
+  for_sale_price_low: https://{area}.craigslist.org/search/sss?query={query}&sort=priceasc
+actions:
+  for_sale:
+    description: For-sale search for {query} in area {area} (for example sfbay,
+      newyork, austin)
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: for_sale
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: for_sale
+    verify:
+      - type: url_matches
+        pattern: https://*craigslist.org/search/*query=*
+  for_sale_price_low:
+    description: For-sale search for {query} in {area}, lowest price first
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: for_sale_price_low
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: for_sale_price_low
+    verify:
+      - type: url_matches
+        pattern: https://*craigslist.org/search/*sort=priceasc*

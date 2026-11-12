@@ -44,6 +44,9 @@ export const PageVerificationSchema=z.object({checks:z.array(z.union([z.object({
 
 /** Explicit, ephemeral, read-only assertions. No learning or asset persistence. */
 export async function verifyPage(page:Page,input:unknown):Promise<Record<string,any>> {
+ // "true"/"false" for a checked or selected read is what a caller means; accept it rather than reject the whole check.
+ const checks=(input as any)?.checks;
+ if(Array.isArray(checks))input={...(input as any),checks:checks.map((c:any)=>c&&c.type==='element'&&(c.read==='checked'||c.read==='selected')&&(c.expected==='true'||c.expected==='false')?{...c,expected:c.expected==='true'}:c)};
  const parsed=PageVerificationSchema.safeParse(input);
  if(!parsed.success)return {ok:false,execution:'not_started',reason:'invalid_verification',outcome:'UNKNOWN',error:parsed.error.issues.map(i=>(i.path.length?i.path.join('.')+': ':'')+i.message).join('; '),hint:'Each check is {type:"url_param",name:"q",expected:"text"} or {type:"element",target:{locator:{role:"button",name:"Save"}} or {ref:"e27"},read:"text|value|attribute|checked|selected",op:"equals|contains|exists",expected}. expected is a boolean for checked/selected, a string otherwise, and omitted for exists.',details:[]};
  const deadline=Date.now()+5000;

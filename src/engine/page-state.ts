@@ -244,6 +244,11 @@ const BLOCK_SCRIPT = `(() => {
   });
   if (dialogs.some(el => /robot or human|confirm that you(?:'re| are) human|verify you are (a )?human/i.test(el.innerText || '')))
     return { kind: 'captcha', evidence: 'visible human-verification dialog' };
+  // A challenge step in the address (js_challenge, captcha) or a bare access-denied page.
+  if (/[?&](js_challenge|captcha|challenge)=|\\/(captcha|challenge)\\b/i.test(location.search + location.pathname) && document.querySelectorAll("a[href], button, input").length < 25)
+    return { kind: "bot-challenge", evidence: "challenge address: " + location.pathname.slice(0, 60) };
+  if (/^(access denied|forbidden|request blocked|403 forbidden|you have been blocked|attention required)/i.test(document.title || "") && (document.body?.innerText || "").length < 3000)
+    return { kind: "access-denied", evidence: "title: " + (document.title || "").slice(0, 60) };
   // A dialog that says automation tools are restricted ("매크로 ... 이용이 제한될 수 있습니다", "automated tools are blocked").
   const toolBan = /(매크로|macro|자동화 도구|자동 프로그램|unauthori[sz]ed (?:tools?|automation)|automation tools?|automated (?:tools?|access))(.{0,160})(제한|차단|금지|restrict|block|den(?:y|ied)|prohibit)/is;
   const banned = dialogs.find(el => toolBan.test(el.innerText || ''));

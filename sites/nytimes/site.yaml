@@ -1,0 +1,31 @@
+site:
+  id: nytimes
+  name: The New York Times
+  version: 1
+match:
+  hosts:
+    - www.nytimes.com
+    - nytimes.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.nytimes.com/search?query={query}
+actions:
+  search:
+    description: Article search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.nytimes.com/search*query=*

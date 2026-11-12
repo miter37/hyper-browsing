@@ -1,0 +1,32 @@
+site:
+  id: youtube
+  name: YouTube
+  version: 1
+match:
+  hosts:
+    - www.youtube.com
+    - youtube.com
+    - m.youtube.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.youtube.com/results?search_query={query}
+actions:
+  search:
+    description: Video search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.youtube.com/results*search_query=*

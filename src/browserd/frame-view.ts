@@ -40,7 +40,8 @@ export async function listFrames(page: Page, minArea = 20000): Promise<FrameInfo
     if (f === page.mainFrame() || f.isDetached() || !/^https?:/.test(f.url())) continue;
     const box = await f.frameElement().then((el) => el.boundingBox()).catch(() => null);
     if (!box || box.width * box.height < minArea) continue;
-    let key = f.name();
+    // Ad and widget frames often carry generated names (markup, JSON, long ids): name a frame by its address then.
+    let key = /^[\w.:-]{1,40}$/.test(f.name()) ? f.name() : "";
     if (!key) { try { const u = new URL(f.url()); key = u.host + u.pathname; } catch { key = f.url(); } }
     out.push({ frame: key.slice(0, 120), url: f.url().slice(0, 200), width: Math.round(box.width), height: Math.round(box.height) });
   }

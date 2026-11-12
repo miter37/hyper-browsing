@@ -1,0 +1,31 @@
+site:
+  id: allrecipes
+  name: Allrecipes
+  version: 1
+match:
+  hosts:
+    - www.allrecipes.com
+    - allrecipes.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.allrecipes.com/search?q={query}
+actions:
+  search:
+    description: Recipe search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.allrecipes.com/search*q=*

@@ -1,0 +1,16 @@
+site:
+  id: ticketmaster
+  name: "Ticketmaster"
+  version: 1
+match:
+  hosts:
+    - ticketmaster.sg
+    - www.ticketmaster.sg
+    - www.ticketmaster.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

@@ -1,0 +1,32 @@
+site:
+  id: booking
+  name: Booking.com
+  version: 1
+match:
+  hosts:
+    - www.booking.com
+    - booking.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  hotels: https://www.booking.com/searchresults.html?ss={place}&checkin={checkin}&checkout={checkout}&group_adults={adults}&no_rooms=1
+actions:
+  hotels:
+    description: Stays in {place} from {checkin} to {checkout} (YYYY-MM-DD) for
+      {adults} adults
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: hotels
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: hotels
+    verify:
+      - type: url_matches
+        pattern: https://www.booking.com/searchresults*checkin=*

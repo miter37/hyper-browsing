@@ -1,0 +1,31 @@
+site:
+  id: lowes
+  name: Lowe's
+  version: 1
+match:
+  hosts:
+    - www.lowes.com
+    - lowes.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.lowes.com/search?searchTerm={query}
+actions:
+  search:
+    description: Product search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.lowes.com/search*searchTerm=*

@@ -1,0 +1,46 @@
+site:
+  id: wikipedia_en
+  name: Wikipedia (English)
+  version: 1
+match:
+  hosts:
+    - en.wikipedia.org
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://en.wikipedia.org/w/index.php?search={query}&fulltext=1
+  article: https://en.wikipedia.org/wiki/{title}
+actions:
+  search:
+    description: Full-text search for {query}
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://en.wikipedia.org/w/index.php*search=*
+  open_article:
+    description: Open the article {title} (spaces as underscores)
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: open_article
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: article
+    verify:
+      - type: url_matches
+        pattern: https://en.wikipedia.org/wiki/*

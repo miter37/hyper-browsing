@@ -1,0 +1,47 @@
+site:
+  id: espn
+  name: ESPN
+  version: 1
+match:
+  hosts:
+    - www.espn.com
+    - espn.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.espn.com/search/_/q/{query}
+  scoreboard: https://www.espn.com/{league}/scoreboard
+actions:
+  search:
+    description: Search ESPN for {query}
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.espn.com/search/*
+  scoreboard:
+    description: Scoreboard of {league} (nba, nfl, mlb, nhl, college-football)
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: scoreboard
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: scoreboard
+    verify:
+      - type: url_matches
+        pattern: https://www.espn.com/*/scoreboard*

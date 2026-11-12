@@ -16,6 +16,7 @@ import { interpolate, interpolateUrl } from "../utils/strings";
 import { loadActionModule, type LoadedSite } from "./site-loader";
 import { promoteAfterSuccess, type Lifecycle } from "./lifecycle";
 import { actionRevision, assetStatus, hasSemanticVerification, recordAssetFailure, recordAssetSuccess } from "./asset-state";
+import { rescueElement, saveElementStrategy, repairBrief } from "./self-repair";
 import { hostMatches, matchesGlob } from "../utils/glob";
 import { matchFingerprint } from "./fingerprint";
 import { environmentFailure } from "./environment";
@@ -38,7 +39,10 @@ function resolveUrl(page: Page, template: string): string {
 class StepExecutionError extends Error {
   constructor(public steps: Record<string, any>[], public result: Record<string, any>) { super(`Saved step failed: locator/action ${result.reason || "unknown"}`); }
 }
-async function runDeclarative(page: Page, site: SiteDefinition, steps: any[], input: Record<string, unknown>, confirmed?: boolean) {
+// Elements a run found again with a looser strategy: saved once the run is verified.
+type Healed = Array<{ element: string; strategy: any }>;
+const LOOKUP_FAILURES = ["no_match", "hidden_only", "not_found", "ambiguous"];
+async function runDeclarative(page: Page, site: SiteDefinition, steps: any[], input: Record<string, unknown>, confirmed?: boolean, healed?: Healed) {
   const results: Record<string, any>[] = [];
   for (const step of steps) {
     if (step.op === "goto") {
@@ -50,11 +54,20 @@ async function runDeclarative(page: Page, site: SiteDefinition, steps: any[], in
     } else if (["click", "fill", "select", "press"].includes(step.op)) {
       const element = step.element ? site.elements[step.element] : undefined;
       if (step.element && !element) throw new Error(`Unknown element: ${step.element}`);
-      const result = await executePrimitive(page, step.op, { element, confirmed, vars: input,
+      const stepParams = { confirmed, vars: input,
         value: step.op === "fill" ? interpolate(step.value, input) : undefined,
-        option: step.op === "select" ? interpolate(step.value, input) : undefined, key: step.key });
-      results.push({ op: step.op, ...result });
-      if (!result.ok || result.observationRequired) throw new StepExecutionError(results, { ...result,reason:result.reason || 'observation_required' });
+        option: step.op === "select" ? interpolate(step.value, input) : undefined, key: step.key };
+      let result: any = await executePrimitive(page, step.op, { element, ...stepParams });
+      // The saved control was not found: look for it again, more loosely, before giving up.
+      if (!result.ok && element && healed && LOOKUP_FAILURES.includes(result.reason) && result.execution !== "outcome_unknown") {
+        const strategy = await rescueElement(page, element, result, input).catch(() => undefined);
+        if (strategy) {
+          const retry: any = await executePrimitive(page, step.op, { locator: strategy, ...stepParams });
+          if (retry.ok) { healed.push({ element: step.element, strategy }); result = { ...retry, healedWith: strategy }; }
+        }
+      }
+      results.push({ op: step.op, element: step.element, ...result });
+      if (!result.ok || result.observationRequired) throw new StepExecutionError(results, { ...result, element: step.element, reason:result.reason || 'observation_required' });
     } else if (step.op === "wait_for") {
       const timeoutMs = step.timeoutMs ?? 10_000;
       const deadline = Date.now() + timeoutMs;
@@ -93,6 +106,7 @@ export async function runKnownAction(config: AppConfig, page: Page, loaded: Load
 }
 
 async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedSite, options: RunActionOptions, revision: string) {
+  const healed: Healed = [];
   page.setDefaultTimeout(DEFAULT_ACTION_TIMEOUT_MS);
   const site = loaded.definition;
   const action = site.actions[options.actionId];
@@ -102,11 +116,13 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
     recovery: await assetStatus(config, site.site.id, options.actionId, revision), stage: "preflight", retryPolicy: "resolve environment first; verify writes before retry" };
 
   const url = new URL(page.url());
-  if (!site.match.hosts.some(h => hostMatches(url.hostname, h)) ||
-      (site.match.urlPatterns?.length && !site.match.urlPatterns.some(p => matchesGlob(url.pathname + url.search, p)))) {
+  // An action that starts by loading one of the site's addresses does not depend on the page it starts from.
+  const opensItsOwnPage = action.implementation.kind === "declarative" && action.implementation.steps[0]?.op === "goto";
+  if (!opensItsOwnPage && (!site.match.hosts.some(h => hostMatches(url.hostname, h)) ||
+      (site.match.urlPatterns?.length && !site.match.urlPatterns.some(p => matchesGlob(url.pathname + url.search, p))))) {
     return { ok: false, revision, applicable: false, fallbackRequired: true, reason: "site_mismatch" };
   }
-  if (site.match.fingerprints?.length) {
+  if (!opensItsOwnPage && site.match.fingerprints?.length) {
     const matches = await Promise.all(site.match.fingerprints.map(fp => matchFingerprint(page, site, fp).catch(() => false)));
     if (!matches.some(Boolean)) return { ok: false, revision, applicable: false, fallbackRequired: true, reason: "fingerprint_mismatch" };
   }
@@ -147,7 +163,7 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
   let steps: Record<string, any>[] = [];
   try {
     if (implementation.kind === "declarative") {
-      steps = await runDeclarative(page, site, implementation.steps, options.input, options.confirmed);
+      steps = await runDeclarative(page, site, implementation.steps, options.input, options.confirmed, healed);
     } else {
       const mod = await loadActionModule(loaded);
       const exportName = implementation.export || options.actionId;
@@ -206,6 +222,14 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
     semanticVerified,
   }).catch(() => {});
 
+  // Self-repair: a read action that found a moved control again and still verified keeps the strategy that worked.
+  let repaired: any[] | undefined;
+  if (ok && applied && healed.length && risk === "read") {
+    repaired = [];
+    for (const h of healed) repaired.push(await saveElementStrategy(config, loaded, h.element, h.strategy, "self", options.sessionId).catch((e: any) => ({ element: h.element, error: e.message })));
+  }
+  const repair = !ok && failedStep?.element && site.elements[failedStep.element] && LOOKUP_FAILURES.includes(failedStep.reason)
+    ? repairBrief(site.site.id, failedStep.element, site.elements[failedStep.element], failedStep) : undefined;
   if (ok && applied) await recordAssetSuccess(config, site.site.id, options.actionId, revision, options.sessionId).catch(() => {});
   else if (failureClass) await recordAssetFailure(config, site.site.id, options.actionId, revision, failureClass, options.sessionId).catch(() => {});
 
@@ -228,6 +252,9 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
     failureClass,
     promotion,
     revision,
+    ...(repaired ? { repaired } : {}),
+    ...(healed.length && !repaired ? { healedButNotSaved: healed, healNote: "Found by a looser match; not saved (write action or not verified). Confirm and save with site_repair." } : {}),
+    ...(repair ? { repair } : {}),
     semanticVerified,
     recovery: await assetStatus(config, site.site.id, options.actionId, revision),
     fallbackRequired: !ok,

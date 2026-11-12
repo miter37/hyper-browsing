@@ -1,0 +1,17 @@
+site:
+  id: skyscanner
+  name: "Skyscanner"
+  version: 1
+match:
+  hosts:
+    - www.skyscanner.co.kr
+    - skyscanner.co.kr
+    - www.skyscanner.net
+    - www.skyscanner.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates: {}
+actions: {}

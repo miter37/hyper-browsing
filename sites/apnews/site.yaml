@@ -1,0 +1,31 @@
+site:
+  id: apnews
+  name: AP News
+  version: 1
+match:
+  hosts:
+    - apnews.com
+    - www.apnews.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://apnews.com/search?q={query}
+actions:
+  search:
+    description: News search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://apnews.com/search*q=*

@@ -1,0 +1,47 @@
+site:
+  id: indeed
+  name: Indeed
+  version: 1
+match:
+  hosts:
+    - www.indeed.com
+    - indeed.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  jobs: https://www.indeed.com/jobs?q={query}&l={location}
+  jobs_newest: https://www.indeed.com/jobs?q={query}&l={location}&sort=date
+actions:
+  jobs:
+    description: Job search for {query} in {location}
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: jobs
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: jobs
+    verify:
+      - type: url_matches
+        pattern: https://www.indeed.com/jobs*q=*
+  jobs_newest:
+    description: Job search for {query} in {location}, newest first
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: jobs_newest
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: jobs_newest
+    verify:
+      - type: url_matches
+        pattern: https://www.indeed.com/jobs*sort=date*
