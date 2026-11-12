@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'fix/**'
+      - 'feat/native-mcp-*'
   pull_request:
 
 permissions:
@@ -33,6 +34,10 @@ jobs:
         if: runner.os == 'Windows'
         run: npx playwright install chromium
       - run: npm run typecheck
+      - name: Native MCP protocol and packaging
+        run: npm run test:mcp
+      - name: npm package smoke-test
+        run: npm pack --dry-run --json
       - run: npm run validate:sites
       - name: Learning tests
         run: npm run test:learning
