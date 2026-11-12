@@ -6,7 +6,7 @@ import { ensureToken } from "./token";
 import { SessionStore } from "./session-store";
 import { captureSnapshot, saveSnapshot } from "../runtime/snapshot";
 import { actOn, fillOrSelect, goHistory } from "../engine/interact";
-import { locatorFromStrategy } from "../engine/locators";
+import { locatorFromStrategy, resolveUnique } from "../engine/locators";
 import { detectBlock, settle } from "../engine/page-state";
 import { identifySite } from "../engine/identify";
 import { runKnownAction } from "../engine/action-runner";
@@ -512,7 +512,13 @@ export class BrowserDaemon {
     }
     if (method === "page.list") {
       if (!page) throw new Error("sessionId required");
-      return await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
+      // Result lists often render a moment after the page reports ready: look again briefly before saying none.
+      let list: any = await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
+      for (let i = 0; i < 3 && list && list.found === false; i++) {
+        await page.waitForTimeout(1000);
+        list = await listItems(page, { query: params.query, limit: params.limit ? Number(params.limit) : undefined });
+      }
+      return list;
     }
     if (method === "page.back" || method === "page.forward") {
       if (!page) throw new Error("sessionId required");
@@ -717,6 +723,21 @@ export class BrowserDaemon {
       return { known: true, site: site.site.id, state: state.state, variant, actions };
     }
 
+    if (method === "site.repair") {
+      if (!page) throw new Error("sessionId required");
+      const { loadSite } = await import("../engine/site-loader");
+      const identified = params.siteId ? { loaded: await loadSite(this.config, params.siteId) } : await identifySite(this.config, page);
+      if (!identified) throw new Error("No registered site matches the current page; pass siteId");
+      const { saveElementStrategy, saveUrlTemplate } = await import("../engine/self-repair");
+      if (params.urlTemplate) return saveUrlTemplate(this.config, identified.loaded, String(params.urlTemplate), String(params.template || ""), params.sessionId);
+      if (!params.element) throw new Error("Pass element (with locator or ref) or urlTemplate (with template)");
+      const strategy = params.locator || referencesFor(page).semanticLocator(params.ref);
+      if (!strategy) return { ok: false, reason: "no_strategy", hint: "Pass a locator, or a ref from a fresh snapshot." };
+      const { within, ...plain } = strategy as any;
+      const check = await resolveUnique(page, plain, undefined, 3000, within, {});
+      if (!("locator" in check)) return { ok: false, reason: "not_unique", detail: check, hint: "The locator must point at exactly one visible element on this page." };
+      return { ok: true, ...(await saveElementStrategy(this.config, identified.loaded, String(params.element), strategy, "agent", params.sessionId)) };
+    }
     if (method === "action.run") {
       if (!page) throw new Error("sessionId required");
       const identified = params.siteId

@@ -121,3 +121,29 @@ test('native select rejects duplicate option labels before selection',async t=>{
   assert.equal(result.ok,false);assert.equal(await page.locator('select').inputValue(),'Initial');
 });
 
+test('a read action whose control was renamed finds it again, verifies, and keeps the strategy that worked',async t=>{
+  const {c,page}=await fixture(t,'<h1>Results</h1><button onclick="document.querySelector(\'h1\').textContent=\'Sorted\'">Sort by price: low to high</button>');
+  const dir=path.join(c.sitesDir,'example');await fs.mkdir(dir,{recursive:true});
+  const doc={site:{id:'example'},match:{hosts:['example.test']},elements:{sort_low:{strategies:[{role:'button',name:'Sort by price',exact:true}]},heading:{strategies:[{role:'heading',name:'Sorted'}]}},
+    actions:{sort_low:{risk:'read',implementation:{kind:'declarative',steps:[{op:'click',element:'sort_low'}]},verify:[{type:'element_visible',element:'heading'}]}}};
+  await fs.writeFile(path.join(dir,'site.yaml'),YAML.stringify(doc));
+  const result=await runKnownAction(c,page,await loadSite(c,'example'),{sessionId:'s',actionId:'sort_low',input:{}});
+  assert.equal(result.ok,true,JSON.stringify(result).slice(0,600));
+  assert.equal(result.repaired?.[0]?.repaired,'sort_low');
+  const saved=YAML.parse(await fs.readFile(path.join(dir,'site.yaml'),'utf8'));
+  assert.equal(saved.elements.sort_low.strategies[0].exact,false);assert.equal(saved.elements.sort_low.strategies.length,2);
+});
+test('a write action is not repaired on its own; the failure says what to repair and site_repair saves only a unique control',async t=>{
+  const {c,page}=await fixture(t,'<h1>Cart</h1><button>Remove item now</button><button>Keep shopping</button>');
+  const dir=path.join(c.sitesDir,'example');await fs.mkdir(dir,{recursive:true});
+  const doc={site:{id:'example'},match:{hosts:['example.test']},elements:{remove:{strategies:[{testId:'remove-btn'}]}},
+    actions:{remove:{risk:'external_write',implementation:{kind:'declarative',steps:[{op:'click',element:'remove'}]},verify:[]}}};
+  await fs.writeFile(path.join(dir,'site.yaml'),YAML.stringify(doc));
+  const result=await runKnownAction(c,page,await loadSite(c,'example'),{sessionId:'s',actionId:'remove',input:{},confirmed:true});
+  assert.equal(result.ok,false);assert.equal(result.repair?.element,'remove',JSON.stringify(result).slice(0,600));assert.ok(result.repair.howToRepair);
+  assert.equal(result.repaired,undefined);
+  const { saveElementStrategy } = await import('../src/engine/self-repair.ts');
+  await saveElementStrategy(c,await loadSite(c,'example'),'remove',{role:'button',name:'Remove item now',exact:true},'agent','s');
+  const saved=YAML.parse(await fs.readFile(path.join(dir,'site.yaml'),'utf8'));
+  assert.equal(saved.elements.remove.strategies[0].name,'Remove item now');assert.equal(saved.elements.remove.strategies[1].testId,'remove-btn');
+});

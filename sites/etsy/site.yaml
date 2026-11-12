@@ -1,0 +1,47 @@
+site:
+  id: etsy
+  name: Etsy
+  version: 1
+match:
+  hosts:
+    - www.etsy.com
+    - etsy.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  search: https://www.etsy.com/search?q={query}
+  search_price_low: https://www.etsy.com/search?q={query}&order=price_asc
+actions:
+  search:
+    description: Item search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: search
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search
+    verify:
+      - type: url_matches
+        pattern: https://www.etsy.com/search*q=*
+  search_price_low:
+    description: Item search for {query}, lowest price first
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: search_price_low
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: search_price_low
+    verify:
+      - type: url_matches
+        pattern: https://www.etsy.com/search*order=price_asc*

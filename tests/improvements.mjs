@@ -434,3 +434,12 @@ test('a dialog saying automation tools are restricted is reported as blocked',as
  await page.setContent('<meta charset="utf-8"><div role="dialog"><p>선택하신 인원이 맞나요? 어른 1명</p><button>예</button></div>');
  assert.equal(await detectBlock(page),undefined);
 });
+
+test('a challenge address and a bare access-denied page are reported as blocked',async t=>{
+ const {page}=await fixture(t,'<meta charset="utf-8"><title>Access Denied</title><h1>Access Denied</h1><p>You don\'t have permission to access this resource. Reference #18.1234</p>');
+ const {detectBlock}=await import('../src/engine/page-state.ts');
+ assert.equal((await detectBlock(page))?.kind,'access-denied');
+ await page.goto('https://example.test/search/?solution=abc&js_challenge=1&jsc_token=xyz');
+ await page.setContent('<p>checking</p>');
+ assert.equal((await detectBlock(page))?.kind,'bot-challenge');
+});

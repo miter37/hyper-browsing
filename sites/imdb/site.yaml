@@ -1,0 +1,32 @@
+site:
+  id: imdb
+  name: IMDb
+  version: 1
+match:
+  hosts:
+    - www.imdb.com
+    - imdb.com
+    - m.imdb.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  find_title: https://www.imdb.com/find/?q={query}&s=tt
+actions:
+  find_title:
+    description: Title search for {query}
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: find_title
+      scope: Opened live and checked on 2026-11-12; the URL is verified after loading.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: find_title
+    verify:
+      - type: url_matches
+        pattern: https://www.imdb.com/find/*q=*

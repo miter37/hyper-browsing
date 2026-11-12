@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T11:23:49.313Z",
+  "generatedAt": "2026-11-12T11:36:27.577Z",
   "entries": [
     {
       "id": "airbnb",
@@ -15,12 +15,56 @@
       }
     },
     {
+      "id": "allrecipes",
+      "name": "Allrecipes",
+      "path": "sites\\allrecipes",
+      "match": {
+        "hosts": [
+          "www.allrecipes.com",
+          "allrecipes.com"
+        ]
+      }
+    },
+    {
+      "id": "amazon",
+      "name": "Amazon",
+      "path": "sites\\amazon",
+      "match": {
+        "hosts": [
+          "www.amazon.com",
+          "amazon.com"
+        ]
+      }
+    },
+    {
+      "id": "apnews",
+      "name": "AP News",
+      "path": "sites\\apnews",
+      "match": {
+        "hosts": [
+          "apnews.com",
+          "www.apnews.com"
+        ]
+      }
+    },
+    {
       "id": "arxiv",
       "name": "arxiv.org",
       "path": "sites\\arxiv",
       "match": {
         "hosts": [
           "arxiv.org"
+        ]
+      }
+    },
+    {
+      "id": "bestbuy",
+      "name": "Best Buy",
+      "path": "sites\\bestbuy",
+      "match": {
+        "hosts": [
+          "www.bestbuy.com",
+          "bestbuy.com"
         ]
       }
     },
@@ -32,6 +76,17 @@
         "hosts": [
           "blog.naver.com",
           "section.blog.naver.com"
+        ]
+      }
+    },
+    {
+      "id": "booking",
+      "name": "Booking.com",
+      "path": "sites\\booking",
+      "match": {
+        "hosts": [
+          "www.booking.com",
+          "booking.com"
         ]
       }
     },
@@ -49,6 +104,18 @@
       }
     },
     {
+      "id": "cnn",
+      "name": "CNN",
+      "path": "sites\\cnn",
+      "match": {
+        "hosts": [
+          "www.cnn.com",
+          "edition.cnn.com",
+          "cnn.com"
+        ]
+      }
+    },
+    {
       "id": "coinbase",
       "name": "Coinbase",
       "path": "sites\\coinbase",
@@ -56,6 +123,51 @@
         "hosts": [
           "www.coinbase.com",
           "coinbase.com"
+        ]
+      }
+    },
+    {
+      "id": "craigslist",
+      "name": "craigslist",
+      "path": "sites\\craigslist",
+      "match": {
+        "hosts": [
+          "www.craigslist.org",
+          "craigslist.org",
+          "*.craigslist.org"
+        ]
+      }
+    },
+    {
+      "id": "ebay",
+      "name": "eBay",
+      "path": "sites\\ebay",
+      "match": {
+        "hosts": [
+          "www.ebay.com",
+          "ebay.com"
+        ]
+      }
+    },
+    {
+      "id": "espn",
+      "name": "ESPN",
+      "path": "sites\\espn",
+      "match": {
+        "hosts": [
+          "www.espn.com",
+          "espn.com"
+        ]
+      }
+    },
+    {
+      "id": "etsy",
+      "name": "Etsy",
+      "path": "sites\\etsy",
+      "match": {
+        "hosts": [
+          "www.etsy.com",
+          "etsy.com"
         ]
       }
     },
@@ -89,11 +201,12 @@
     },
     {
       "id": "google",
-      "name": "www.google.com",
+      "name": "Google Search",
       "path": "sites\\google",
       "match": {
         "hosts": [
-          "www.google.com"
+          "www.google.com",
+          "google.com"
         ]
       }
     },
@@ -104,6 +217,29 @@
       "match": {
         "hosts": [
           "app.hyperliquid.xyz"
+        ]
+      }
+    },
+    {
+      "id": "imdb",
+      "name": "IMDb",
+      "path": "sites\\imdb",
+      "match": {
+        "hosts": [
+          "www.imdb.com",
+          "imdb.com",
+          "m.imdb.com"
+        ]
+      }
+    },
+    {
+      "id": "indeed",
+      "name": "Indeed",
+      "path": "sites\\indeed",
+      "match": {
+        "hosts": [
+          "www.indeed.com",
+          "indeed.com"
         ]
       }
     },
@@ -130,6 +266,17 @@
       }
     },
     {
+      "id": "lowes",
+      "name": "Lowe's",
+      "path": "sites\\lowes",
+      "match": {
+        "hosts": [
+          "www.lowes.com",
+          "lowes.com"
+        ]
+      }
+    },
+    {
       "id": "naver",
       "name": "land.naver.com",
       "path": "sites\\naver",
@@ -147,6 +294,17 @@
       "match": {
         "hosts": [
           "new.land.naver.com"
+        ]
+      }
+    },
+    {
+      "id": "nytimes",
+      "name": "The New York Times",
+      "path": "sites\\nytimes",
+      "match": {
+        "hosts": [
+          "www.nytimes.com",
+          "nytimes.com"
         ]
       }
     },
@@ -170,6 +328,17 @@
           "skyscanner.co.kr",
           "www.skyscanner.net",
           "www.skyscanner.com"
+        ]
+      }
+    },
+    {
+      "id": "target",
+      "name": "Target",
+      "path": "sites\\target",
+      "match": {
+        "hosts": [
+          "www.target.com",
+          "target.com"
         ]
       }
     },
@@ -218,6 +387,27 @@
       }
     },
     {
+      "id": "walmart",
+      "name": "Walmart",
+      "path": "sites\\walmart",
+      "match": {
+        "hosts": [
+          "www.walmart.com",
+          "walmart.com"
+        ]
+      }
+    },
+    {
+      "id": "wikipedia_en",
+      "name": "Wikipedia (English)",
+      "path": "sites\\wikipedia_en",
+      "match": {
+        "hosts": [
+          "en.wikipedia.org"
+        ]
+      }
+    },
+    {
       "id": "www_instagram_com",
       "name": "www.instagram.com",
       "path": "sites\\www_instagram_com",
@@ -255,6 +445,29 @@
         "hosts": [
           "x.com",
           "www.x.com"
+        ]
+      }
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "path": "sites\\youtube",
+      "match": {
+        "hosts": [
+          "www.youtube.com",
+          "youtube.com",
+          "m.youtube.com"
+        ]
+      }
+    },
+    {
+      "id": "zillow",
+      "name": "Zillow",
+      "path": "sites\\zillow",
+      "match": {
+        "hosts": [
+          "www.zillow.com",
+          "zillow.com"
         ]
       }
     }
