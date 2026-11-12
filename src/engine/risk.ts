@@ -55,7 +55,8 @@ export async function riskFromTarget(target: ActionTarget, submission=false): Pr
       return [node.getAttribute('aria-label'),node.getAttribute('alt'),labelled,nativeLabels,imageNames,(node as HTMLElement).innerText||node.textContent,buttonValue].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
     }};
     const form=(control as HTMLInputElement).form || control.closest('form');
-    const submits=submission || Boolean(form && ((control.tagName==='BUTTON' && !/^(button|reset)$/.test((control as HTMLButtonElement).type)) || (control.tagName==='INPUT' && /^(submit|image)$/.test((control as HTMLInputElement).type))));
+    // Enter on a plain link is navigation, not form submission.
+    const submits=Boolean(form && (submission || ((control.tagName==='BUTTON' && !/^(button|reset)$/.test((control as HTMLButtonElement).type)) || (control.tagName==='INPUT' && /^(submit|image)$/.test((control as HTMLInputElement).type)))));
     const submitNames=submits&&form?[...form.elements].filter(b=> (b.tagName==='BUTTON' && !/^(button|reset)$/.test((b as HTMLButtonElement).type)) || (b.tagName==='INPUT' && /^(submit|image)$/.test((b as HTMLInputElement).type))).map(b=>names.read(b)).join(' '):'';
     const scope=clickable.closest('fieldset,[role=group],[role=radiogroup]');
     return {tag:control.tagName,role:control.getAttribute('role'),type:control.getAttribute('type'),

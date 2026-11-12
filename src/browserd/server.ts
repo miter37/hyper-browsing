@@ -144,7 +144,7 @@ export class BrowserDaemon {
       reason: original.reason || original.blocked || original.navigationError || "headless_failure" };
     try {
       // Capture up-to-date URLs before destroying Playwright handles.
-      this.store().captureUrls();
+      this.store().captureUrls?.();
       this.clearNetwork();
       await this.chrome.writeDisplayPreference({ headless: false });
       const repaired = await this.chrome.repair();
@@ -218,7 +218,7 @@ export class BrowserDaemon {
       };
       const resolved = await resolveChromeProfile(this.config, { preference });
       const saved = await this.chrome.writePreference(preference);
-      this.store().captureUrls();
+      this.store().captureUrls?.();
       this.clearNetwork();
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
@@ -227,7 +227,7 @@ export class BrowserDaemon {
       return { status: "switched", preference: saved, resolved, chrome: repaired.state, takeover: repaired.takeover };
     }
     if (method === "browser.repair") {
-      this.store().captureUrls();
+      this.store().captureUrls?.();
       this.clearNetwork();
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
@@ -239,7 +239,7 @@ export class BrowserDaemon {
       // Changing headless is launch-time only in Chrome - there is no live CDP toggle - so
       // this relaunches the browser. Open tabs are not lost: rebindContext() reopens every
       // tracked session at its last known URL in the new window, same as browser.repair does.
-      this.store().captureUrls();
+      this.store().captureUrls?.();
       this.clearNetwork();
       await this.chrome.writeDisplayPreference({ headless: method === "browser.hide" });
       const repaired = await this.chrome.repair();

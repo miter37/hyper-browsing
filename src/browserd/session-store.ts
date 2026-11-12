@@ -108,7 +108,12 @@ export class SessionStore {
     for (const row of desired) {
       const prior = old.get(row.id)?.page;
       let page: Page | undefined;
-      if (prior && !prior.isClosed() && prior.context() === context) page = prior;
+      if (prior && !prior.isClosed() && typeof prior.context === "function" && prior.context() === context) page = prior;
+      if (!page && row.url === "about:blank") {
+        // Blank tabs have no state or navigation to overwrite, so an unclaimed
+        // existing blank tab can safely stand in for a blank session.
+        page = [...available].find(p => !p.isClosed() && p.url() === "about:blank");
+      }
       if (!page && row.url !== "about:blank" && urlCounts.get(row.url) === 1) {
         const matches = [...available].filter(p => !p.isClosed() && p.url() === row.url);
         if (matches.length === 1) page = matches[0];
