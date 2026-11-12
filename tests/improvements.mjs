@@ -417,3 +417,20 @@ test('Enter still reaches a search field that suggestions re-rendered after typi
  if (r.ok) assert.equal(await page.evaluate(()=>window.sent),'Marie Curie');
  else assert.equal(r.execution,'not_started');
 });
+
+test('a checkpoint page that asks for proof of being human is reported as blocked',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><header><a href="/">Home</a> 배송처 대한민국</header><h4>We're noticing unusual browser activity.</h4><p>Check the box to confirm you're human. Automated browsing violates our Conditions of Use.</p><label><input type="checkbox"> I am human</label><button disabled>Continue</button>`);
+ const {detectBlock}=await import('../src/engine/page-state.ts');
+ const b=await detectBlock(page);
+ assert.equal(b?.kind,'bot-challenge',JSON.stringify(b));
+ await page.setContent('<meta charset="utf-8"><h1>Help center</h1><p>Unusual activity on your account? Read our guide.</p><a href="/guide">Guide</a>');
+ assert.equal(await detectBlock(page),undefined);
+});
+
+test('a dialog saying automation tools are restricted is reported as blocked',async t=>{
+ const {page}=await fixture(t,`<meta charset="utf-8"><div role="dialog"><h2>안내 메세지</h2><p>매크로, 개발자도구 등 미허가 도구 사용 시 이용이 제한될 수 있습니다. CODE: -8003</p><button>확인</button></div><p>해당 스케줄에 운행하는 열차가 없습니다.</p>`);
+ const {detectBlock}=await import('../src/engine/page-state.ts');
+ assert.equal((await detectBlock(page))?.kind,'bot-challenge');
+ await page.setContent('<meta charset="utf-8"><div role="dialog"><p>선택하신 인원이 맞나요? 어른 1명</p><button>예</button></div>');
+ assert.equal(await detectBlock(page),undefined);
+});

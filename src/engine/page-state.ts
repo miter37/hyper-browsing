@@ -244,10 +244,19 @@ const BLOCK_SCRIPT = `(() => {
   });
   if (dialogs.some(el => /robot or human|confirm that you(?:'re| are) human|verify you are (a )?human/i.test(el.innerText || '')))
     return { kind: 'captcha', evidence: 'visible human-verification dialog' };
+  // A dialog that says automation tools are restricted ("매크로 ... 이용이 제한될 수 있습니다", "automated tools are blocked").
+  const toolBan = /(매크로|macro|자동화 도구|자동 프로그램|unauthori[sz]ed (?:tools?|automation)|automation tools?|automated (?:tools?|access))(.{0,160})(제한|차단|금지|restrict|block|den(?:y|ied)|prohibit)/is;
+  const banned = dialogs.find(el => toolBan.test(el.innerText || ''));
+  if (banned) return { kind: 'bot-challenge', evidence: 'automation-restriction dialog: ' + (banned.innerText || '').replace(/ +/g, ' ').trim().slice(0, 80) };
   if (/__cf_chl|\\/cdn-cgi\\/challenge-platform/.test(location.href) || has("#challenge-form, #cf-challenge-running, iframe[src*='challenges.cloudflare.com']"))
     return { kind: "bot-challenge", evidence: "cloudflare challenge markers" };
   if (/just a moment|attention required|checking your browser|잠시만 기다리|보안 확인/.test(title) || /verify you are (a )?human|보안 확인 수행 중/.test(text))
     return { kind: "bot-challenge", evidence: "challenge page text: " + (document.title || "").slice(0, 60) };
+  // Interstitials that ask the visitor to prove they are human, on the site's own checkpoint page.
+  const humanCheck = /unusual (?:browser |network )?(?:traffic|activity)|confirm (?:that )?you(?:'re| are) (?:a )?human|are you a robot|not a robot|automated (?:browsing|access|queries)|자동\\s*입력\\s*방지|로봇이 아닙니다|비정상적인 (?:접근|트래픽|활동)/;
+  const longText = ((document.body && document.body.innerText) || "").slice(0, 8000).toLowerCase();
+  if (humanCheck.test(longText) && (/\\/(checkpoint|captcha|challenge|sorry|blocked|validatecaptcha)\\b/i.test(location.pathname) || has("input[type=checkbox], iframe[src*='captcha'], img[src*='captcha']")))
+    return { kind: "bot-challenge", evidence: "human-verification page: " + (longText.match(humanCheck) || [""])[0] };
   if (has("iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='captcha']") && document.querySelectorAll("a[href], button, input").length < 15)
     return { kind: "captcha", evidence: "captcha frame on a nearly empty page" };
   return null;
