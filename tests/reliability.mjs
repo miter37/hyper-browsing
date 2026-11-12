@@ -33,10 +33,11 @@ test('double-brace and legacy templates resolve without stray braces; URL values
 });
 
 test('host IDs no longer collide on multi-label public suffixes', () => {
-  assert.equal(siteIdFromHost('www.naver.co.kr'), 'naver_co_kr');
-  assert.equal(siteIdFromHost('foo.example.co.uk'), 'foo_example_co_uk');
-  assert.equal(siteIdFromHost('shop.example.com.au'), 'shop_example_com_au');
+  assert.equal(siteIdFromHost('www.naver.co.kr'), 'naver');
+  assert.equal(siteIdFromHost('foo.example.co.uk'), 'example');
+  assert.equal(siteIdFromHost('shop.example.com.au'), 'example');
   assert.notEqual(siteIdFromHost('alpha.co.kr'), siteIdFromHost('beta.co.kr'));
+  assert.equal(siteIdFromHost('foo.bar.unknown'), 'foo_bar_unknown');
 });
 
 test('saved locators bind literal text without constructing executable CSS', async t => {

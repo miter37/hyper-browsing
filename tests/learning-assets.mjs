@@ -175,7 +175,8 @@ test('concurrent extraction encoding and action saving preserve both capabilitie
   assert.ok(Object.values(loaded.definition.extractors).some(ex=>ex.read==='attribute'));
 });
 test('missing code can be replaced after discovery without frequency gating',async t=>{
-  const {c,page}=await fixture(t);await page.goto('https://example.test/list');
+  const {c,page}=await fixture(t);
+  c.allowCodeActions = true; // Explicitly trust this local test fixture.await page.goto('https://example.test/list');
   const dir=path.join(c.sitesDir,'example');await fs.mkdir(dir,{recursive:true});
   const doc={site:{id:'example'},match:{hosts:['example.test']},elements:{result:{strategies:[{css:'#result'}]}},extractors:{count:{element:'result',read:'text'}},actions:{count:{risk:'read',implementation:{kind:'code',export:'count'},returns:{extractor:'count'},verify:[]}}};
   await fs.writeFile(path.join(dir,'site.yaml'),YAML.stringify(doc));

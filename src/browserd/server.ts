@@ -124,7 +124,7 @@ export class BrowserDaemon {
     if (["request.status", "learning.status", "learning.finish"].includes(method)) return this.dispatchUnlocked(method, params);
     return serial(`browser:${this.config.runtimeDir}`, async () => {
       try { return await this.dispatchWithFallback(method, params); }
-      finally { if (params.sessionId) this.sessions?.touch(params.sessionId); }
+      finally { if (params.sessionId) this.sessions?.touch?.(params.sessionId); }
     });
   }
   private async dispatchWithFallback(method: string, params: any): Promise<any> {
