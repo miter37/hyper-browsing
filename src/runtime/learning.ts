@@ -46,11 +46,10 @@ function safeUrl(raw: string): string {
 }
 
 export function siteIdFromHost(host: string): string {
-  const parts = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
-  if (parts.length <= 1) return slug(parts[0] || "site");
-  const commonSubdomains = new Set(["www", "app", "admin", "portal", "dashboard", "secure", "m"]);
-  if (parts.length >= 3 && commonSubdomains.has(parts[0])) return slug(parts[parts.length - 2]);
-  return slug(parts[parts.length - 2]);
+  // Keep the full host instead of guessing a registrable domain from its
+  // second-to-last label (co.kr / co.uk / com.au would collapse together).
+  // Known sites continue to use their explicitly registered IDs.
+  return slug(host.toLowerCase().replace(/^www\./, ""));
 }
 
 function journalPath(config: AppConfig, sessionId: string): string {

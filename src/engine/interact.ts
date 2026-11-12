@@ -193,6 +193,8 @@ export interface ActParams {
   timeoutMs?: number;
   force?: boolean;
   value?: string;
+  /** Saved-action variables for parameterized locator text. */
+  vars?: Record<string, unknown>;
 }
 
 /** The main-frame document response of a navigation started by the action, if any. */
@@ -230,7 +232,7 @@ export async function actOn<T>(
   let target: { locator: ActionTarget; resolvedBy?: string; equivalentMatches?: number };
   if (pinnedTarget) { target = { locator: pinnedTarget }; } else if (params.element) {
     if (params.ref || params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
-    try { target = { locator: await resolveElement(page, params.element) }; }
+    try { target = { locator: await resolveElement(page, params.element, params.vars) }; }
     catch (error) {
       if (error instanceof LocatorResolutionError && !("locator" in error.result)) return { ...unresolvedResult(error.result), reason: "ambiguous" in error.result ? "ambiguous" : "hiddenOnly" in error.result ? "hidden_only" : "no_match", execution: "not_started" };
       throw error;
@@ -243,7 +245,7 @@ export async function actOn<T>(
   } else {
     if (!params.locator) return { ok: false, reason: "invalid_target", execution: "not_started" };
     let resolved;
-    try { resolved = await resolveUnique(page, params.locator, params.nth, timeoutMs, params.within || params.locator.within); }
+    try { resolved = await resolveUnique(page, params.locator, params.nth, timeoutMs, params.within || params.locator.within, params.vars); }
     catch (error: any) { return { ok: false, reason: "invalid_target", execution: "not_started", error: error.message }; }
     if (!("locator" in resolved)) return { ...unresolvedResult(resolved), reason: "ambiguous" in resolved ? "ambiguous" : "hiddenOnly" in resolved ? "hidden_only" : "no_match", execution: "not_started" };
     target = resolved;
@@ -457,7 +459,7 @@ export async function fillOrSelect(page: Page, kind: "fill" | "select", params: 
   if (v.kind === "choice") res.selected = v.actual;
   else if (v.actual === "" && wanted && !params.submit && outcome.effect?.page?.valueChanges === undefined) {
     // Token/chip inputs move the typed text into a chip and empty the field: look for it next to the field.
-    const target = params.element ? { locator: await resolveElement(page, params.element).catch(() => null) } : params.ref ? await referencesFor(page).resolve(params.ref) : params.locator ? await resolveUnique(page, params.locator, params.nth, 1000, params.within).catch(() => null) : null;
+    const target = params.element ? { locator: await resolveElement(page, params.element, params.vars).catch(() => null) } : params.ref ? await referencesFor(page).resolve(params.ref) : params.locator ? await resolveUnique(page, params.locator, params.nth, 1000, params.within, params.vars).catch(() => null) : null;
     const chip = target && "locator" in target && target.locator
       ? await target.locator.evaluate((el, w) => {
         let box: Element | null = el.parentElement;

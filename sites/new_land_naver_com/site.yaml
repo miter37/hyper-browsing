@@ -18,7 +18,8 @@ elements:
       visible text = complex name + address + 세대수 lines. The suggestion index
       usually drops brand prefixes (search '헬리오시티', not '래미안헬리오시티').
     strategies:
-      - css: a.item_link:has-text('{{complexName}}')
+      - css: a.item_link
+        hasText: "{{complexName}}"
   region_map_div_list_contents_class_item_list:
     strategies:
       - css: "#region_map + div, .list_contents, [class*=item_list]"

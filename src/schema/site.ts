@@ -9,9 +9,13 @@ export const LocatorStrategySchema = z.object({
   label: z.string().optional(),
   placeholder: z.string().optional(),
   css: z.string().optional(),
+  /** Literal text filter, safely parameterized independently from CSS syntax. */
+  hasText: z.string().optional(),
   within: z.string().optional(),
 }).refine((v) => [v.role, v.testId, v.text, v.label, v.placeholder, v.css].filter(Boolean).length === 1, {
   message: "Each locator strategy must define exactly one primary strategy",
+}).refine(v => !v.hasText || Boolean(v.css), {
+  message: "hasText requires a css strategy",
 });
 
 export const ElementSchema = z.object({
