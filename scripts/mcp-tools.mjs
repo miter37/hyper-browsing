@@ -23,6 +23,7 @@ const targetMessage = 'Provide exactly one of locator or ref, never both. Ambigu
 
 export const TOOLS = [
   tool('browser_status', 'Inspect local Chrome/browser daemon status and current sessions.', {}, [], true),
+  tool('browser_doctor', 'When the browser does not work (startup failed, daemon unreachable, Chrome not answering, unauthorized, repeated errors): diagnose and, with fix: true, repair it safely - reattach to the running Chrome, relaunch only if it is dead, clear stale locks, close idle tabs, restore the login from backup. Call this ONCE instead of killing processes, changing ports or touching profile folders yourself.', {fix:B('Repair what is wrong (safe steps only).')}, []),
   tool('session_open', 'Open a browser tab and return its stable session ID.', { url: S('HTTP(S) URL to open.'), locale: S('Optional locale, e.g. ko-KR.'), viewport: S('Optional viewport, e.g. 1440x900.') }, ['url']),
   tool('session_list', 'List open browser tabs/sessions.', {}, [], true),
   tool('navigate', 'Load a URL in an existing session tab and return the resulting page state.', {sessionId, url:S('HTTP(S) URL to load.')}, ['sessionId','url']),
@@ -185,6 +186,13 @@ async function runDaemonTool(name,args,rawCall) {
     case 'wait_for': return rpc(call,'page.waitFor',copy(args,['sessionId','text','css','timeoutMs']));
     case 'scroll': return rpc(call,'page.scroll',{sessionId:args.sessionId,direction:args.direction||'down',distance:args.distance,times:args.times});
     case 'hover': return rpc(call,'page.hover',copy(args,['sessionId','locator','ref','nth','within']));
+    case 'browser_doctor': {
+      const r=await rpc(call,'browser.doctor',{fix:Boolean(args.fix)});
+      // The daemon itself cannot start: there is nothing more to repair from here. Stop, do not loop.
+      if(r&&r.ok===false&&['browser_startup_failed','daemon_unreachable','daemon_credentials_unavailable'].includes(r.reason))
+        return {...r,recovery:'The browser daemon cannot start (see error and log). Tell the user what it says; do not retry in a loop, kill processes, change ports or touch profile folders.'};
+      return r;
+    }
     case 'site_identify': return rpc(call,'site.identify',copy(args,['sessionId']));
     case 'learning_notes': return rpc(call,'learning.notes',copy(args,['sessionId','capability']));
     case 'site_memory_save': return rpc(call,'memory.save',copy(args,['sessionId','accept','notes','remove']));

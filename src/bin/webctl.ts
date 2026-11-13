@@ -153,6 +153,7 @@ async function main() {
 
   if (a === "health") return print(await client.call("health"));
   if (a === "browser" && b === "status") return print(await client.call("browser.status"));
+  if (a === "browser" && b === "doctor") return print(await client.call("browser.doctor", { fix: argv.includes("--fix") }));
   if (a === "browser" && b === "repair") return print(await client.call("browser.repair"));
   if (a === "browser" && b === "reveal") return print(await client.call("browser.reveal"));
   if (a === "browser" && b === "hide") return print(await client.call("browser.hide"));

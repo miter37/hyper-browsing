@@ -43,6 +43,23 @@ metadata:
 - 배치 실패 시 results와 stoppedAt을 읽는다. 완료된 단계를 롤백했다고 가정하지 않으며 전체 배치를 반복하지 않는다.
 - headless의 브라우저·탐색 실패, 확인된 차단·지속 로딩은 headed로 한 번 자동 전환한다. no_match·숨겨진 메뉴·잘못된 요소만으로 전환하지 않는다. 조회·명시한 페이지 이동만 자동 재시도한다. headedFallback.observationRequired이면 새 snapshot으로 이어간다. 재시작은 임시 입력·화면 상태를 잃을 수 있으며 이전 ref·쓰기·배치를 다시 보내지 않는다. 상세 조건은 docs/BROWSER.md를 읽는다.
 
+## 브라우저가 안 될 때
+
+시작 실패, daemon_unreachable, unauthorized, Chrome 무응답, 같은 오류 반복이면 `browser_doctor`를 `fix: true`로 **한 번** 부른다(CLI: `hyper-browsing doctor --fix`). doctor는 이렇게 고친다.
+- 살아 있는 Chrome에는 다시 붙고, 죽었을 때만 같은 프로필로 다시 띄운다. 열려 있던 세션은 원래 주소로 돌아간다.
+- 오래된 잠금 파일을 지우고 쓰지 않는 탭을 닫는다.
+- 로그인 파일이 사라졌으면 백업에서 복원한다.
+
+doctor가 고치지 못하면 보고한 내용을 사용자에게 전하고 멈춘다.
+
+절대 직접 하지 않는다:
+- Chrome·node 프로세스 종료
+- 포트 지정·변경 (`WEBAGENT_PORT`, `WEBAGENT_CDP_PORT`)
+- `chrome-profiles`·`.runtime`·`~/.hyper-browsing` 삭제·이름 변경
+- 다른 런타임 폴더로 전환
+
+`Unknown session`은 그 탭이 닫혔다는 뜻이다. `session_open`으로 새로 연다. 브라우저를 재시작하지 않는다.
+
 ## 쓰기와 사용자 개입
 
 external_write / irreversible / unclassified 동작은 현재 작업에 대한 사용자 승인을 근거로 --confirm을 전달한다. 저장된 성공 이력은 새 작업의 승인을 대신하지 않는다.

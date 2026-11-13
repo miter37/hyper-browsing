@@ -353,6 +353,12 @@ export function commandTargetsUserDataDir(command: string, userDataDir: string):
   return chromeRoots().map(normalizeForMatch).includes(target);
 }
 
+/** The browser process (not a renderer/GPU child, which carry --type=) of the Chrome holding `userDataDir`. */
+function mainChromePid(userDataDir: string): number | undefined {
+  const rows = chromeProcessesUsing(userDataDir);
+  return (rows.find((r) => !/--type=/.test(r.command)) || rows[0])?.pid;
+}
+
 /** Chrome processes currently holding `userDataDir`. */
 function chromeProcessesUsing(userDataDir: string): ProcessRow[] {
   return listProcesses().filter((row) => row.pid !== process.pid && commandTargetsUserDataDir(row.command, userDataDir));
@@ -602,6 +608,108 @@ async function fetchJson(url: string, timeoutMs = 1000): Promise<any | undefined
   finally { clearTimeout(timer); }
 }
 
+/** The DevTools port a Chrome running on `userDataDir` announced (Chrome writes DevToolsActivePort there). */
+export async function announcedPort(userDataDir: string): Promise<number | undefined> {
+  try {
+    const first = (await fs.readFile(path.join(userDataDir, "DevToolsActivePort"), "utf8")).split(/\r?\n/)[0].trim();
+    const port = Number(first);
+    return Number.isInteger(port) && port > 0 && port < 65536 ? port : undefined;
+  } catch { return undefined; }
+}
+
+/** A Chrome already serving DevTools for this profile, found by its announced port: reattach instead of restarting. */
+export async function liveChromePort(userDataDir: string, candidates: Array<number | undefined> = []): Promise<number | undefined> {
+  const announced = await announcedPort(userDataDir);
+  for (const port of [...new Set([announced, ...candidates])]) {
+    if (!port) continue;
+    const version = await fetchJson("http://127.0.0.1:" + port + "/json/version", 1000);
+    if (version && version.webSocketDebuggerUrl) return port;
+  }
+  return undefined;
+}
+
+/** Waits for a Chrome started with --remote-debugging-port=0 to announce the port it chose. */
+async function waitForAnnouncedPort(userDataDir: string, child: ChildProcess | undefined, timeoutMs = 20000): Promise<number> {
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    const port = await liveChromePort(userDataDir);
+    if (port) return port;
+    if (child && child.exitCode != null && child.exitCode !== 0) throw new Error("Chrome exited during startup with code " + child.exitCode);
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error("Chrome did not announce a DevTools port in " + path.join(userDataDir, "DevToolsActivePort") + " within " + timeoutMs + "ms");
+}
+
+/* ------------------------------------------------------------------ *
+ * Login profile protection
+ * ------------------------------------------------------------------ */
+
+// What keeps a profile signed in: cookies, the key that decrypts them (Local State), saved logins, site storage.
+const LOGIN_FILES = ["Local State", "Default/Preferences", "Default/Secure Preferences", "Default/Network/Cookies",
+  "Default/Cookies", "Default/Login Data", "Default/Web Data", "Default/Bookmarks", "Default/Local Storage/leveldb"];
+const BACKUPS_KEPT = 3;
+const BACKUP_EVERY_MS = 20 * 60 * 60 * 1000;
+const MAX_BACKUP_BYTES = 400 * 1024 * 1024;
+
+async function sizeOf(p: string): Promise<number> {
+  const st = await fs.stat(p).catch(() => undefined);
+  if (!st) return 0;
+  if (!st.isDirectory()) return st.size;
+  let total = 0;
+  for (const e of await fs.readdir(p).catch(() => [] as string[])) total += await sizeOf(path.join(p, e));
+  return total;
+}
+
+function backupRoot(config: AppConfig, userDataDir: string): string {
+  return path.join(config.runtimeDir, "profile-backups", path.basename(userDataDir));
+}
+
+export function hasLogin(userDataDir: string): boolean {
+  return ["Default/Network/Cookies", "Default/Cookies"].some((f) => fsSync.existsSync(path.join(userDataDir, f)));
+}
+
+/**
+ * Before Chrome starts on an agent-owned profile (nothing holds its files then): leave a do-not-delete note,
+ * bring a lost login back from the newest backup, and back the login files up at most once a day.
+ */
+export async function protectProfile(config: AppConfig, userDataDir: string): Promise<{ restoredFrom?: string; backedUp?: string }> {
+  const out: { restoredFrom?: string; backedUp?: string } = {};
+  const parent = path.dirname(userDataDir);
+  await fs.mkdir(parent, { recursive: true }).catch(() => {});
+  await fs.writeFile(path.join(parent, "README-DO-NOT-DELETE.txt"),
+    "These folders are the signed-in Chrome profiles the browser agent uses (cookies, saved logins).\n" +
+    "Deleting or renaming them signs every site out. They are never the cause of a browser error:\n" +
+    "to recover, run `hyper-browsing doctor --fix` (or the MCP tool browser_doctor with fix: true).\n" +
+    "Login backups: " + path.join(config.runtimeDir, "profile-backups") + "\n").catch(() => {});
+  const root = backupRoot(config, userDataDir);
+  const backups = (await fs.readdir(root).catch(() => [] as string[])).filter((d) => /^\d{4}-\d{2}-\d{2}T/.test(d)).sort();
+  if (!hasLogin(userDataDir) && backups.length) {
+    const newest = path.join(root, backups[backups.length - 1]);
+    for (const rel of LOGIN_FILES) {
+      const from = path.join(newest, rel);
+      if (fsSync.existsSync(from)) await fs.cp(from, path.join(userDataDir, rel), { recursive: true, force: true }).catch(() => {});
+    }
+    out.restoredFrom = newest;
+  }
+  const last = backups.length ? Date.parse(backups[backups.length - 1].replace(/_/g, ":") + "Z") : 0;
+  if (hasLogin(userDataDir) && Date.now() - last > BACKUP_EVERY_MS) {
+    let total = 0;
+    for (const rel of LOGIN_FILES) total += await sizeOf(path.join(userDataDir, rel));
+    if (total <= MAX_BACKUP_BYTES) {
+      const stamp = new Date().toISOString().replace(/:/g, "_").slice(0, 19);
+      const dest = path.join(root, stamp);
+      for (const rel of LOGIN_FILES) {
+        const from = path.join(userDataDir, rel);
+        if (fsSync.existsSync(from)) await fs.cp(from, path.join(dest, rel), { recursive: true, force: true }).catch(() => {});
+      }
+      out.backedUp = dest;
+      const all = [...backups, stamp].sort();
+      for (const old of all.slice(0, Math.max(0, all.length - BACKUPS_KEPT))) await fs.rm(path.join(root, old), { recursive: true, force: true }).catch(() => {});
+    }
+  }
+  return out;
+}
+
 async function waitForCdp(port: number, child: ChildProcess | undefined, timeoutMs = 20000): Promise<void> {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
@@ -717,17 +825,26 @@ export class ChromeManager {
     const executable = findChromeExecutable(this.config);
     let profile = await resolveChromeProfile(this.config, { preference });
 
-    // Reattach to a Chrome this agent started earlier instead of restarting it.
+    // Reattach to a Chrome already running on this profile instead of restarting it: by the port recorded in
+    // chrome-state.json, or - when that file is gone or stale (another daemon started it, a port changed) - by
+    // the port Chrome itself announced in DevToolsActivePort. Restarting would cost every open task its tab.
     const previous = await this.readState();
-    if (previous && normalizeForMatch(previous.userDataDir) === normalizeForMatch(profile.userDataDir)
-      && previous.profileDirectory === profile.profileDirectory) {
-      const version = await fetchJson("http://127.0.0.1:" + previous.cdpPort + "/json/version", 700);
-      if (version && version.webSocketDebuggerUrl) {
-        this.profile = profile;
-        const attached = await this.attach(previous.cdpPort);
-        this.state = previous;
-        return { context: attached, state: previous, takeover: { reusedExistingChrome: true, killed: [], locksRemoved: [] } };
-      }
+    const sameProfile = previous && normalizeForMatch(previous.userDataDir) === normalizeForMatch(profile.userDataDir)
+      && previous.profileDirectory === profile.profileDirectory;
+    const livePort = await liveChromePort(profile.userDataDir, sameProfile ? [previous!.cdpPort] : []);
+    if (livePort) {
+      this.profile = profile;
+      const attached = await this.attach(livePort);
+      const state: ChromeRuntimeState = sameProfile && previous!.cdpPort === livePort ? previous! : {
+        ...(sameProfile ? previous! : {}),
+        executable, chromeVersion: chromeVersion(executable), userDataDir: profile.userDataDir, profileDirectory: profile.profileDirectory,
+        displayName: profile.displayName, managed: profile.managed, headless: sameProfile ? previous!.headless : false,
+        cdpPort: livePort, pid: mainChromePid(profile.userDataDir), startedAt: sameProfile ? previous!.startedAt : new Date().toISOString(),
+        source: profile.source, reason: profile.reason, hint: profile.hint,
+      } as ChromeRuntimeState;
+      this.state = state;
+      await this.writeState(state);
+      return { context: attached, state, takeover: { reusedExistingChrome: true, foundBy: sameProfile && previous!.cdpPort === livePort ? "state" : "DevToolsActivePort", killed: [], locksRemoved: [] } };
     }
 
     let takeover: TakeoverResult = await forceReleaseChromeProfile(this.config, profile);
@@ -762,10 +879,14 @@ export class ChromeManager {
   private async launch(executable: string, profile: ResolvedChromeProfile, takeover: any): Promise<{ context: BrowserContext; state: ChromeRuntimeState; takeover: any }> {
     this.profile = profile;
     await fs.mkdir(profile.userDataDir, { recursive: true });
-    const port = await choosePort(this.config.cdpPort || 9223);
+    if (profile.managed) Object.assign(takeover, await protectProfile(this.config, profile.userDataDir).catch(() => ({})));
+    // Port 0: Chrome binds a free port itself, so a busy or OS-reserved port cannot stop the start.
+    const pinned = this.config.cdpPort;
+    const requestedPort = pinned ? await choosePort(pinned) : 0;
+    await fs.rm(path.join(profile.userDataDir, "DevToolsActivePort"), { force: true }).catch(() => {});
     const headless = await resolveHeadless(this.config);
     const args = [
-      "--remote-debugging-port=" + port,
+      "--remote-debugging-port=" + requestedPort,
       "--user-data-dir=" + profile.userDataDir,
       "--profile-directory=" + profile.profileDirectory,
       "--no-first-run",
@@ -807,7 +928,9 @@ export class ChromeManager {
     } else {
       this.child = await spawnChrome(executable, args, { cwd: launchCwd, windowsHide: headless });
     }
-    await waitForCdp(port, this.child, this.config.chromeStartupTimeoutMs);
+    const port = requestedPort
+      ? (await waitForCdp(requestedPort, this.child, this.config.chromeStartupTimeoutMs), requestedPort)
+      : await waitForAnnouncedPort(profile.userDataDir, this.child, this.config.chromeStartupTimeoutMs);
     const context = await this.attach(port);
 
     const state: ChromeRuntimeState = {
@@ -855,6 +978,9 @@ export class ChromeManager {
   }
 
   getState(): ChromeRuntimeState | undefined { return this.state; }
+
+  /** Whether this daemon holds a live CDP connection to Chrome right now. */
+  connected(): boolean { return Boolean(this.context && !this.disconnected && this.browser && this.browser.isConnected()); }
 
   async repair(): Promise<{ context: BrowserContext; state: ChromeRuntimeState; takeover: any }> {
     const release = await acquireChromeLock(this.config);

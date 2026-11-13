@@ -54,6 +54,7 @@ The npm package name/availability must be verified at publication time. The repo
 | MCP name | Purpose |
 | --- | --- |
 | `browser_status` | Inspect Chrome status |
+| `browser_doctor` | Diagnose the browser; with `fix: true`, repair it safely: reattach or relaunch, clear stale locks, sweep idle tabs, restore the login backup |
 | `session_open`, `session_list`, `session_close` | Manage tabs |
 | `navigate`, `back` | Move an existing tab |
 | `snapshot`, `list_items`, `forms` | Compact page inspection |

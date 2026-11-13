@@ -4,10 +4,11 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { postRpc } from './rpc-transport.mjs';
+import { resolveRuntimeDir } from './runtime-home.mjs';
 
 const FALLBACK_CODE = 42;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const RUNTIME_DIR = path.resolve(process.env.WEBAGENT_RUNTIME_DIR || path.join(ROOT, ".runtime"));
+const RUNTIME_DIR = resolveRuntimeDir(ROOT);
 const ENDPOINT_FILE = path.join(RUNTIME_DIR, "browserd-endpoint.json");
 const TOKEN_FILE = path.join(RUNTIME_DIR, "browserd.token");
 
@@ -280,6 +281,11 @@ async function main() {
   }
   const response = await postRpc({endpoint:`http://127.0.0.1:${creds.port}`,token:creds.token,...rpc});
   if (response.fallbackAllowed && rpc.method !== 'request.status') process.exit(FALLBACK_CODE);
+  // 401: the recorded port belongs to another runtime's daemon; the launcher finds or starts ours.
+  if (!response.rpcOk && /unauthorized/i.test(String(response.result?.error || '')) && response.result?.execution === 'not_started') {
+    try { fs.rmSync(path.join(RUNTIME_DIR, 'browserd-endpoint.json'), { force: true }); } catch {}
+    process.exit(FALLBACK_CODE);
+  }
   process.stdout.write(JSON.stringify(response.result,null,2)+'\n');
   process.exit(!response.rpcOk || response.result?.ok === false ? 1 : 0);
 }

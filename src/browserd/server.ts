@@ -96,8 +96,12 @@ export class BrowserDaemon {
     this.token = await ensureToken(this.config);
     const started = await this.chrome.start();
     this.context = started.context;
-    this.sessions = new SessionStore(this.context);
+    this.sessions = new SessionStore(this.context, this.tabsFile());
     await this.sessions.adoptExisting();
+    // Tabs left behind by earlier runs (finished, crashed, abandoned tasks) are closed now and every 10 minutes.
+    await this.sweepTabs();
+    this.sweepTimer = setInterval(() => { void this.sweepTabs(); }, 10 * 60_000);
+    this.sweepTimer.unref?.();
 
     this.server = http.createServer(async (req, res) => {
       if (req.method === "GET" && req.url === "/health") {
@@ -246,6 +250,27 @@ export class BrowserDaemon {
     await recordMemoryStep(this.config, params.sessionId, { ...base, kind: kind as any, control: control as any, frame: params.frame, frameUrl, submit: Boolean(params.submit), stateChange, ...change });
   }
 
+  private sweepTimer?: NodeJS.Timeout;
+  lastSweep?: { at: string; closed: string[] };
+  private tabsFile() { return path.join(this.config.runtimeDir, "sessions", "tabs.json"); }
+  private async sweepTabs() {
+    if (!this.sessions || process.env.WEBAGENT_TAB_SWEEP === "0") return [];
+    const closed = await this.sessions.sweepIdle().catch(() => [] as string[]);
+    if (closed.length) this.lastSweep = { at: new Date().toISOString(), closed };
+    return closed;
+  }
+
+  /** Makes sure this daemon talks to a live Chrome (reattaching to a running one first) and sessions point at it. */
+  private async syncContext() {
+    const current = await this.chrome.ensureConnected();
+    if (current !== this.context) {
+      this.clearNetwork();
+      this.context = current;
+      if (this.sessions) await this.sessions.rebindContext(current);
+      else { this.sessions = new SessionStore(current, this.tabsFile()); await this.sessions.adoptExisting(); }
+    }
+  }
+
   private store(): SessionStore {
     if (!this.sessions) throw new Error("browserd not started");
     return this.sessions;
@@ -328,13 +353,24 @@ export class BrowserDaemon {
       for (const sessionId of closed) await finishObservedLearning(this.config, sessionId).catch(() => {});
       return { closed, count: closed.length };
     }
-    const current = await this.chrome.ensureConnected();
-    if (current !== this.context) {
-      this.clearNetwork();
-      this.context = current;
-      if (this.sessions) await this.sessions.rebindContext(current);
-      else { this.sessions = new SessionStore(current); await this.sessions.adoptExisting(); }
+    // Before connecting: the doctor must still answer when Chrome cannot be reached at all.
+    if (method === "browser.doctor") {
+      const { runDoctor } = await import("./doctor");
+      return runDoctor({
+        config: this.config, chrome: this.chrome, sessions: this.sessions, lastSweep: this.lastSweep,
+        reconnect: () => this.syncContext(),
+        relaunch: async () => {
+          this.sessions?.captureUrls?.();
+          this.clearNetwork();
+          const repaired = await this.chrome.repair();
+          this.context = repaired.context;
+          if (this.sessions) await this.sessions.rebindContext(repaired.context);
+          else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
+        },
+        sweep: () => this.sweepTabs(),
+      }, Boolean(params.fix));
     }
+    await this.syncContext();
     if (method === "health") return { status: "ok", pid: process.pid, chrome: this.chrome.getState() };
     if (method === "browser.status") return { status: "ok", chrome: this.chrome.getState(), sessions: await this.store().list() };
     if (method === "browser.profiles") {
@@ -360,7 +396,7 @@ export class BrowserDaemon {
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
-      else { this.sessions = new SessionStore(repaired.context); await this.sessions.adoptExisting(); }
+      else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
       return { status: "switched", preference: saved, resolved, chrome: repaired.state, takeover: repaired.takeover };
     }
     if (method === "browser.repair") {
@@ -369,7 +405,7 @@ export class BrowserDaemon {
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
-      else { this.sessions = new SessionStore(repaired.context); await this.sessions.adoptExisting(); }
+      else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
       return { status: "repaired", chrome: repaired.state, takeover: repaired.takeover, sessions: await this.store().list() };
     }
     if (method === "browser.reveal" || method === "browser.hide") {
@@ -382,7 +418,7 @@ export class BrowserDaemon {
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
-      else { this.sessions = new SessionStore(repaired.context); await this.sessions.adoptExisting(); }
+      else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
       return {
         status: method === "browser.reveal" ? "revealed" : "hidden",
         chrome: repaired.state,
@@ -820,6 +856,8 @@ export class BrowserDaemon {
   }
 
   async stop(): Promise<void> {
+    if (this.sweepTimer) clearInterval(this.sweepTimer);
+    await this.sessions?.saveNow().catch(() => {});
     this.clearNetwork();
     await new Promise<void>((resolve) => this.server?.close(() => resolve()));
     await this.chrome.stop();

@@ -55,11 +55,24 @@ webctl browser use --auto                  # back to the first profile
 
 | Symptom | Do this |
 | --- | --- |
-| Any browser command fails, Chrome vanished | `webctl browser repair`, then continue the task |
-| Startup or profile problem you cannot diagnose | `webctl browser status` and report its `reason` field |
-| Need the daemon log | `.runtime/browserd.log` (last 100 lines) |
-| Port already in use | The agent picks a free port automatically; if it still fails, set `WEBAGENT_PORT` |
+| Any browser failure: startup, daemon unreachable, unauthorized, Chrome not answering, the same error again | `browser_doctor` with `fix: true` (CLI `hyper-browsing doctor --fix`) once, then continue the task |
+| The doctor cannot fix it | Report what it said to the user. Do not kill processes, set ports or touch profile folders |
+| `Unknown session` | The tab is gone (closed, or swept after hours idle). Open a new session; nothing to repair |
+| Need the daemon log | `<runtime>/browserd.log`; the runtime is in `~/.hyper-browsing/runtime-home.json` |
 | Site logged out, or any login/CAPTCHA/2FA wall | `webctl browser reveal`, ask the user to sign in there, then retry |
+
+### What keeps it running
+
+| Hazard | Built-in answer |
+| --- | --- |
+| Several installs (skill folder, npx, another agent) | One runtime per machine: the first daemon records it in `~/.hyper-browsing/runtime-home.json`, every entry point uses it. One daemon, one Chrome, one signed-in profile. `WEBAGENT_RUNTIME_DIR` set by hand stays private. |
+| Two starts at once | Daemon start and Chrome start each take a lock. Late callers wait and then use the instance the first one started. |
+| A port is taken or reserved by Windows | The daemon never kills a process it does not own. It skips to the next free port. Chrome is started with `--remote-debugging-port=0`, picks a free port itself and announces it in `DevToolsActivePort`. |
+| `chrome-state.json` lost or stale, daemon restarted | Chrome is found by the port it announced, and the daemon reattaches. Nothing is restarted. |
+| Daemon restart while other agents work | Session ids are bound to Chrome tab ids (`sessions/tabs.json`), so every agent's session id stays valid after a restart. |
+| Tabs left by finished or crashed tasks | Tabs idle for 6 h are closed at start and every 10 min. Above 20 tabs, the least recently used ones idle for 15 min are closed too. One tab always stays. Tune with `WEBAGENT_TAB_IDLE_HOURS` and `WEBAGENT_MAX_TABS`, or turn off with `WEBAGENT_TAB_SWEEP=0`. |
+| Signed-out or deleted profile | Before Chrome starts, the login files are backed up at most once a day (3 kept, `<runtime>/profile-backups`). They are restored automatically when the cookies are gone. The profile folder carries a do-not-delete note. |
+| `npm run clean` | Never closes Chrome unless asked (`--stop-chrome`). It skips the profile trim while Chrome runs. |
 
 Starting or repairing the browser is setup work. It is **not** completing the user's task.
 

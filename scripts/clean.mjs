@@ -4,25 +4,33 @@ import path from "node:path";
 import process from "node:process";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { resolveRuntimeDir } from "./runtime-home.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const RUNTIME_DIR = path.join(ROOT, ".runtime");
+const RUNTIME_DIR = resolveRuntimeDir(ROOT);
 const CHROME_PROFILES_DIR = path.join(RUNTIME_DIR, "chrome-profiles");
 const PROFILE_1_DATA = path.join(CHROME_PROFILES_DIR, "Profile-1-user-data");
 
 console.log("🧹 [hyper-browsing] Starting Smart Clean...");
 
-// 1. Terminate running Chrome instances to free file locks (leave current node running)
-console.log("1. Checking and terminating running Chrome processes...");
-try {
-  if (process.platform === "win32") {
-    execFileSync("powershell.exe", [
-      "-NoProfile",
-      "-Command",
-      "Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'chrome*' -and ($_.CommandLine -like '*hyper-browsing*' -or $_.CommandLine -like '*37web*' -or $_.CommandLine -like '*remote-debugging-port=9223*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
-    ], { stdio: "ignore", windowsHide: true });
-  }
-} catch {}
+// 1. Chrome may be in use by another agent's task: it is closed only on request (--stop-chrome), and only the
+//    Chrome running on this runtime's own profiles. Without it, a running Chrome makes the profile trim skip.
+const STOP_CHROME = process.argv.includes("--stop-chrome");
+function chromeOnRuntime() {
+  if (process.platform !== "win32") return [];
+  try {
+    const out = execFileSync("powershell.exe", ["-NoProfile", "-Command",
+      "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }"], { encoding: "utf8", windowsHide: true });
+    const needle = CHROME_PROFILES_DIR.toLowerCase();
+    return out.split(/\r?\n/).filter((l) => l.toLowerCase().includes(needle)).map((l) => Number(l.split("\t")[0])).filter(Boolean);
+  } catch { return []; }
+}
+const running = chromeOnRuntime();
+console.log(`1. Chrome on this runtime: ${running.length ? running.length + " process(es)" : "not running"}`);
+if (running.length && STOP_CHROME) {
+  for (const pid of running) { try { execFileSync("taskkill", ["/PID", String(pid)], { stdio: "ignore", windowsHide: true }); } catch {} }
+  console.log("   Asked Chrome to close (--stop-chrome).");
+}
 
 function safeRemove(targetPath) {
   try {
@@ -120,7 +128,9 @@ for (const p of RUNTIME_GARBAGE) {
 
 // 4. Preserve Authentication Cookies & Storage, Wipe Huge Caches inside Profile-1-user-data
 console.log("4. Trimming heavy cache inside Profile-1-user-data while PRESERVING login sessions...");
-if (fs.existsSync(PROFILE_1_DATA)) {
+if (running.length && !STOP_CHROME) {
+  console.log("   Skipped: Chrome is running on this profile (rerun with --stop-chrome to close it first).");
+} else if (fs.existsSync(PROFILE_1_DATA)) {
   const DEFAULT_DIR = path.join(PROFILE_1_DATA, "Default");
   
   // Folders safe to wipe (100% regenerable caches)

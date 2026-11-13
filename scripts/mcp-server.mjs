@@ -7,10 +7,11 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import readline from 'node:readline';
 import {postRpc} from './rpc-transport.mjs';
+import {resolveRuntimeDir} from './runtime-home.mjs';
 import {TOOLS,runTool,validateToolInput} from './mcp-tools.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const RUNTIME=path.resolve(process.env.WEBAGENT_RUNTIME_DIR||path.join(ROOT,'.runtime'));
+const RUNTIME=resolveRuntimeDir(ROOT);
 const ENDPOINT=path.join(RUNTIME,'browserd-endpoint.json');
 const TOKEN=path.join(RUNTIME,'browserd.token');
 const PROTOCOL='2025-06-18';
@@ -23,6 +24,8 @@ function readCredentials(){
   return {endpoint:'http://127.0.0.1:'+port,token};
 }
 let started=false;
+const RECOVERY='Call browser_doctor with fix: true once. Do not kill Chrome or node, do not pick ports, do not delete or rename profile folders. If the doctor cannot fix it, tell the user what it reported.';
+function tail(file,lines=25){try{return fs.readFileSync(file,'utf8').split(/\r?\n/).slice(-lines).join('\n');}catch{return undefined;}}
 async function defaultRpc(method,params,retried=false){
   if(!started){
     // Launcher ensures a token-authenticated local daemon, reusing the existing
@@ -31,13 +34,21 @@ async function defaultRpc(method,params,retried=false){
       cwd:ROOT,env:{...process.env,WEBAGENT_HOME:ROOT},encoding:'utf8',timeout:95000,
       maxBuffer:2*1024*1024,windowsHide:true,
     });
-    if(child.status!==0)return {ok:false,execution:'not_started',reason:'browser_startup_failed',error:'Browser startup failed: '+(child.stderr||child.error?.message||'unknown').slice(0,1200)};
+    if(child.status!==0)return {ok:false,execution:'not_started',reason:'browser_startup_failed',error:'Browser startup failed: '+(child.stderr||child.error?.message||'unknown').slice(0,1200),
+      recovery:RECOVERY,runtime:RUNTIME,log:tail(path.join(RUNTIME,'browserd.log'))};
     started=true;
   }
   let credentials;
   try{credentials=readCredentials();}
   catch(error){started=false;return {ok:false,execution:'not_started',reason:'daemon_credentials_unavailable',error:String(error?.message||error)};}
   let response=await postRpc({...credentials,method,params});
+  // 401: whatever answers on the recorded port is not this runtime's daemon (another install, an old token). The
+  // command was refused unread, so it is safe to find or start our own daemon and send it once more.
+  if(!response.rpcOk&&/unauthorized/i.test(String(response.result?.error||''))&&response.result?.execution==='not_started'){
+    started=false;
+    try{fs.rmSync(ENDPOINT,{force:true});}catch{}
+    if(!retried)return defaultRpc(method,params,true);
+  }
   // ECONNREFUSED means the command never reached the daemon. Startup may be
   // repeated, but an outcome_unknown action must NEVER be retransmitted.
   if(response.fallbackAllowed){
@@ -45,7 +56,7 @@ async function defaultRpc(method,params,retried=false){
     // The daemon was restarted or stopped since the last call. The command never reached it, so starting the
     // daemon again and sending it once more cannot repeat an action.
     if(!retried)return defaultRpc(method,params,true);
-    return {ok:false,execution:'not_started',reason:'daemon_unreachable',hint:'Restart the MCP connection or run hyper-browsing doctor. Original command was not transmitted.'};
+    return {ok:false,execution:'not_started',reason:'daemon_unreachable',hint:'The original command was not transmitted.',recovery:RECOVERY,runtime:RUNTIME,log:tail(path.join(RUNTIME,'browserd.log'))};
   }
   return response.result;
 }
@@ -66,7 +77,8 @@ export function createMcpHandler(rpc=defaultRpc){
           return ok({protocolVersion:version,capabilities:{tools:{}},serverInfo:SERVER_INFO,
             instructions:'Local Chrome browser automation. Always inspect current refs before acting. No blind retries after outcome_unknown. Explicit user approval is required before external writes. '
             +'Known sites: when a result carries siteMemory, read it first and use its saved actions (run_saved_action) before exploring by hand. '
-            +'After finishing a task by hand on a site, save what worked with site_knowledge_save (a short guide and the actions that worked), so the next visit starts from it.'});
+            +'After finishing a task by hand on a site, save what worked with site_knowledge_save (a short guide and the actions that worked), so the next visit starts from it. '
+            +'If the browser itself fails (startup, unreachable, unauthorized, Chrome not answering), call browser_doctor with fix: true once; never kill processes, change ports or delete profile folders yourself. An unknown session id only means its tab is gone: open a new session.'});
         }
         case 'ping':return ok({});
         case 'tools/list':return ok({tools:TOOLS});
