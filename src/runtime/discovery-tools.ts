@@ -402,7 +402,7 @@ const LIST_SCRIPT = `(opts) => {
 
 /** Reads a repeated list (search results, cards, rows) as items: {title, href, text}. */
 export async function listItems(page: Page, options: { query?: string; limit?: number } = {}) {
-  const opts = JSON.stringify({ query: options.query || "", limit: Math.max(1, Math.min(Number(options.limit) || 10, 50)) });
+  const opts = JSON.stringify({ query: options.query || "", limit: Math.max(1, Math.min(Number(options.limit) || 10, 200)) });
   return page.evaluate(`(${LIST_SCRIPT})(${opts})`);
 }
 
