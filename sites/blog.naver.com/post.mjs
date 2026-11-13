@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Writes a Naver Blog post in the agent's Chrome (the hyper-browsing managed browser, CDP port 9223).
+// Writes a Naver Blog post in the agent's Chrome (the hyper-browsing managed browser; its DevTools port is read from chrome-state.json).
 //
 //   node sites/blog.naver.com/post.mjs --title "제목" --html post.html [--category 매일매일] [--visibility 비공개] [--publish]
 //   node sites/blog.naver.com/post.mjs --list-categories
@@ -20,7 +20,10 @@ const { chromium } = require("playwright");
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const flag = (name) => args.includes(`--${name}`);
-const port = opt("port") || process.env.WEBAGENT_CDP_PORT || "9223";
+// The agent's Chrome picks its DevTools port at start; the daemon records it in chrome-state.json.
+const { resolveRuntimeDir } = await import(new URL("../../scripts/runtime-home.mjs", import.meta.url).href);
+const statePort = (() => { try { return JSON.parse(fs.readFileSync(path.join(resolveRuntimeDir(path.join(here, "..", "..")), "chrome-state.json"), "utf8")).cdpPort; } catch { return undefined; } })();
+const port = opt("port") || process.env.WEBAGENT_CDP_PORT || statePort || "9223";
 
 const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
 const page = await browser.contexts()[0].newPage();

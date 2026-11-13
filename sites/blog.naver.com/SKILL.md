@@ -4,7 +4,7 @@
 Prepare the whole post as one HTML fragment, then paste it. Never type a post key by key.
 - Saved actions: `write_post` {title, html} → review → `publish_post` {category, visibility}.
   They are code actions: the daemon runs them only with `WEBAGENT_ALLOW_CODE_ACTIONS=1`.
-- Without code actions, the same thing from a shell (uses the agent's Chrome on port 9223):
+- Without code actions, the same thing from a shell (finds the agent's Chrome through chrome-state.json):
   `node sites/blog.naver.com/post.mjs --title "제목" --html post.html --category 매일매일 --visibility 비공개 [--publish]`
   Without `--publish` it stops with the post written in a new tab. `--list-categories` lists the blog's categories.
 - Publishing is an external write: only when the user asked for it. Default visibility is 비공개.

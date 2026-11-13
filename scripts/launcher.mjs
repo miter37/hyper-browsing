@@ -13,6 +13,7 @@ import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { resolveRuntimeDir, claimRuntimeHome } from "./runtime-home.mjs";
 import { spawn, spawnSync } from "node:child_process";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -20,13 +21,18 @@ const IS_WINDOWS = process.platform === "win32";
 
 process.env.WEBAGENT_HOME = process.env.WEBAGENT_HOME || ROOT;
 
-const RUNTIME_DIR = path.resolve(process.env.WEBAGENT_RUNTIME_DIR || path.join(ROOT, ".runtime"));
+// Decided before WEBAGENT_RUNTIME_DIR is filled in below: only a runtime set by hand is private (never claims).
+const RUNTIME_EXPLICIT = Boolean(process.env.WEBAGENT_RUNTIME_DIR) && process.env.WEBAGENT_RUNTIME_RESOLVED !== "1";
+const RUNTIME_DIR = resolveRuntimeDir(ROOT);
+process.env.WEBAGENT_RUNTIME_DIR = RUNTIME_DIR;
+if (!RUNTIME_EXPLICIT) process.env.WEBAGENT_RUNTIME_RESOLVED = "1";
 /** Set by the user: the port is then pinned and never auto-selected. */
 const PINNED_PORT = process.env.WEBAGENT_PORT ? Number(process.env.WEBAGENT_PORT) : undefined;
 const BASE_PORT = PINNED_PORT || 3219;
 const PID_FILE = path.join(RUNTIME_DIR, "browserd.pid");
 const LOG_FILE = path.join(RUNTIME_DIR, "browserd.log");
 const ENDPOINT_FILE = path.join(RUNTIME_DIR, "browserd-endpoint.json");
+const START_LOCK = path.join(RUNTIME_DIR, "daemon-start.lock");
 
 function log(message) {
   if (process.env.WEBAGENT_QUIET === "1") return;
@@ -212,10 +218,29 @@ function killPid(pid, hard) {
   } catch {}
 }
 
+/** Command line of a process, or "" when it cannot be read. */
+function commandLineOf(pid) {
+  try {
+    if (IS_WINDOWS) {
+      const r = spawnSync("powershell.exe", ["-NoProfile", "-Command", `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`], { encoding: "utf8", windowsHide: true });
+      return (r.stdout || "").trim();
+    }
+    const r = spawnSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
+    return (r.stdout || "").trim();
+  } catch { return ""; }
+}
+
+/** Only a process that is this install's browserd may be stopped: never another app, never another install. */
+function isOurDaemon(pid) {
+  const cmd = commandLineOf(pid).toLowerCase().replace(/\\/g, "/");
+  return cmd.includes("browserd") && (cmd.includes(ROOT.toLowerCase().replace(/\\/g, "/")) || cmd.includes("launcher.mjs"));
+}
+
 async function stopStaleDaemon() {
   if (!fs.existsSync(PID_FILE)) return;
   const pid = Number(fs.readFileSync(PID_FILE, "utf8").trim());
-  if (Number.isFinite(pid) && pid > 0 && processAlive(pid)) {
+  // A recycled pid may now belong to anything: stop it only if it is still our browserd.
+  if (Number.isFinite(pid) && pid > 0 && processAlive(pid) && isOurDaemon(pid)) {
     killPid(pid, false);
     for (let i = 0; i < 20 && processAlive(pid); i++) await sleep(150);
     if (processAlive(pid)) killPid(pid, true);
@@ -227,8 +252,44 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * One launcher at a time starts the daemon. Callers that arrive meanwhile (the MCP server and a webctl
+ * call, two agents at once) wait for the first one and then find its daemon healthy.
+ */
+async function withStartLock(fn) {
+  fs.mkdirSync(RUNTIME_DIR, { recursive: true });
+  const deadline = Date.now() + 90000;
+  for (;;) {
+    try {
+      fs.writeFileSync(START_LOCK, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }), { flag: "wx" });
+      break;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      let stale = false;
+      try {
+        const held = JSON.parse(fs.readFileSync(START_LOCK, "utf8"));
+        stale = !processAlive(Number(held.pid)) || Date.now() - fs.statSync(START_LOCK).mtimeMs > 90000;
+      } catch { stale = true; }
+      if (stale) { try { fs.rmSync(START_LOCK, { force: true }); } catch {} continue; }
+      const recorded = readEndpointPort();
+      if (recorded && await daemonHealthy(recorded)) return recorded;
+      if (Date.now() > deadline) fail("Another process has been starting browserd for 90s (" + START_LOCK + "). Run: hyper-browsing doctor --fix");
+      await sleep(300);
+    }
+  }
+  try { return await fn(); }
+  finally { try { fs.rmSync(START_LOCK, { force: true }); } catch {} }
+}
+
 /** Starts browserd if it is not already answering, and returns the port it is reachable on. */
 async function ensureBrowserd() {
+  const recorded = readEndpointPort();
+  if (recorded && await daemonHealthy(recorded)) return recorded;
+  return withStartLock(startBrowserd);
+}
+
+async function startBrowserd() {
+  claimRuntimeHome(RUNTIME_DIR);
   const port = await resolveDaemonPort();
   if (await daemonHealthy(port)) {
     writeEndpointPort(port);
@@ -238,21 +299,8 @@ async function ensureBrowserd() {
   // A stale browserd may still hold the pid file while no longer answering RPC.
   await stopStaleDaemon();
 
-  if (!(await portIsFree(port))) {
-    // If the port is not free and not healthy, attempt to clean up stale process holding it on Windows
-    if (IS_WINDOWS) {
-      try {
-        const netstat = spawnSync("powershell.exe", ["-NoProfile", "-Command", `(Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue).OwningProcess`], { encoding: "utf8", windowsHide: true });
-        const portPid = Number(netstat.stdout.trim().split(/\r?\n/)[0]);
-        if (Number.isFinite(portPid) && portPid > 0) {
-          killPid(portPid, true);
-          await sleep(500);
-        }
-      } catch {}
-    }
-  }
-
-  // If still not free, automatically resolve a truly free port rather than failing
+  // A port held by anything else (another app, another install's daemon, a reserved Windows range) is left
+  // alone: never kill what is not ours, take the next free port instead.
   let chosenPort = port;
   if (!(await portIsFree(chosenPort))) {
     for (let p = BASE_PORT; p < BASE_PORT + 50; p++) {
@@ -271,7 +319,7 @@ async function ensureBrowserd() {
     detached: true,
     stdio: ["ignore", out, out],
     windowsHide: true,
-    env: { ...process.env, WEBAGENT_HOME: ROOT, WEBAGENT_PORT: String(chosenPort) },
+    env: { ...process.env, WEBAGENT_HOME: ROOT, WEBAGENT_RUNTIME_DIR: RUNTIME_DIR, WEBAGENT_PORT: String(chosenPort) },
   });
   child.unref();
   fs.writeFileSync(PID_FILE, String(child.pid));
@@ -326,7 +374,8 @@ async function main() {
     ['metrics', 'baseline', 'test'].includes(args[0]);
   if (target === "webctl" && !offline) {
     process.env.WEBAGENT_PORT = String(await ensureBrowserd());
-  } else if (target === "browserd" && !PINNED_PORT) {
+  } else if (target === "browserd") claimRuntimeHome(RUNTIME_DIR);
+  if (target === "browserd" && !PINNED_PORT) {
     // Foreground daemon: claim a port and record it so webctl finds this instance.
     const port = await resolveDaemonPort();
     process.env.WEBAGENT_PORT = String(port);

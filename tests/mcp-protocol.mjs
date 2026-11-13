@@ -13,7 +13,7 @@ test('failed daemon startup never reports a transmitted action',{timeout:5000},a
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'hb-mcp-startup-'));
   t.after(()=>fs.rm(root,{recursive:true,force:true}));
   const scripts=path.join(root,'scripts');await fs.mkdir(scripts);
-  for(const file of ['mcp-server.mjs','mcp-tools.mjs','rpc-transport.mjs'])await fs.copyFile(path.resolve('scripts',file),path.join(scripts,file));
+  for(const file of ['mcp-server.mjs','mcp-tools.mjs','rpc-transport.mjs','runtime-home.mjs'])await fs.copyFile(path.resolve('scripts',file),path.join(scripts,file));
   await fs.writeFile(path.join(scripts,'launcher.mjs'),'process.stderr.write("Fixture startup failure");process.exit(1);');
   const child=spawn(process.execPath,[path.join(scripts,'mcp-server.mjs')],{stdio:['pipe','pipe','pipe'],windowsHide:true});
   t.after(()=>child.kill());

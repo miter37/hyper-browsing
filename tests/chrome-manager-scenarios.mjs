@@ -272,6 +272,57 @@ await test('concurrent start() calls do not race-kill each other', async () => {
   try { process.kill(ra.state.pid, 'SIGTERM'); } catch {}
 });
 
+await test('without a pinned port Chrome picks its own (port 0) and the manager attaches where it announces', async () => {
+  const server=http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({webSocketDebuggerUrl:'ws://announced'}));});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;
+  const rt=path.join(tmp,'rt-port0');const ud=path.join(rt,'profile');await fs.mkdir(ud,{recursive:true});
+  await fs.writeFile(path.join(ud,'DevToolsActivePort'),'1\n/stale');
+  const cp=require('node:child_process');const originalSpawn=cp.spawn;let args=[];
+  cp.spawn=(exe,a)=>{args=a;const child=new EventEmitter();child.exitCode=null;child.unref=()=>{};process.nextTick(()=>child.emit('spawn'));
+    setTimeout(()=>fs.writeFile(path.join(ud,'DevToolsActivePort'),port+'\n/devtools/browser/x'),300);return child;};
+  try{
+    const cm=new manager.ChromeManager(config(rt,{headless:true,cdpPort:undefined}));
+    const started=await cm.launch(process.execPath,{userDataDir:ud,profileDirectory:'Default',managed:true},{});
+    if(!args.includes('--remote-debugging-port=0'))throw new Error('expected port 0, got '+args.find(a=>a.startsWith('--remote-debugging-port')));
+    if(started.state.cdpPort!==port)throw new Error(`attached to ${started.state.cdpPort}, Chrome announced ${port}`);
+  }finally{cp.spawn=originalSpawn;server.closeAllConnections();await new Promise(r=>server.close(r));}
+});
+
+await test('a running Chrome is found by DevToolsActivePort when chrome-state.json is gone, and is not restarted', async () => {
+  const server=http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({webSocketDebuggerUrl:'ws://running'}));});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;
+  const rt=path.join(tmp,'rt-rediscover');await fs.mkdir(rt,{recursive:true});
+  const cfg=config(rt,{cdpPort:undefined});
+  const p=await manager.resolveChromeProfile(cfg);
+  await fs.writeFile(path.join(p.userDataDir,'DevToolsActivePort'),port+'\n/devtools/browser/x');
+  const cp=require('node:child_process');const originalSpawn=cp.spawn;
+  cp.spawn=()=>{throw new Error('must reattach, not launch');};
+  try{
+    const started=await new manager.ChromeManager(cfg).start();
+    if(!started.takeover.reusedExistingChrome||started.takeover.foundBy!=='DevToolsActivePort')throw new Error(JSON.stringify(started.takeover));
+    if(started.state.cdpPort!==port)throw new Error('wrong port '+started.state.cdpPort);
+    const saved=JSON.parse(await fs.readFile(path.join(rt,'chrome-state.json'),'utf8'));
+    if(saved.cdpPort!==port)throw new Error('state not rewritten');
+  }finally{cp.spawn=originalSpawn;server.closeAllConnections();await new Promise(r=>server.close(r));}
+});
+
+await test('the login profile is marked, backed up, and restored when its cookies disappear', async () => {
+  const rt=path.join(tmp,'rt-protect');const ud=path.join(rt,'chrome-profiles','Profile-1-user-data');
+  await fs.mkdir(path.join(ud,'Default','Network'),{recursive:true});
+  await fs.writeFile(path.join(ud,'Default','Network','Cookies'),'cookie-db');await fs.writeFile(path.join(ud,'Local State'),'{"os_crypt":{}}');
+  const cfg=config(rt);
+  const first=await manager.protectProfile(cfg,ud);
+  if(!first.backedUp)throw new Error('no backup made: '+JSON.stringify(first));
+  if(!(await fs.readFile(path.join(rt,'chrome-profiles','README-DO-NOT-DELETE.txt'),'utf8')).includes('doctor'))throw new Error('marker missing');
+  const again=await manager.protectProfile(cfg,ud);
+  if(again.backedUp)throw new Error('backed up twice in a day');
+  await fs.rm(path.join(ud,'Default'),{recursive:true,force:true});await fs.rm(path.join(ud,'Local State'));
+  const restored=await manager.protectProfile(cfg,ud);
+  if(!restored.restoredFrom)throw new Error('not restored: '+JSON.stringify(restored));
+  if(await fs.readFile(path.join(ud,'Default','Network','Cookies'),'utf8')!=='cookie-db')throw new Error('cookies not restored');
+  if(!manager.hasLogin(ud))throw new Error('hasLogin false after restore');
+});
+
 await test('profile preference round-trips and --auto clears it', async () => {
   const rt = path.join(tmp, 'rt7'); await fs.mkdir(rt, { recursive: true });
   const cm = new manager.ChromeManager(config(rt));

@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import { resolveRuntimeDir } from "../scripts/runtime-home.mjs";
 
 export interface AppConfig {
   root: string;
@@ -64,7 +65,7 @@ function profileStrategy(): AppConfig["chromeProfileStrategy"] {
 
 export function getConfig(): AppConfig {
   const root = path.resolve(process.env.WEBAGENT_HOME || process.cwd());
-  const runtimeDir = path.resolve(process.env.WEBAGENT_RUNTIME_DIR || path.join(root, ".runtime"));
+  const runtimeDir = resolveRuntimeDir(root);
   return {
     root,
     runtimeDir,
@@ -83,7 +84,9 @@ export function getConfig(): AppConfig {
     allowUnsafeEval: boolEnv("WEBAGENT_ALLOW_UNSAFE_EVAL", false),
     allowCodeActions: boolEnv("WEBAGENT_ALLOW_CODE_ACTIONS", false),
     browserChannel: process.env.WEBAGENT_BROWSER_CHANNEL || "chrome",
-    cdpPort: process.env.WEBAGENT_CDP_PORT ? Number(process.env.WEBAGENT_CDP_PORT) : 9223,
+    // Unset: Chrome picks a free DevTools port itself (port 0) and reports it in DevToolsActivePort, so a
+    // busy or OS-reserved port can never block the start. Set WEBAGENT_CDP_PORT only to pin one.
+    cdpPort: process.env.WEBAGENT_CDP_PORT ? Number(process.env.WEBAGENT_CDP_PORT) : undefined,
     chromeProfileName: strEnv("WEBAGENT_CHROME_PROFILE_NAME"),
     chromeProfileStrategy: profileStrategy(),
     chromeProfileDirectory: strEnv("WEBAGENT_CHROME_PROFILE_DIRECTORY"),

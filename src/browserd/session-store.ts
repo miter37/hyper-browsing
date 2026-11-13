@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { BrowserContext, Page } from "playwright";
 import { navigate } from "../engine/navigate";
 import { registerPopupHandler, type PopupEffect } from '../engine/popups';
@@ -28,8 +30,27 @@ interface SessionRecord {
   setupError?: string;
 }
 
+/** What survives a daemon restart for each session: the Chrome tab it is bound to and when it was last used. */
+interface SavedTab { id: string; targetId: string; lastUsed: number; url?: string }
+
+export interface SweepOptions {
+  /** Close tabs nobody used for this long. */
+  idleMs: number;
+  /** Above this many tabs, close the least recently used ones that have been idle for minIdleMs. */
+  maxTabs: number;
+  minIdleMs: number;
+}
+export const DEFAULT_SWEEP: SweepOptions = {
+  idleMs: Number(process.env.WEBAGENT_TAB_IDLE_HOURS || 6) * 3600_000,
+  maxTabs: Number(process.env.WEBAGENT_MAX_TABS || 20),
+  minIdleMs: 15 * 60_000,
+};
+
 export class SessionStore {
   private ignored = new WeakSet<Page>();
+  private lastUsed = new Map<string, number>();
+  private targetIds = new WeakMap<Page, Promise<string | undefined>>();
+  private saveTimer?: NodeJS.Timeout;
   private watchedContexts = new WeakSet<BrowserContext>();
   ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
@@ -45,14 +66,93 @@ export class SessionStore {
       const prepare=parentId?this.sessions.get(parentId)?.prepare:undefined;
       const id=`popup_${crypto.randomUUID().slice(0,8)}`;
       const record:SessionRecord={page,lastUrl:page.url(),prepare,setupStatus:'ready'};
-      this.sessions.set(id,record);this.watchParent(page,id);
+      this.sessions.set(id,record);this.watchParent(page,id);this.used(id);
       try{if(prepare)await prepare(page);}catch{record.setupStatus='partial';record.setupError='Inherited page settings could not be applied';}
       return {sessionId:id,url:page.url(),title:await page.title().catch(()=>''),setupStatus:record.setupStatus!,setupError:record.setupError};
     })();this.pendingPopups.set(page,promise);return promise;
   }
 
-  constructor(private context: BrowserContext) {
+  /** persistFile keeps session ids bound to their tabs across daemon restarts (another agent's ids stay valid). */
+  constructor(private context: BrowserContext, private persistFile?: string) {
     this.watchForPopups(context);
+  }
+
+  /** Chrome's own id of a tab: stable for the tab's life, across CDP reconnects and daemon restarts. */
+  private targetIdOf(page: Page): Promise<string | undefined> {
+    let known = this.targetIds.get(page);
+    if (!known) {
+      known = (async () => {
+        try {
+          const cdp = await page.context().newCDPSession(page);
+          const info: any = await cdp.send("Target.getTargetInfo");
+          await cdp.detach().catch(() => {});
+          return info?.targetInfo?.targetId as string | undefined;
+        } catch { return undefined; }
+      })();
+      this.targetIds.set(page, known);
+    }
+    return known;
+  }
+
+  private readSaved(): SavedTab[] {
+    if (!this.persistFile) return [];
+    try { return JSON.parse(fs.readFileSync(this.persistFile, "utf8")).tabs || []; } catch { return []; }
+  }
+
+  /** Writes the id-to-tab table soon (coalesced), so frequent touches do not each hit the disk. */
+  private scheduleSave(): void {
+    if (!this.persistFile || this.saveTimer) return;
+    this.saveTimer = setTimeout(() => { this.saveTimer = undefined; void this.saveNow(); }, 300);
+    this.saveTimer.unref?.();
+  }
+
+  async saveNow(): Promise<void> {
+    if (!this.persistFile) return;
+    const tabs: SavedTab[] = [];
+    for (const [id, rec] of this.sessions) {
+      if (rec.page.isClosed()) continue;
+      const targetId = await this.targetIdOf(rec.page);
+      if (targetId) tabs.push({ id, targetId, lastUsed: this.lastUsed.get(id) || Date.now(), url: rec.lastUrl });
+    }
+    try {
+      fs.mkdirSync(path.dirname(this.persistFile), { recursive: true });
+      const tmp = this.persistFile + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify({ savedAt: new Date().toISOString(), tabs }, null, 1));
+      fs.renameSync(tmp, this.persistFile);
+    } catch {}
+  }
+
+  private used(id: string): void { this.lastUsed.set(id, Date.now()); this.scheduleSave(); }
+
+  /** Last use of each session, oldest first. */
+  idleList(): Array<{ id: string; idleMs: number; url: string }> {
+    const now = Date.now();
+    return [...this.sessions].filter(([, r]) => !r.page.isClosed())
+      .map(([id, r]) => ({ id, idleMs: now - (this.lastUsed.get(id) || now), url: r.page.url() }))
+      .sort((a, b) => b.idleMs - a.idleMs);
+  }
+
+  /**
+   * Closes tabs left behind by finished, crashed or abandoned tasks: idle past idleMs, or - above maxTabs - the
+   * least recently used ones idle for minIdleMs. A tab used recently by any agent is never closed, and one tab
+   * always stays so Chrome does not exit.
+   */
+  async sweepIdle(options: SweepOptions = DEFAULT_SWEEP): Promise<string[]> {
+    const rows = this.idleList();
+    const close = new Set(rows.filter((r) => r.idleMs > options.idleMs).map((r) => r.id));
+    const remaining = rows.filter((r) => !close.has(r.id));
+    for (const r of remaining) {
+      if (rows.length - close.size <= options.maxTabs) break;
+      if (r.idleMs > options.minIdleMs) close.add(r.id);
+    }
+    if (!close.size) return [];
+    if (close.size >= rows.length) await this.context.newPage().catch(() => undefined);
+    for (const id of close) {
+      await this.sessions.get(id)?.page.close().catch(() => {});
+      this.sessions.delete(id); this.lastUsed.delete(id);
+    }
+    this.scheduleSave();
+    return [...close];
   }
 
   /** Register unclaimed tabs and inherit preparation from their opener. */
@@ -74,11 +174,16 @@ export class SessionStore {
   }
 
   async adoptExisting(): Promise<void> {
+    const saved = new Map(this.readSaved().map((t) => [t.targetId, t]));
     for (const page of this.context.pages()) {
       if ([...this.sessions.values()].some((r) => r.page === page)) continue;
-      const id=`restored_${crypto.randomUUID().slice(0, 8)}`;
+      // A tab this runtime knew before a restart keeps its session id and its last-use time.
+      const known = saved.get((await this.targetIdOf(page)) || "");
+      const id = known && !this.sessions.has(known.id) ? known.id : `restored_${crypto.randomUUID().slice(0, 8)}`;
       this.sessions.set(id, { page, lastUrl: page.url() });this.watchParent(page,id);
+      this.lastUsed.set(id, known?.lastUsed || Date.now());
     }
+    this.scheduleSave();
   }
 
   /** Refresh URLs after every command, before Chrome gets relaunched. */
@@ -148,7 +253,7 @@ export class SessionStore {
     // Claim the page immediately - before navigating, which can take up to tens of seconds -
     // so popup adoption never races a slow but legitimate navigation.
     const record:SessionRecord={ page, lastUrl: page.url(), prepare: options.prepare,setupStatus:'ready' };
-    this.sessions.set(id,record);this.watchParent(page,id);
+    this.sessions.set(id,record);this.watchParent(page,id);this.used(id);
     if(options.prepare)try{await options.prepare(page);}catch{record.setupStatus='partial';record.setupError='Page settings could not be applied';}
     // A navigation failure must not discard the session: the caller can retry or inspect it.
     let navigationError: string | undefined;
@@ -164,29 +269,38 @@ export class SessionStore {
 
   get(id: string): Page {
     const rec = this.sessions.get(id);
-    if (!rec) throw new Error(`Unknown session: ${id}`);
-    if (rec.page.isClosed()) throw new Error(`Session page is closed: ${id}`);
+    if (!rec) {
+      const error: any = new Error(`Unknown session: ${id}. Its tab was closed (by the task, the user, or an idle-tab sweep). Open a new session with session_open; list live ones with session_list. Do not restart the browser for this.`);
+      error.execution = "not_started";
+      throw error;
+    }
+    if (rec.page.isClosed()) {
+      const error: any = new Error(`Session page is closed: ${id}. Open a new session with session_open.`);
+      error.execution = "not_started";
+      throw error;
+    }
     rec.lastUrl = rec.page.url() || rec.lastUrl;
+    this.used(id);
     return rec.page;
   }
 
   touch(id: string): void {
     const rec = this.sessions.get(id);
-    if (rec && !rec.page.isClosed()) rec.lastUrl = rec.page.url() || rec.lastUrl;
+    if (rec && !rec.page.isClosed()) { rec.lastUrl = rec.page.url() || rec.lastUrl; this.used(id); }
   }
 
   async close(id: string): Promise<void> {
     const rec = this.sessions.get(id);
     if (!rec) throw new Error(`Unknown session: ${id}`);
     await rec.page.close().catch(() => {});
-    this.sessions.delete(id);
+    this.sessions.delete(id); this.lastUsed.delete(id); this.scheduleSave();
   }
 
   /** Closes every open tab this daemon knows about. The bulk sweep behind `session close --all`. */
   async closeAll(): Promise<string[]> {
     const closed = [...this.sessions.keys()];
     for (const rec of this.sessions.values()) await rec.page.close().catch(() => {});
-    this.sessions.clear();
+    this.sessions.clear(); this.lastUsed.clear(); this.scheduleSave();
     return closed;
   }
 
