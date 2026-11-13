@@ -80,7 +80,10 @@ export async function riskFromTarget(target: ActionTarget, submission=false): Pr
   let path = '';
   try { if (data.href) { const u = new URL(data.href,data.base); path=decodeURIComponent(u.pathname)+' '+[...u.searchParams.keys()].join(' '); } } catch { return 'unclassified'; }
   const label = withoutStatusPhrases(data.name.replace(/([a-z])([A-Z])/g,'$1 $2'));
-  const direct = heuristicRiskFromText(label+' '+path);
+  // Exempt only complete search-submit labels, including repeated accessible names.
+  // Longer/compact actions such as SubmitOrder and every action-path cue stay protected.
+  const actionLabel = data.submits && data.formSearch ? label.replace(/(?:\bsubmit\s+(?:search|query)\s*)+$/i,'search') : label;
+  const direct = heuristicRiskFromText(actionLabel+' '+path);
   // Search wording must never downgrade an explicitly identified write.
   if (direct !== 'read') return direct;
   if (/\b(checkout|payment|purchase|delete|transfer)\b/i.test(path)) return 'external_write';

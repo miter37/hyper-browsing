@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
+import http from 'node:http';
+import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -197,6 +199,28 @@ function freeServer(port) {
 async function fakeChromeScript(file) {
   await fs.writeFile(file, `#!/usr/bin/env node\nconst http=require('http');\nlet port=0; for(const a of process.argv.slice(2)){ if(a.startsWith('--remote-debugging-port=')) port=Number(a.split('=')[1]); }\nif(!port) process.exit(3);\nconst s=http.createServer((req,res)=>{ if(req.url==='/json/version'){res.setHeader('content-type','application/json');res.end(JSON.stringify({webSocketDebuggerUrl:'ws://127.0.0.1:'+port+'/devtools/browser/fake'}));}else{res.statusCode=404;res.end();}});\ns.listen(port,'127.0.0.1'); process.on('SIGTERM',()=>s.close(()=>process.exit(0))); setInterval(()=>{},10000);\n`, { mode: 0o755 });
 }
+
+await test('a successful launcher exit waits for the browser CDP handoff', async () => {
+  const reserved=await freeServer(0);const port=reserved.address().port;
+  await new Promise(resolve=>reserved.close(resolve));
+  const server=http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({webSocketDebuggerUrl:'ws://handoff'}));});
+  const cp=require('node:child_process');const originalSpawn=cp.spawn;let timer;
+  cp.spawn=()=>{
+    const child=new EventEmitter();child.exitCode=0;child.unref=()=>{};
+    process.nextTick(()=>child.emit('spawn'));
+    timer=setTimeout(()=>server.listen(port,'127.0.0.1'),400);
+    return child;
+  };
+  try{
+    const rt=path.join(tmp,'rt-handoff');
+    const cm=new manager.ChromeManager(config(rt,{headless:true,cdpPort:port}));
+    const started=await cm.launch(process.execPath,{userDataDir:path.join(rt,'profile'),profileDirectory:'Default',managed:true},{});
+    if(!started.state.headless || started.state.headedFallback)throw new Error('A successful launcher handoff must not switch display modes');
+  }finally{
+    cp.spawn=originalSpawn;clearTimeout(timer);
+    server.closeAllConnections();if(server.listening)await new Promise(resolve=>server.close(resolve));
+  }
+});
 
 await test('occupied preferred CDP port falls forward and Chrome survives manager stop', async () => {
   if (process.platform === 'win32') return; // the fake Chrome relies on a POSIX shebang.

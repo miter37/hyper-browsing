@@ -247,7 +247,9 @@ const BLOCK_SCRIPT = `(() => {
   // A challenge step in the address (js_challenge, captcha) or a bare access-denied page.
   if (/[?&](js_challenge|captcha|challenge)=|\\/(captcha|challenge)\\b/i.test(location.search + location.pathname) && document.querySelectorAll("a[href], button, input").length < 25)
     return { kind: "bot-challenge", evidence: "challenge address: " + location.pathname.slice(0, 60) };
-  if (/^(access denied|forbidden|request blocked|403 forbidden|you have been blocked|attention required)/i.test(document.title || "") && (document.body?.innerText || "").length < 3000)
+  const denialSentence = /^access to (?:this|the) (?:page|resource|website|site) (?:has been|is) denied[.!]?$/i.test(document.title || "")
+    && !has('article, [role=article]') && document.querySelectorAll('a[href], button, input').length < 5;
+  if ((denialSentence || /^(access denied|forbidden|request blocked|403 forbidden|you have been blocked|attention required)/i.test(document.title || "")) && (document.body?.innerText || "").length < 3000)
     return { kind: "access-denied", evidence: "title: " + (document.title || "").slice(0, 60) };
   // A dialog that says automation tools are restricted ("매크로 ... 이용이 제한될 수 있습니다", "automated tools are blocked").
   const toolBan = /(매크로|macro|자동화 도구|자동 프로그램|unauthori[sz]ed (?:tools?|automation)|automation tools?|automated (?:tools?|access))(.{0,160})(제한|차단|금지|restrict|block|den(?:y|ied)|prohibit)/is;
@@ -260,6 +262,29 @@ const BLOCK_SCRIPT = `(() => {
   // Interstitials that ask the visitor to prove they are human, on the site's own checkpoint page.
   const humanCheck = /unusual (?:browser |network )?(?:traffic|activity)|confirm (?:that )?you(?:'re| are) (?:a )?human|are you a robot|not a robot|automated (?:browsing|access|queries)|자동\\s*입력\\s*방지|로봇이 아닙니다|비정상적인 (?:접근|트래픽|활동)/;
   const longText = ((document.body && document.body.innerText) || "").slice(0, 8000).toLowerCase();
+  const verificationRequest = /(?:verify|confirm|prove|ensure|check).{0,80}(?:human|not.{0,12}robot)|(?:사람|인간).{0,60}(?:확인|인증)|(?:확인|인증).{0,60}(?:사람|인간)/is;
+  if (verificationRequest.test(longText)) {
+    const seen = new Set();
+    const choices = "input[type=checkbox], [role=checkbox]";
+    for (const choice of document.querySelectorAll(choices)) {
+      if (choice.closest("article, [role=article], pre, code")) continue;
+      for (let el = choice.parentElement; el && !el.matches("html,body"); el = el.parentElement) {
+        if (seen.has(el)) break;
+        seen.add(el);
+        const r = el.getBoundingClientRect(), style = getComputedStyle(el);
+        if (r.width <= 0 || r.height <= 0 || style.display === 'none' || style.visibility === 'hidden') continue;
+        const content = el.innerText || '';
+        if (content.length > 3500) break;
+        if (!verificationRequest.test(content) || el.querySelectorAll(choices).length < 3 || !el.querySelector('button, input[type=submit]')) continue;
+        const pictures = [...el.querySelectorAll('img')].filter(img => {
+          const box = img.getBoundingClientRect(), st = getComputedStyle(img);
+          return box.width > 0 && box.height > 0 && st.visibility !== 'hidden' && st.display !== 'none';
+        });
+        const prominent = el.matches('[role=dialog], [role=alertdialog], dialog[open], [aria-modal=true]') || /^(fixed|absolute)$/.test(style.position) || longText.length < 1500;
+        if (pictures.length >= 3 && prominent) return { kind: 'captcha', evidence: 'visible picture-selection human verification' };
+      }
+    }
+  }
   if (humanCheck.test(longText) && (/\\/(checkpoint|captcha|challenge|sorry|blocked|validatecaptcha)\\b/i.test(location.pathname) || has("input[type=checkbox], iframe[src*='captcha'], img[src*='captcha']")))
     return { kind: "bot-challenge", evidence: "human-verification page: " + (longText.match(humanCheck) || [""])[0] };
   if (has("iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='captcha']") && document.querySelectorAll("a[href], button, input").length < 15)

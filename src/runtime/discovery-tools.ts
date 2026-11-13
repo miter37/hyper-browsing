@@ -316,7 +316,9 @@ const LIST_SCRIPT = `(opts) => {
   const query = (opts.query || "").toLowerCase();
   const CHROME = "nav, header, footer, aside, [role=navigation], [role=banner], [role=contentinfo], [role=complementary], [role=menu], [role=menubar]";
   const groups = [];
+  const controlRoots = new Set();
   deepWalk((el) => {
+    if (controlRoots.has(el)) return false;
     if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.tagName === "HEAD") return false;
     // Site chrome (nav menus, header, footer, sidebars) repeats links too, but is never the result list.
     if (el.matches(CHROME) || el.closest(CHROME)) return false;
@@ -348,7 +350,7 @@ const LIST_SCRIPT = `(opts) => {
     }
     for (const units of candidates) {
       // Result rows may hold no link or heading (a flight row opens on click): a control or enough text also counts.
-      const items = units.filter((u) => q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading], button, [role=button], [role=link], [tabindex]") || textOf(u).length >= 40);
+      const items = units.filter((u) => !u.some(k => controlRoots.has(k)) && (q(u, "a[href], h1, h2, h3, h4, h5, h6, [role=heading], button, [role=button], [role=link], [tabindex]") || textOf(u).length >= 40));
       if (items.length < 3) continue;
       const hits = query ? items.filter((k) => textOf(k).toLowerCase().includes(query)).length : 0;
       if (query && !hits) continue;
@@ -356,12 +358,17 @@ const LIST_SCRIPT = `(opts) => {
       const textLen = sample.reduce((sum, k) => sum + textOf(k).length, 0) / sample.length;
       const inMain = Boolean(el.closest("main, [role=main]"));
       // Filter and facet panels repeat too, but their rows are form controls. Result cards link to distinct places.
-      const controlRows = items.filter((u) => q(u, "input[type=checkbox], input[type=radio], input[type=range], [role=checkbox], [role=radio], [role=switch], [role=slider]")).length / items.length;
+      const controlSelector = "input[type=checkbox], input[type=radio], input[type=range], [role=checkbox], [role=radio], [role=switch], [role=slider]";
+      const controlCounts = items.map((u) => u.reduce((sum, k) => sum + k.querySelectorAll(controlSelector).length + (k.shadowRoot ? k.shadowRoot.querySelectorAll(controlSelector).length : 0), 0));
+      const controlRows = controlCounts.filter((n) => n > 0).length / items.length;
+      const optionPanels = controlCounts.filter((n) => n > 1).length / items.length;
+      const linkedContent = items.filter((u) => { const h = headingOf(u); return q(u, "a[href] img") || (h && (h.closest("a[href]") || h.querySelector("a[href]"))); }).length / items.length;
       const hrefs = items.map((u) => { const l = links(u)[0]; return l ? l.href : ""; }).filter(Boolean);
       const distinctLinks = hrefs.length ? new Set(hrefs).size / items.length : 0;
-      // A facet row is a short label beside its box; a result card with a "compare/cart" box is long and links somewhere.
-      const facetRows = controlRows >= 0.5 && !(distinctLinks >= 0.8 && textLen >= 80);
-      const weight = (inMain ? 2 : 1) * (facetRows ? 0.2 : 1) * (distinctLinks >= 0.8 ? 1.5 : 1);
+      // A selectable record can have a short title; independent item links distinguish it from multi-option panels.
+      const facetRows = controlRows >= 0.5 && !(linkedContent >= 0.5 || (distinctLinks >= 0.8 && optionPanels < 0.5));
+      if (facetRows) { for (const unit of items) for (const node of unit) controlRoots.add(node); continue; }
+      const weight = (inMain ? 2 : 1) * (distinctLinks >= 0.8 ? 1.5 : 1);
       groups.push({ el, items, score: ((query ? hits * 100 : 0) + items.length * Math.min(textLen, 400)) * weight });
     }
   });

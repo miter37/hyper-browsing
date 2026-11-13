@@ -1,10 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {createMcpHandler} from '../scripts/mcp-server.mjs';
 import {TOOLS,runTool,validateToolInput,locatorFromCliFlags} from '../scripts/mcp-tools.mjs';
 
 const msg=(method,id,params)=>({jsonrpc:'2.0',id,method,params});
+
+test('failed daemon startup never reports a transmitted action',{timeout:5000},async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'hb-mcp-startup-'));
+  t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const scripts=path.join(root,'scripts');await fs.mkdir(scripts);
+  for(const file of ['mcp-server.mjs','mcp-tools.mjs','rpc-transport.mjs'])await fs.copyFile(path.resolve('scripts',file),path.join(scripts,file));
+  await fs.writeFile(path.join(scripts,'launcher.mjs'),'process.stderr.write("Fixture startup failure");process.exit(1);');
+  const child=spawn(process.execPath,[path.join(scripts,'mcp-server.mjs')],{stdio:['pipe','pipe','pipe'],windowsHide:true});
+  t.after(()=>child.kill());
+  let stdout='',stderr='';child.stdout.setEncoding('utf8');child.stdout.on('data',d=>stdout+=d);
+  child.stderr.setEncoding('utf8');child.stderr.on('data',d=>stderr+=d);
+  child.stdin.end(JSON.stringify(msg('tools/call',1,{name:'click',arguments:{sessionId:'s',ref:'e1'}}))+'\n');
+  const code=await new Promise(resolve=>child.on('exit',resolve));assert.equal(code,0,stderr);
+  const response=JSON.parse(stdout);assert.equal(response.result.isError,true);
+  const result=JSON.parse(response.result.content[0].text);
+  assert.equal(result.execution,'not_started');assert.equal(result.reason,'browser_startup_failed');
+  assert.match(result.error,/Fixture startup failure/);
+});
 test('MCP initialize, tools/list, ping and notification contract',async()=>{
   const h=createMcpHandler(async()=>({ok:true}));
   const init=await h(msg('initialize',1,{protocolVersion:'2025-06-18',clientInfo:{name:'test',version:'1'},capabilities:{}}));
