@@ -59,8 +59,8 @@ npm 패키지가 실제 배포된 뒤에는 `npx --yes hyper-browsing mcp`로 �
 | --- | --- |
 | **네이티브 MCP** | 에이전트가 명령어 조합 없이 구조화된 브라우저 도구를 직접 사용 |
 | **실제 로컬 Chrome** | CDP 연결과 로컬 프로필을 통한 세션 유지 |
-| **간결한 관찰** | 거대한 DOM 전체 대신 필요한 요소·폼·목록만 추출 |
-| **학습과 재사용** | 자주 쓰는 사이트의 액션·노하우를 검증 후 저장 |
+| **간결한 관찰** | 필요한 요소·폼·목록만 추출, 표·그리드는 한 번에 통째로 읽기 |
+| **사이트 메모** | 아는 사이트에 도착하면 바로 브리핑, 검증된 작업은 호출 한 번으로 실행·자동 수리 |
 | **안전한 실행** | 모호한 대상 거절, 참조 유효성 검사, 동작 검증, 쓰기 승인 |
 | **크로스 플랫폼** | Node.js 20+ 기반 Windows/macOS/Linux |
 | **로컬 우선 구조** | 필수 원격 브라우저 인프라 없이 실행 |
@@ -76,7 +76,9 @@ npm 패키지가 실제 배포된 뒤에는 `npx --yes hyper-browsing mcp`로 �
 
 한 번의 작업으로 무조건 스크립트를 만들지는 않습니다. 반복 사용 가치가 확인된 지식만 제한적으로 저장하고, 바뀐 사이트는 새 관찰을 통해 검증합니다. [학습·복구 원칙](docs/LEARNING.md).
 
-## 여러 에이전트, 하나의 브라우저 엔진
+## 네이티브 MCP 서버
+
+Hyper-Browsing은 자체 **MCP 서버**(stdio)를 제공합니다. Claude Code, Claude Desktop, Cursor, Hermes 같은 MCP 클라이언트가 브라우저를 명령어 조합 없이 구조화된 도구로 바로 사용합니다. `node bin/hyper-browsing.mjs mcp`로 실행하며, 설정은 [빠른 시작](#빠른-시작)을 참고하세요.
 
 ```text
 Claude / Cursor / Hermes     코딩 에이전트 / 쉘
@@ -92,13 +94,57 @@ Claude / Cursor / Hermes     코딩 에이전트 / 쉘
                사용자 로컬 Chrome
 ```
 
-MCP는 별도의 브라우저 엔진이 아니라 **기존 데몬의 안전한 연결 인터페이스**입니다. 어떤 클라이언트를 쓰든 실제 대상 선택·입력 확인·실행 결과·요청 ID 처리를 동일한 계층에서 수행합니다.
+MCP는 별도의 브라우저 엔진이 아니라 **CLI와 같은 데몬에 연결하는 인터페이스**입니다. 어떤 클라이언트를 쓰든 대상 선택, 위험도 분류, 요청 ID, 결과 검증이 같은 계층에서 처리됩니다.
 
-### 네이티브 MCP 핵심 도구
+### 도구
 
-`browser_status` · `session_open` · `snapshot` · `forms` · `list_items` · `smart_scroll` · `dismiss_annoyances` · `click` · `fill` · `select` · `press` · `verify` · `action_list` · `run_saved_action` · `request_status`
+| 분류 | 도구 |
+| --- | --- |
+| 브라우저·세션 | `browser_status` · `browser_doctor` · `session_open` · `session_list` · `session_close` · `navigate` · `back` |
+| 페이지 관찰 | `snapshot` · `forms` · `list_items` · `smart_scroll` · `scroll` · `screenshot` · `wait_for` · `dismiss_annoyances` |
+| **대량 읽기** | `read_table` · `page_data` · `run_script` · `read_text` |
+| 조작·검증 | `click` · `fill` · `select` · `press` · `hover` · `verify` · `request_status` |
+| **사이트 메모** | `site_identify` · `action_list` · `run_saved_action` · `learning_notes` · `site_knowledge_save` · `site_repair` · `site_memory_draft` · `site_memory_save` |
 
-외부 상태 변경에는 개별 사용자 승인이 필요합니다. 확인이 필요한 동작을 임의로 승인 처리하지 않으며, 임의 JavaScript 실행이나 Node 코드 실행은 MCP에 공개하지 않습니다. [MCP 안전 계약](docs/MCP.md).
+### MCP 서버가 해 주는 것
+
+- **적은 호출로 대량 읽기**
+  - `read_table`은 표나 그리드 전체를 간결한 TSV 행으로 돌려줍니다. `where` 조건(`Value >= 700000`, `Market Cap >= 10B`)은 페이지 안에서 먼저 걸러지고, 긴 표는 `offset`/`nextOffset`으로 이어 읽습니다. 캔버스로 그리거나 가상화한 그리드도 읽습니다. 이런 그리드는 칸 크기가 0이라 일반 요소 읽기로는 보이지 않습니다.
+  - `page_data`는 페이지가 같은 사이트에서 받아 온 JSON과 HTML 안에 들어 있는 JSON을 읽습니다.
+  - `run_script`는 **읽기 전용** 페이지 스크립트로 여러 값을 한 번에 모읍니다. 클릭, 입력, 이벤트, DOM 변경, POST, 저장소, 페이지 이동, `eval`처럼 페이지나 사이트를 바꿀 수 있는 코드는 실행 전에 거부됩니다.
+- **여러 에이전트 동시 사용**
+  - 로그인된 Chrome 하나를 함께 쓰고, 세션마다 별도 창이 뒤에서 열립니다.
+  - 서로 다른 에이전트의 세션은 동시에 실행되고, Chrome 전체에 걸리는 작업은 기다렸다가 단독으로 실행됩니다.
+  - `session_open {isolated: true}`를 주면 로그인을 복사한 두 번째 Chrome이 열립니다(최대 1개).
+- **스스로 복구하는 브라우저:** `browser_doctor {fix: true}`가 안전하게 진단하고 고칩니다.
+  - 실행 중인 Chrome에 다시 연결하고, 죽은 Chrome만 재시작하고, 남은 잠금을 정리합니다.
+  - 로그인이 사라졌으면 백업에서 복원합니다.
+
+  관계없는 프로세스를 종료하거나 프로필을 지우지 않습니다.
+- **작고 정직한 결과:** 광고 프레임은 개수만 알려 줍니다. 결과가 불확실하면 불확실하다고 보고하고, 같은 요청을 무작정 다시 보내지 않습니다.
+
+외부 상태를 바꾸는 동작에는 개별 사용자 승인이 필요하며, `confirmed: true`는 포괄 승인이 아닙니다. 제한 없는 JavaScript 실행이나 Node 코드 실행은 MCP에 공개하지 않습니다. `run_script`는 읽기 전용 스크립트만 받습니다. [MCP 안내·안전 계약](docs/MCP.md).
+
+## 사이트 메모: 한 번 익힌 사이트는 계속 재사용
+
+처음 가는 사이트는 탐색해야 하지만, 두 번째부터는 그럴 필요가 없어야 합니다. Hyper-Browsing은 사이트마다 **메모**(짧은 가이드와 바로 실행할 수 있는 액션)를 `sites/<사이트>/`에 두고, **에이전트에게 자동으로 전달**합니다.
+
+| | 동작 |
+| --- | --- |
+| **도착하면 바로 브리핑** | 아는 사이트를 열면 첫 결과에 가이드와 저장된 액션이 함께 옵니다. 그래서 이미 성공한 방법부터 시작합니다. 40개 이상의 사이트 메모가 기본 포함되어 있습니다(Amazon, Airbnb, Booking, LinkedIn, Zillow, finviz, 네이버, Wikipedia, YouTube 등). |
+| **호출 한 번으로 실행** | `run_saved_action`은 검증된 작업을 같은 위험도·검증 엔진으로 재실행합니다. 액션은 **페이지 스크립트**(`op: script`)로도 만들 수 있습니다. 권한이 큰 코드 액션을 켜지 않아도 돌고, 같은 사이트 GET 요청으로 여러 페이지를 한 번에 읽습니다. |
+| **성공한 방법 저장** | 손으로 작업을 끝낸 뒤 `site_knowledge_save` 한 번으로 가이드와 액션을 저장합니다. 새 사이트면 만들어 줍니다. 주소와 셀렉터는 템플릿과 요소로 정리되고, 읽기 액션은 시험 실행을 통과해야 저장되며, 다른 사이트 주소는 거부됩니다. 수동 단계가 많았던 세션을 닫으면 저장을 제안합니다. |
+| **다시 배우지 않고 수리** | 사이트가 바뀌면 `site_repair`가 깨진 요소나 주소 템플릿을 방금 성공한 것으로 바꿉니다. 이후 실행은 수정본을 쓰고, 실패한 액션은 추적해 다시 검증합니다. |
+| **작은 사실도 기억** | `learning_notes`, `site_memory_draft`, `site_memory_save`가 짧고 검증된 사실을 남깁니다. 어떤 필터가 어떤 URL 파라미터를 바꾸는지, 컨트롤이 어디 있는지 같은 것들입니다. |
+
+예: finviz 내부자 매수. 메모가 없으면 에이전트가 내부자 페이지와 종목 페이지를 하나씩 열어야 합니다. 메모가 있으면 호출 한 번이면 됩니다.
+
+```text
+run_saved_action insider_trades {"minValue": 700000, "minMarketCap": "10B"}
+→ 70만 달러 이상 대형주 내부자 매수와 각 회사 시총, 약 5초
+```
+
+사이트 메모에는 사용자가 입력한 텍스트나 개인정보를 저장하지 않습니다. [학습·복구 원칙](docs/LEARNING.md).
 
 ## 데모
 
