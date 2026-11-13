@@ -2,7 +2,7 @@ import type { Page, ElementHandle, JSHandle, Locator } from "playwright";
 import type { SnapshotElement } from "./snapshot";
 import type { LocatorStrategy } from "../schema/site";
 
-export type ActionTarget = Pick<Locator, "evaluate" | "click" | "hover" | "fill" | "press" | "selectOption" | "inputValue" | "getAttribute" | "innerText" | "scrollIntoViewIfNeeded" | "isVisible" | "count">;
+export type ActionTarget = Pick<Locator, "evaluate" | "evaluateHandle" | "boundingBox" | "click" | "hover" | "fill" | "press" | "selectOption" | "inputValue" | "getAttribute" | "innerText" | "scrollIntoViewIfNeeded" | "isVisible" | "count">;
 export const REFERENCE_GUARD = `(el) => {
   const clean = value => (value || '').replace(/\\s+/g, ' ').trim().slice(0,240);
   const labelled = node => (node.getAttribute('aria-labelledby') || '').split(/\\s+/).filter(Boolean).map(id => clean(node.getRootNode().getElementById?.(id)?.textContent));
@@ -23,7 +23,7 @@ export function normalizeReference(ref: string): string { return /^@?e\d+$/.test
 
 export function targetFor(handle: ElementHandle<HTMLElement | SVGElement>): ActionTarget {
   return {
-    evaluate: handle.evaluate.bind(handle), click: handle.click.bind(handle), hover: handle.hover.bind(handle),
+    evaluate: handle.evaluate.bind(handle), evaluateHandle: handle.evaluateHandle.bind(handle), boundingBox: handle.boundingBox.bind(handle), click: handle.click.bind(handle), hover: handle.hover.bind(handle),
     fill: handle.fill.bind(handle), press: handle.press.bind(handle), selectOption: handle.selectOption.bind(handle),
     inputValue: handle.inputValue.bind(handle), getAttribute: handle.getAttribute.bind(handle), innerText: handle.innerText.bind(handle),
     scrollIntoViewIfNeeded: handle.scrollIntoViewIfNeeded.bind(handle), isVisible: handle.isVisible.bind(handle),

@@ -111,6 +111,8 @@ webctl learning finish --session ID --input-file finish.json
 
 ### 자가 수리
 
+에이전트가 직접 남기는 사이트 지식은 `site_knowledge_save`(MCP) 또는 `site.knowledge`(RPC)로 저장한다. 방문 횟수 단계와 무관하게 바로 쓴다. 대신 읽기 액션은 저장 전에 현재 페이지에서 한 번 실행해 검증된 것만 남기고, 쓰기 액션은 실행 없이 남긴다. 단계 안의 `url`과 `locator`는 사이트 정의의 `urlTemplates`와 `elements`로 바뀐다. 다른 도메인 주소는 거부한다. `script` 단계는 페이지 안에서만 도는 JavaScript라 Node 코드 액션(`WEBAGENT_ALLOW_CODE_ACTIONS`)과 달리 막지 않는다. 다만 클릭·제출·쓰기 요청·값 변경이 있으면 쓰기 위험으로 올린다. 검증 조건이 없으면 스크립트 액션은 반환값이 비어 있지 않은지로, 이동 액션은 도착 주소로 검증한다.
+
 저장 액션의 요소를 찾지 못하면, 읽기 액션은 저장된 전략을 느슨하게 바꾼 것(이름 부분 일치, test id 부분 일치)과 같은 이름의 엔진 제안을 시도한다. 그중 하나만 보이고 액션 검증이 통과하면 그 전략을 요소의 맨 앞에 저장한다. 사이트 파일이 바뀌므로 revision이 새로 생긴다. 쓰기 액션은 스스로 고치지 않는다. 실패 결과의 `repair`에 요소, 저장된 전략, 후보를 담고, `site_repair`(MCP) 또는 `site.repair`(RPC)가 현재 페이지에서 정확히 하나로 보이는 locator만 저장한다. URL 템플릿도 같은 도구로 교체한다.
 
 ## 보관과 검증

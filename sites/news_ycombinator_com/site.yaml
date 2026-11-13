@@ -1,0 +1,46 @@
+site:
+  id: news_ycombinator_com
+  name: Hacker News
+  version: 3
+match:
+  hosts:
+    - news.ycombinator.com
+fingerprints: {}
+states: {}
+elements: {}
+extractors: {}
+preconditions: {}
+urlTemplates:
+  front_page: https://news.ycombinator.com/news
+  item_comments: https://news.ycombinator.com/item?id={id}
+actions:
+  front_page:
+    description: "Stories on the Hacker News front page: [{rank, title, url, points, comments}]"
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: front_page
+      scope: Saved by an agent on 2026-11-13.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: front_page
+        - op: script
+          source: "return [...document.querySelectorAll('tr.athing')].slice(0, 30).map(r => { const sub = r.nextElementSibling; const a = r.querySelector('.titleline > a'); const comments = [...(sub?.querySelectorAll('a') || [])].map(x => x.innerText).find(t => /comment|discuss/.test(t)) || ''; return { rank: parseInt(r.querySelector('.rank')?.innerText) || null, title: a?.innerText, url: a?.href, points: parseInt(sub?.querySelector('.score')?.innerText) || 0, comments: parseInt(comments) || 0 }; })"
+    verify: []
+  item_comments:
+    description: "Top-level comments of story {id}: [{user, age, text}]"
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: item_comments
+      scope: Saved by an agent on 2026-11-13.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: item_comments
+        - op: script
+          source: "return [...document.querySelectorAll('tr.comtr')].filter(r => r.querySelector('td.ind')?.getAttribute('indent') === '0').slice(0, 20).map(r => ({ user: r.querySelector('.comhead a')?.textContent || null, age: r.querySelector('.age')?.textContent || null, text: (r.querySelector('.commtext')?.textContent || '').slice(0, 500) }))"
+    verify: []

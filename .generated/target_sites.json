@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T11:36:27.577Z",
+  "generatedAt": "2026-11-13T00:30:47.008Z",
   "entries": [
     {
       "id": "airbnb",
@@ -294,6 +294,16 @@
       "match": {
         "hosts": [
           "new.land.naver.com"
+        ]
+      }
+    },
+    {
+      "id": "news_ycombinator_com",
+      "name": "Hacker News",
+      "path": "sites\\news_ycombinator_com",
+      "match": {
+        "hosts": [
+          "news.ycombinator.com"
         ]
       }
     },

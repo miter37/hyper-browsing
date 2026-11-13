@@ -46,6 +46,29 @@ test('human challenge dialogs are detected even over a populated page',async t=>
  assert.equal(snap.blocked?.kind,'captcha');
 });
 
+test('localized picture-choice human verification is blocked without site markers',async t=>{
+ const {page}=await fixture(t,'<main>Search results</main>');
+ const grid=Array.from({length:9},()=>'<label><input type="checkbox" style="position:absolute;opacity:0"><img alt="Picture" width="80" height="80"></label>').join('');
+ for(const prompt of ['계속하려면 사람이 이용 중인지 확인하는 그림 과제를 완료하세요.','Confirm this visitor is human to continue. Complete the picture challenge.']){
+   await page.setContent('<main><h1>Search results</h1>'+ '<a href="/result">Result</a>'.repeat(20)+'</main><div style="position:fixed;inset:30px;background:white"><form><p>'+prompt+'</p>'+grid+'<button>Continue</button></form></div>');
+   const snapshot=await captureSnapshot(page);
+   assert.equal(snapshot.blocked?.kind,'captcha',prompt);
+   assert.equal(snapshot.pageState.state,'blocked');
+ }
+});
+
+test('picture polls, inline verification examples and hidden challenges are not blocks',async t=>{
+ const {page}=await fixture(t,'<main>Contents</main>');
+ const grid=Array.from({length:9},()=>'<label><input type="checkbox"><img alt="Picture" width="80" height="80"></label>').join('');
+ const form=prompt=>'<form><p>'+prompt+'</p>'+grid+'<button>Continue</button></form>';
+ const {detectBlock}=await import('../src/engine/page-state.ts');
+ for(const html of [
+   '<div style="position:fixed;inset:20px">'+form('Choose your favorite pictures.')+'</div>',
+   '<article><h1>Building a verification widget</h1>'+form('Confirm this visitor is human to continue. Complete the picture challenge.')+'</article>',
+   '<main><h1>Contents</h1></main><div style="display:none">'+form('사람인지 확인하는 그림 과제를 완료하세요.')+'</div>'
+ ]){await page.setContent(html);assert.equal(await detectBlock(page),undefined);}
+});
+
 test('shell-safe references and legacy aliases operate the same pinned element',async t=>{
  const {page}=await fixture(t,'<input placeholder="Name"><button onclick="window.clicked=1">Observe</button>');
  const snap=await captureSnapshot(page,{references:referencesFor(page)});
@@ -277,6 +300,28 @@ test('availability wording is state, not a booking action; GET forms only load a
  assert.equal(get.confirmationRequired,undefined);assert.equal(await page.evaluate(()=>window.searched),1);
 });
 
+test('generic search submission is read but explicit and compact writes stay protected',async t=>{
+ const {page}=await fixture(t,'<form role="search" action="/search" onsubmit="event.preventDefault();window.searched=(window.searched||0)+1"><input type="search" aria-label="Search the site"><button>Submit search</button></form>');
+ for(const op of ['press','click']){
+  const result=await executePrimitive(page,op,op==='press'?{locator:{role:'searchbox'},key:'Enter'}:{locator:{role:'button',name:'Submit search'}});
+  assert.equal(result.confirmationRequired,undefined,JSON.stringify(result));
+ }
+ assert.equal(await page.evaluate(()=>window.searched),2);
+ for(const [name,action,search] of [
+  ['Submit','/unknown',false],['Submit search and Pay','/search',true],
+  ['Submit order','/search',true],['SubmitOrder','/search',true],['SubmitApplication','/search',true],
+  ['Submit search','/account/update',true],['PayNow','/x',true],
+  ['MakePayment','/x',true],['OneClickBuy','/x',true],['SecurePayNow','/x',true],
+  ['CloseAccount','/x',true],['SaveChanges','/x',true]
+ ]){
+  await page.setContent(`<form method="post" ${search?'role="search"':''} action="${action}" onsubmit="event.preventDefault();window.mutated=1"><input ${search?'type="search"':''}><button>${name}</button></form>`);
+  const result=await executePrimitive(page,'click',{locator:{role:'button',name,exact:true}});
+  assert.equal(result.confirmationRequired,true,name+' '+JSON.stringify(result));
+  assert.equal(result.execution,'not_started',name);
+  assert.equal(await page.evaluate(()=>window.mutated||0),0,name);
+ }
+});
+
 test('a date query finds the day however the page writes it',async t=>{
  const {page}=await fixture(t,`<meta charset="utf-8"><div role="button" tabindex="0" aria-label="10, Thursday, December 2026. Available">10</div>
   <div role="button" tabindex="0" aria-label="11, Friday, December 2026">11</div>
@@ -379,6 +424,29 @@ test('a result card with a cart checkbox is still a result, titled by its name l
  assert.equal(py.total,3);assert.ok(py.items.every(i=>i.title.includes('파이썬')));
 });
 
+test('filter panels with long option lists are not reported as result cards',async t=>{
+ const panels=['Color','Material','Size','Style'].map((name,i)=>`<section class="panel"><h3>${name}</h3><ul>${['First choice','Second choice','Third choice','Fourth choice'].map((label,j)=>`<li><label><input type="checkbox"><a href="/search?q=desk&filter=${i}-${j}">${label} with detailed availability information</a></label></li>`).join('')}</ul></section>`).join('');
+ const {page}=await fixture(t,`<main><div class="refinements">${panels}</div><p>Results are unavailable.</p></main>`);
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const result=await listItems(page,{limit:5});
+ assert.equal(result.found,false,JSON.stringify(result));
+});
+
+test('query choices inside a recognized options panel are not content results',async t=>{
+ const panels=['Color','Material','Size'].map(name=>`<section class="panel"><h3>${name}</h3>${['One','Two','Three'].map(label=>`<label><input type="checkbox">${label}</label>`).join('')}</section>`).join('');
+ const choices='<section class="panel"><h3>Offers</h3><div>'+['All offers','Today only','Coupons','Bundles'].map((name,i)=>`<div><a href="/?q=desk&offer=${i}">${name}</a></div>`).join('')+'</div></section>';
+ const {page}=await fixture(t,'<main><div>'+panels+choices+'</div></main>');
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ assert.equal((await listItems(page)).found,false);
+});
+
+test('query-addressed content cards remain results with selectable options',async t=>{
+ const {page}=await fixture(t,'<main><div>'+[1,2,3].map(i=>`<article><h2><a href="/?item=${i}">Desk ${i}</a></h2><input type="checkbox" aria-label="Compare"><input type="checkbox" aria-label="Select"><p>Full item description with dimensions, availability, delivery information, price and reviews for the selected result.</p></article>`).join('')+'</div></main>');
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const result=await listItems(page);
+ assert.equal(result.found,true);assert.equal(result.total,3);assert.equal(result.items[0].title,'Desk 1');
+});
+
 test('a covered click is reported as not sent, naming the control on top; a label reads its whole row',async t=>{
  const {page}=await fixture(t,`<meta charset="utf-8"><div style="position:relative"><span id="price">1,903,550원</span><a href="/variant/2" style="position:absolute;inset:0">66몰</a></div>
   <table><tr><th>ISBN13</th><td>9791163034735</td></tr></table><dl><dt>쪽수</dt><dd>432쪽</dd></dl>`);
@@ -388,6 +456,70 @@ test('a covered click is reported as not sent, naming the control on top; a labe
  assert.equal(row.value,'ISBN13 9791163034735');
  const dd=await executePrimitive(page,'extract',{locator:{text:'쪽수',exact:true},read:'row'});
  assert.equal(dd.value,'쪽수 432쪽');
+});
+
+test('a card title covered by its same-destination link opens one prepared destination',async t=>{
+ const {page,context}=await fixture(t,'<article style="position:relative;width:300px;height:100px"><a id="title" href="/item/1" target="_blank">Item one</a><a href="/item/1" target="_blank" style="position:absolute;inset:0"></a></article>');
+ const store=new SessionStore(context);await store.adoptExisting();
+ const result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:500});
+ assert.equal(result.ok,true,JSON.stringify(result));
+ assert.equal(result.effect.newSessions.length,1);
+ assert.equal(result.effect.newSessions[0].url,'https://example.test/item/1');
+ assert.equal(result.effect.newSessions[0].setupStatus,'ready');
+});
+
+test('a covered title uses its observed point instead of an embedded write button',async t=>{
+ const {page}=await fixture(t,'<article style="position:relative;width:300px;height:100px"><a id="title" href="/item/1">Item one</a><a href="/item/1" style="position:absolute;inset:0"><button aria-label="Save item" style="position:absolute;left:130px;top:40px;width:40px;height:20px" onclick="event.preventDefault();window.saved=true"></button></a></article>');
+ const result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:500});
+ assert.equal(await page.evaluate(()=>Boolean(window.saved)),false);
+ assert.equal(result.ok,true,JSON.stringify(result));assert.equal(page.url(),'https://example.test/item/1');
+});
+
+test('a write control over the observed title point is never substituted',async t=>{
+ const {page}=await fixture(t,'<article style="position:relative;width:300px;height:100px"><a id="title" href="/item/1">Item one</a><a href="/item/1" style="position:absolute;inset:0"><button aria-label="Save item" style="position:absolute;left:0;top:0;width:90px;height:25px" onclick="event.preventDefault();window.saved=true"></button></a></article>');
+ const result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:300});
+ assert.equal(result.execution,'not_started');assert.equal(await page.evaluate(()=>Boolean(window.saved)),false);
+});
+
+test('scaled covering links click the observed point without activating nested controls',async t=>{
+ const {page}=await fixture(t,'<main>Fixture</main>');
+ for(const scaling of ['scale:1.2 1','transform:scale(1.2,1)']){
+   await page.setContent(`<article style="position:relative;width:700px;height:100px"><a id="title" href="/item/1" style="position:absolute;left:160px;top:40px">Item one</a><a href="/item/1" onclick="event.preventDefault();window.clickX=event.clientX" style="position:absolute;left:0;top:0;width:300px;height:100px;${scaling};transform-origin:center"><button aria-label="Save item" style="position:absolute;left:140px;top:40px;width:20px;height:20px" onclick="event.preventDefault();window.saved=true">S</button></a></article>`);
+   const expected=await page.locator('#title').evaluate(el=>{const r=el.getBoundingClientRect();return r.left+r.width/2;});
+   const result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:500});
+   assert.equal(await page.evaluate(()=>Boolean(window.saved)),false,scaling);
+   assert.equal(result.ok,true,JSON.stringify(result));
+   assert.ok(Math.abs((await page.evaluate(()=>window.clickX))-expected)<=1,scaling);
+ }
+});
+
+test('short query-addressed result links are preserved',async t=>{
+ const {page}=await fixture(t,'<main><div>'+['Oak chair','Desk lamp','Cooking book'].map((name,i)=>`<div class="record"><a href="/?item=${i}">${name}</a></div>`).join('')+'</div></main>');
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const result=await listItems(page);assert.equal(result.found,true);assert.equal(result.total,3);
+ assert.deepEqual(result.items.map(item=>item.title),['Oak chair','Desk lamp','Cooking book']);
+});
+
+test('short selectable result rows remain content records',async t=>{
+ const {page}=await fixture(t,'<main><div>'+['Oak','Desk','Book'].map((name,i)=>`<div><input type="checkbox" aria-label="Compare"><a href="/?item=${i}">${name}</a></div>`).join('')+'</div></main>');
+ const {listItems}=await import('../src/runtime/discovery-tools.ts');
+ const result=await listItems(page);assert.equal(result.found,true);assert.equal(result.total,3);
+ assert.deepEqual(result.items.map(item=>item.title),['Oak','Desk','Book']);
+});
+
+test('a covered link never switches to another destination or a write control',async t=>{
+ const {page}=await fixture(t,'<article style="position:relative;width:300px;height:100px"><a id="title" href="/item/1">Item one</a><a id="cover" href="/item/2" style="position:absolute;inset:0">Other item</a></article>');
+ let result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:300});
+ assert.equal(result.execution,'not_started');assert.equal(page.url(),'https://example.test/');
+ await page.locator('#cover').evaluate(el=>el.setAttribute('href','/item/1?variant=other'));
+ result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:300});
+ assert.equal(result.execution,'not_started');assert.equal(page.url(),'https://example.test/');
+ await page.locator('#cover').evaluate(el=>{el.setAttribute('href','/item/1');el.setAttribute('aria-label','Pay now');el.setAttribute('onclick','window.paid=true;return false');});
+ result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:300});
+ assert.equal(result.execution,'not_started');assert.equal(await page.evaluate(()=>Boolean(window.paid)),false);
+ await page.setContent('<article style="position:relative;width:300px;height:100px"><a id="title" href="/item/1">Item one</a></article><a href="/item/1" style="position:fixed;inset:0">Unrelated overlay</a>');
+ result=await executePrimitive(page,'click',{locator:{css:'#title'},timeoutMs:300});
+ assert.equal(result.execution,'not_started');assert.equal(page.url(),'https://example.test/');
 });
 
 test('a search whose Enter changes nothing is reported as unconfirmed',async t=>{
@@ -407,6 +539,19 @@ test('a search form is recognised by what it calls itself, and a heading reads i
  assert.equal(u.confirmationRequired,true);
  const sec=await executePrimitive(page,'extract',{locator:{role:'heading',name:'Legacy'},read:'section'});
  assert.equal(sec.value,'First paragraph of legacy.\nSecond one.\nSub\nSub text.',JSON.stringify(sec));
+});
+
+test('section reads omit executable and hidden nodes without truncating visible prose',async t=>{
+ const {page}=await fixture(t,`<h2>Overview</h2><p>First visible paragraph.</p>
+ <script>window.fixtureMarker='inline source must not be returned';</script>
+ <style>.unused { color: red }</style><template>Template source</template><noscript>Fallback source</noscript>
+ <h2 hidden>Hidden boundary</h2><div style="display:none"><h2>Another hidden boundary</h2>Hidden source</div>
+ <div><h2 style="display:none">Nested hidden boundary</h2><span>Second visible paragraph.</span></div>
+ <h2 style="visibility:hidden">Invisible boundary</h2>
+ <div style="visibility:hidden"><span style="visibility:visible">Visible descendant paragraph.</span></div>
+ <p>Third visible paragraph.</p><h2>Next</h2><p>Other section.</p>`);
+ const result=await executePrimitive(page,'extract',{locator:{role:'heading',name:'Overview',exact:true},read:'section'});
+ assert.equal(result.value,'First visible paragraph.\nSecond visible paragraph.\nVisible descendant paragraph.\nThird visible paragraph.');
 });
 
 test('Enter still reaches a search field that suggestions re-rendered after typing',async t=>{
@@ -442,6 +587,19 @@ test('a challenge address and a bare access-denied page are reported as blocked'
  await page.goto('https://example.test/search/?solution=abc&js_challenge=1&jsc_token=xyz');
  await page.setContent('<p>checking</p>');
  assert.equal((await detectBlock(page))?.kind,'bot-challenge');
+});
+
+test('bare denial sentences are blocks but explanatory articles are not',async t=>{
+ const {page}=await fixture(t,'<p>Contents</p>');
+ const {detectBlock}=await import('../src/engine/page-state.ts');
+ for(const title of ['Access to this page has been denied','Access to this resource is denied']){
+  await page.setContent(`<title>${title}</title><h1>${title}</h1><p>You do not have permission to view this resource.</p>`);
+  assert.equal((await detectBlock(page))?.kind,'access-denied',title);
+ }
+ await page.setContent('<title>Understanding why access to this page has been denied</title><article><h1>Troubleshooting access errors</h1><p>A guide to permission errors.</p><a href="/guide">Read the guide</a></article>');
+ assert.equal(await detectBlock(page),undefined);
+ await page.setContent('<title>Access to this page has been denied: troubleshooting</title><article><h1>Access errors</h1><p>A guide to permission errors.</p><a href="/guide">Read the guide</a></article>');
+ assert.equal(await detectBlock(page),undefined);
 });
 
 test('a javascript: link that navigates from script is waited for',async t=>{

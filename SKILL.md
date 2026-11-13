@@ -53,6 +53,12 @@ external_write / irreversible / unclassified 동작은 현재 작업에 대한 �
 
 사이트를 처음 열면 결과에 `siteMemory`가 붙을 수 있다. 등록 사이트의 저장 액션(`actions`), 가이드 섹션(`guide`), 이전 방문에서 관찰된 사실(`notes`: 검색 URL 형태, 필터·정렬이 바꾸는 파라미터, 내용이 든 frame, 차단)이다. 맞는 저장 액션이 있으면 직접 조작보다 먼저 `run_saved_action`(입력은 설명의 중괄호 이름)으로 실행하고 결과 화면에서 조건을 확인한다. 가이드 섹션은 `learning_notes` capability `guide:<섹션>`으로 읽는다. 메모는 엔진이 세션 종료 때 관찰로부터 자동 저장한다(`WEBAGENT_SITE_MEMORY=auto|suggest|off`, 기본 auto). 틀린 메모는 `site_memory_save`의 remove로 지운다.
 
+사이트에서 손으로 작업을 끝냈으면 알게 된 것을 `site_knowledge_save`로 남긴다. 등록되지 않은 사이트면 새로 만든다.
+- `guide`: `## 섹션` 단위 마크다운. 같은 제목은 바꾸고 새 제목은 덧붙인다. 첫 섹션은 다음 방문 때 `siteMemory.guideIntro`로 본문째 보이므로 시작 전에 알아야 할 것을 쓴다.
+- `actions`: `{id: {description: "…{입력}…", risk, steps, test}}`. 단계는 `{op:"goto",url:"https://…?q={query}"}`, `{op:"click"|"fill"|"select"|"press",locator:{…},value:"{query}"}`, `{op:"script",source:"return …"}`(페이지 안에서 도는 async 함수 본문, 반환값이 결과).
+- 읽기 액션은 저장 전에 지금 페이지에서 `test` 입력으로 한 번 실행해서 통과한 것만 남긴다. 실패하면 이전 버전이 그대로 남는다. 쓰기 액션은 실행하지 않고 남기며, 실행할 때 항상 승인이 필요하다. 클릭·제출·POST·값 변경을 하는 스크립트는 `read`로 적어도 쓰기로 취급된다.
+- 등록 안 된 사이트에서 4단계 이상 손으로 작업하고 세션을 닫으면 `session_close` 결과의 `siteKnowledge`가 저장을 제안한다.
+
 저장 액션이 실패하면 결과의 `repair`를 읽는다. 사용자 작업을 관찰로 끝낸 뒤 실제로 쓴 컨트롤을 `site_repair`로 저장한다(현재 페이지에서 유일하게 보이는 요소일 때만 저장된다). 읽기 액션은 느슨한 매칭으로 다시 찾고 검증되면 스스로 고쳐진다.
 
 ## 최소 학습과 자산 복구

@@ -31,10 +31,12 @@ async function defaultRpc(method,params,retried=false){
       cwd:ROOT,env:{...process.env,WEBAGENT_HOME:ROOT},encoding:'utf8',timeout:95000,
       maxBuffer:2*1024*1024,windowsHide:true,
     });
-    if(child.status!==0)throw new Error('Browser startup failed: '+(child.stderr||child.error?.message||'unknown').slice(0,1200));
+    if(child.status!==0)return {ok:false,execution:'not_started',reason:'browser_startup_failed',error:'Browser startup failed: '+(child.stderr||child.error?.message||'unknown').slice(0,1200)};
     started=true;
   }
-  let credentials=readCredentials();
+  let credentials;
+  try{credentials=readCredentials();}
+  catch(error){started=false;return {ok:false,execution:'not_started',reason:'daemon_credentials_unavailable',error:String(error?.message||error)};}
   let response=await postRpc({...credentials,method,params});
   // ECONNREFUSED means the command never reached the daemon. Startup may be
   // repeated, but an outcome_unknown action must NEVER be retransmitted.
@@ -62,7 +64,9 @@ export function createMcpHandler(rpc=defaultRpc){
           const offered=message.params?.protocolVersion;
           const version=offered==='2025-03-26'?'2025-03-26':PROTOCOL;
           return ok({protocolVersion:version,capabilities:{tools:{}},serverInfo:SERVER_INFO,
-            instructions:'Local Chrome browser automation. Always inspect current refs before acting. No blind retries after outcome_unknown. Explicit user approval is required before external writes.'});
+            instructions:'Local Chrome browser automation. Always inspect current refs before acting. No blind retries after outcome_unknown. Explicit user approval is required before external writes. '
+            +'Known sites: when a result carries siteMemory, read it first and use its saved actions (run_saved_action) before exploring by hand. '
+            +'After finishing a task by hand on a site, save what worked with site_knowledge_save (a short guide and the actions that worked), so the next visit starts from it.'});
         }
         case 'ping':return ok({});
         case 'tools/list':return ok({tools:TOOLS});

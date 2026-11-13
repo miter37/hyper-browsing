@@ -68,7 +68,7 @@ test('real Chrome retries a read after a confirmed headless challenge in the sam
   t.after(async()=>{await forceReleaseChromeProfile(c,chrome.profile);server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await fs.rm(root,{recursive:true,force:true});});
   const started=await chrome.start();daemon.context=started.context;daemon.sessions=new SessionStore(started.context);
   const opened=await daemon.sessions.open(`http://127.0.0.1:${server.address().port}`);
-  assert.equal(chrome.getState().headless,true);
+  assert.equal(chrome.getState().headless,true,JSON.stringify(chrome.getState()));
   await daemon.sessions.get(opened.id).setContent('<div role="dialog">Robot or human? Confirm that you are human.</div>');
   const result=await daemon.dispatch('page.extract',{sessionId:opened.id,locator:{css:'#result'}});
   assert.equal(result.value,'Headed result',JSON.stringify(result));assert.equal(result.headedFallback.retried,true);assert.equal(chrome.getState().headless,false);
@@ -81,6 +81,26 @@ test('session display restart reapplies viewport and locale preparation',async()
   const session=await store.open(undefined,{prepare:async p=>prepared.push(p)});
   await store.rebindContext({on:()=>{},pages:()=>[next]});
   assert.deepEqual(prepared,[first,next]);assert.equal(store.get(session.id),next);
+});
+
+test('Chrome starts with a fresh explicit profile directory', {timeout:60000}, async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'hb-fresh-profile-'));
+  const config={...getConfig(),runtimeDir:root,headless:true,chromeProfileStrategy:'managed',chromeUserDataDir:path.join(root,'new-profile')};
+  const manager=new ChromeManager(config);
+  t.after(async()=>{await forceReleaseChromeProfile(config,manager.profile);await fs.rm(root,{recursive:true,force:true});});
+  const started=await manager.start();
+  assert.equal(started.state.headless,true);
+  const page=await started.context.newPage();
+  await page.setContent('<h1>Fresh profile ready</h1>');
+  assert.equal(await page.locator('h1').innerText(),'Fresh profile ready');
+});
+
+test('a Chrome spawn error rejects without an uncaught event', {timeout:15000}, async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'hb-spawn-error-'));
+  t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const manager=new ChromeManager({...getConfig(),runtimeDir:root,headless:true,chromeStartupTimeoutMs:1000});
+  const profile={userDataDir:root,profileDirectory:'Default',managed:true};
+  await assert.rejects(manager.launch(path.join(root,'missing-browser'),profile,{}),/ENOENT/);
 });
 test('failed display preparation preserves every existing session ID',async()=>{
   const page=()=>({url:()=> 'about:blank',title:async()=>'',isClosed:()=>false});

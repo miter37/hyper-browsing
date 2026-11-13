@@ -607,10 +607,21 @@ async function waitForCdp(port: number, child: ChildProcess | undefined, timeout
   while (Date.now() < end) {
     const version = await fetchJson("http://127.0.0.1:" + port + "/json/version", 700);
     if (version && version.webSocketDebuggerUrl) return;
-    if (child && child.exitCode != null) throw new Error("Chrome exited during startup with code " + child.exitCode);
+    // An installed browser's launcher may hand off to another process and exit successfully before CDP is ready.
+    if (child && child.exitCode != null && child.exitCode !== 0) throw new Error("Chrome exited during startup with code " + child.exitCode);
     await new Promise((r) => setTimeout(r, 250));
   }
   throw new Error("Chrome did not expose CDP on port " + port + " within " + timeoutMs + "ms");
+}
+
+async function spawnChrome(executable: string, args: string[], options: { cwd: string; windowsHide: boolean }): Promise<ChildProcess> {
+  const child = spawn(executable, args, { ...options, detached: true, stdio: "ignore" });
+  await new Promise<void>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("spawn", resolve);
+  });
+  child.unref();
+  return child;
 }
 
 /* ------------------------------------------------------------------ *
@@ -750,6 +761,7 @@ export class ChromeManager {
 
   private async launch(executable: string, profile: ResolvedChromeProfile, takeover: any): Promise<{ context: BrowserContext; state: ChromeRuntimeState; takeover: any }> {
     this.profile = profile;
+    await fs.mkdir(profile.userDataDir, { recursive: true });
     const port = await choosePort(this.config.cdpPort || 9223);
     const headless = await resolveHeadless(this.config);
     const args = [
@@ -787,16 +799,13 @@ export class ChromeManager {
         if (Number.isFinite(launchedPid) && launchedPid > 0) {
           this.child = { pid: launchedPid, unref: () => {} } as any;
         } else {
-          this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: false });
-          this.child.unref();
+          this.child = await spawnChrome(executable, args, { cwd: launchCwd, windowsHide: false });
         }
       } catch {
-        this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: false });
-        this.child.unref();
+        this.child = await spawnChrome(executable, args, { cwd: launchCwd, windowsHide: false });
       }
     } else {
-      this.child = spawn(executable, args, { cwd: launchCwd, detached: true, stdio: "ignore", windowsHide: headless });
-      this.child.unref();
+      this.child = await spawnChrome(executable, args, { cwd: launchCwd, windowsHide: headless });
     }
     await waitForCdp(port, this.child, this.config.chromeStartupTimeoutMs);
     const context = await this.attach(port);
