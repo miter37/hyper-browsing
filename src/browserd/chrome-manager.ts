@@ -892,7 +892,12 @@ export class ChromeManager {
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-session-crashed-bubble",
-      "--disable-features=TranslateUI,OptimizationHints,OptimizationGuideModelDownloading",
+      // Several agents work side by side: a tab or window that is not in front must not be slowed down
+      // (timers, rendering, occlusion), or one agent's page stalls while another one's is shown.
+      "--disable-features=TranslateUI,OptimizationHints,OptimizationGuideModelDownloading,CalculateNativeWinOcclusion",
+      "--disable-background-timer-throttling",
+      "--disable-renderer-backgrounding",
+      "--disable-backgrounding-occluded-windows",
       "--disable-blink-features=AutomationControlled",
       "--disable-component-update",
       "--disable-background-networking",
