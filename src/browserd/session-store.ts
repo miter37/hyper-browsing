@@ -20,10 +20,16 @@ export interface SessionInfo {
 export interface OpenOptions {
   /** Called on the new tab before it navigates (viewport, locale). */
   prepare?: (page: Page) => Promise<void>;
+  /** Open in another browser (the isolated Chrome) instead of this store's context. */
+  context?: BrowserContext;
+  /** Session id prefix, e.g. "iso" for isolated sessions. */
+  idPrefix?: string;
 }
 
 interface SessionRecord {
   page: Page;
+  /** Lives in another browser (isolated Chrome): never rebound or recreated when the main Chrome restarts. */
+  external?: boolean;
   lastUrl: string;
   prepare?: OpenOptions["prepare"];
   setupStatus?: 'ready'|'partial';
@@ -51,6 +57,11 @@ export class SessionStore {
   private lastUsed = new Map<string, number>();
   private targetIds = new WeakMap<Page, Promise<string | undefined>>();
   private saveTimer?: NodeJS.Timeout;
+  /** Pages being created as session windows right now; popup adoption waits for them so it never steals one. */
+  private creating = new Set<Promise<unknown>>();
+  /** Each new session gets its own window (set for a real Chrome; tests on a launched context use tabs). */
+  windowPerSession = false;
+  windowSize = { width: 1440, height: 900 };
   private watchedContexts = new WeakSet<BrowserContext>();
   ignore(page: Page): void { this.ignored.add(page); }
   private sessions = new Map<string, SessionRecord>();
@@ -61,6 +72,7 @@ export class SessionStore {
   private adoptPopup(page:Page,parentId?:string):Promise<PopupEffect> {
     const pending=this.pendingPopups.get(page);if(pending)return pending;
     const promise=(async()=>{
+      if(this.creating.size)await Promise.allSettled([...this.creating]);
       const existing=[...this.sessions].find(([,r])=>r.page===page);
       if(existing)return {sessionId:existing[0],url:page.url(),title:await page.title().catch(()=>''),setupStatus:existing[1].setupStatus||'ready'};
       const prepare=parentId?this.sessions.get(parentId)?.prepare:undefined;
@@ -124,6 +136,9 @@ export class SessionStore {
 
   private used(id: string): void { this.lastUsed.set(id, Date.now()); this.scheduleSave(); }
 
+  /** Open sessions that live in the isolated Chrome. */
+  externalCount(): number { return [...this.sessions.values()].filter((r) => r.external && !r.page.isClosed()).length; }
+
   /** Last use of each session, oldest first. */
   idleList(): Array<{ id: string; idleMs: number; url: string }> {
     const now = Date.now();
@@ -162,6 +177,7 @@ export class SessionStore {
     context.on("page", (page) => {
       setTimeout(async () => {
         if (page.isClosed() || this.ignored.has(page)) return;
+        if (this.creating.size) await Promise.allSettled([...this.creating]);
         const claimed = [...this.sessions.values()].some((r) => r.page === page);
         if (!claimed) {
           // Adopt user-opened tabs/OAuth popups instead of closing them
@@ -195,13 +211,16 @@ export class SessionStore {
 
   async rebindContext(context: BrowserContext): Promise<void> {
     this.captureUrls();
-    const old = new Map(this.sessions);
+    // Isolated sessions live in another Chrome: a main-Chrome restart leaves them as they are.
+    const external = [...this.sessions].filter(([, rec]) => rec.external);
+    const old = new Map([...this.sessions].filter(([, rec]) => !rec.external));
     const desired = [...old.entries()].map(([id, rec]) => ({
       id, url: rec.lastUrl || "about:blank", prepare: rec.prepare,
       setupStatus: rec.setupStatus, setupError: rec.setupError,
     }));
     this.context = context;
     this.sessions.clear();
+    for (const [id, rec] of external) this.sessions.set(id, rec);
     this.watchForPopups(context);
 
     // Never bind a session to an unrelated tab by its array index.
@@ -247,12 +266,47 @@ export class SessionStore {
     if (preparationError) throw preparationError;
   }
 
+  /**
+   * A new page for a session. In a real Chrome it is a window of its own, opened in the background: every
+   * session then has a visible tab (no background-tab slowdown) and one agent's screenshot or focus never
+   * pushes another agent's tab away. Falls back to a plain new tab.
+   */
+  private async newSessionPage(context: BrowserContext): Promise<Page> {
+    if (!this.windowPerSession || context !== this.context || typeof context.browser !== "function") return context.newPage();
+    const browser = context.browser();
+    if (!browser) return context.newPage();
+    let done!: () => void;
+    const creating = new Promise<void>((r) => { done = r; });
+    this.creating.add(creating);
+    const arrived: Page[] = [];
+    const onPage = (p: Page) => { arrived.push(p); };
+    context.on("page", onPage);
+    try {
+      const cdp = await browser.newBrowserCDPSession();
+      const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank", newWindow: true, background: true,
+        width: this.windowSize.width, height: this.windowSize.height } as any) as any;
+      await cdp.detach().catch(() => {});
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        for (const p of arrived) if ((await this.targetIdOf(p)) === targetId) return p;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error("new window did not appear");
+    } catch {
+      return context.newPage();
+    } finally {
+      context.off("page", onPage);
+      this.creating.delete(creating); done();
+    }
+  }
+
   async open(url?: string, options: OpenOptions = {}): Promise<SessionInfo> {
-    const page = await this.context.newPage();
-    const id = `task_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const context = options.context || this.context;
+    const page = await this.newSessionPage(context);
+    const id = `${options.idPrefix || "task"}_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     // Claim the page immediately - before navigating, which can take up to tens of seconds -
     // so popup adoption never races a slow but legitimate navigation.
-    const record:SessionRecord={ page, lastUrl: page.url(), prepare: options.prepare,setupStatus:'ready' };
+    const record:SessionRecord={ page, lastUrl: page.url(), prepare: options.prepare,setupStatus:'ready', external: context !== this.context };
     this.sessions.set(id,record);this.watchParent(page,id);this.used(id);
     if(options.prepare)try{await options.prepare(page);}catch{record.setupStatus='partial';record.setupError='Page settings could not be applied';}
     // A navigation failure must not discard the session: the caller can retry or inspect it.

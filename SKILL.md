@@ -43,6 +43,17 @@ metadata:
 - 배치 실패 시 results와 stoppedAt을 읽는다. 완료된 단계를 롤백했다고 가정하지 않으며 전체 배치를 반복하지 않는다.
 - headless의 브라우저·탐색 실패, 확인된 차단·지속 로딩은 headed로 한 번 자동 전환한다. no_match·숨겨진 메뉴·잘못된 요소만으로 전환하지 않는다. 조회·명시한 페이지 이동만 자동 재시도한다. headedFallback.observationRequired이면 새 snapshot으로 이어간다. 재시작은 임시 입력·화면 상태를 잃을 수 있으며 이전 ref·쓰기·배치를 다시 보내지 않는다. 상세 조건은 docs/BROWSER.md를 읽는다.
 
+## 여러 에이전트가 동시에 쓸 때
+
+Chrome은 하나다. 로그인한 프로필 하나를 모두가 실시간으로 같이 쓴다.
+- 세션마다 별도 창이 뒤에서 열린다.
+- 다른 세션의 명령은 서로 기다리지 않고 동시에 실행된다. 같은 세션의 명령은 순서대로 실행된다.
+- Chrome 전체를 바꾸는 명령은 진행 중인 작업이 끝난 뒤 혼자 실행된다. 대상은 `browser repair/use/reveal/hide`, 전체 닫기, doctor fix다.
+- 브라우저를 따로 써야 하는 작업이면 `session_open`에 `isolated: true`를 준다. 무거운 페이지, 위험한 흐름, 화면 표시를 다르게 해야 하는 경우가 그렇다.
+  - 두 번째 Chrome(최대 1개)이 메인 쿠키를 복사해 시작한다.
+  - 그 안에서 한 로그인은 남지 않는다. 일부 사이트는 같은 계정을 두 브라우저에서 쓰면 다른 쪽 로그인을 끊는다.
+  - 격리 세션이 모두 닫히고 10분이 지나면 그 Chrome과 폴더가 사라진다.
+
 ## 브라우저가 안 될 때
 
 시작 실패, daemon_unreachable, unauthorized, Chrome 무응답, 같은 오류 반복이면 `browser_doctor`를 `fix: true`로 **한 번** 부른다(CLI: `hyper-browsing doctor --fix`). doctor는 이렇게 고친다.

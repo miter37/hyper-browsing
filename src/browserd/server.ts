@@ -35,6 +35,7 @@ import { navigate } from "../engine/navigate";
 import { findFrame, frameView, listFrames, FRAME_HINT } from "./frame-view";
 import { recordMemoryStep, describeUrlChange, rememberTyped, memoryFor, closeMemory, draftMemory, acceptDraft, saveFacts, removeNotes, siteGuide } from "../runtime/site-memory";
 import { loadRegistry } from "../registry/load";
+import { IsolatedPool, chromeLauncher, cleanupIsolatedLeftovers, type IsolatedLauncher } from "./isolated";
 import { hostMatches } from "../utils/glob";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
@@ -64,6 +65,32 @@ function json(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
 }
+
+/**
+ * Many agents share one daemon. Session work runs side by side (one queue per session); what changes the whole
+ * Chrome (relaunch, profile switch, display mode, closing everything, the doctor) waits until nothing else runs.
+ */
+class Gate {
+  private readers = 0;
+  private writer = false;
+  private waitingWriters = 0;
+  private wake: Array<() => void> = [];
+  private async wait() { await new Promise<void>((r) => this.wake.push(r)); }
+  private notify() { const w = this.wake; this.wake = []; for (const r of w) r(); }
+  async shared<T>(fn: () => Promise<T>): Promise<T> {
+    while (this.writer || this.waitingWriters) await this.wait();
+    this.readers++;
+    try { return await fn(); } finally { this.readers--; this.notify(); }
+  }
+  async exclusive<T>(fn: () => Promise<T>): Promise<T> {
+    this.waitingWriters++;
+    try { while (this.writer || this.readers) await this.wait(); } finally { this.waitingWriters--; }
+    this.writer = true;
+    try { return await fn(); } finally { this.writer = false; this.notify(); }
+  }
+  get busy() { return { sessionsRunning: this.readers, chromeWide: this.writer, chromeWideWaiting: this.waitingWriters }; }
+}
+const CHROME_WIDE = new Set(["browser.repair", "browser.use", "browser.reveal", "browser.hide", "session.closeAll"]);
 
 export class BrowserDaemon {
   private context?: BrowserContext;
@@ -96,8 +123,10 @@ export class BrowserDaemon {
     this.token = await ensureToken(this.config);
     const started = await this.chrome.start();
     this.context = started.context;
-    this.sessions = new SessionStore(this.context, this.tabsFile());
+    this.sessions = this.makeStore(this.context);
     await this.sessions.adoptExisting();
+    // An isolated Chrome left by a daemon that died is nobody's now: close it in the background.
+    if (!this.isolatedLauncher) void cleanupIsolatedLeftovers(this.config).catch(() => {});
     // Tabs left behind by earlier runs (finished, crashed, abandoned tasks) are closed now and every 10 minutes.
     await this.sweepTabs();
     this.sweepTimer = setInterval(() => { void this.sweepTabs(); }, 10 * 60_000);
@@ -256,19 +285,41 @@ export class BrowserDaemon {
   private async sweepTabs() {
     if (!this.sessions || process.env.WEBAGENT_TAB_SWEEP === "0") return [];
     const closed = await this.sessions.sweepIdle().catch(() => [] as string[]);
+    this.isolatedPool?.sessionsOpen(this.sessions.externalCount());
     if (closed.length) this.lastSweep = { at: new Date().toISOString(), closed };
     return closed;
   }
 
   /** Makes sure this daemon talks to a live Chrome (reattaching to a running one first) and sessions point at it. */
   private async syncContext() {
+    return serial(`sync:${this.config.runtimeDir}`, () => this.syncContextNow());
+  }
+  private async syncContextNow() {
     const current = await this.chrome.ensureConnected();
     if (current !== this.context) {
       this.clearNetwork();
       this.context = current;
       if (this.sessions) await this.sessions.rebindContext(current);
-      else { this.sessions = new SessionStore(current, this.tabsFile()); await this.sessions.adoptExisting(); }
+      else { this.sessions = this.makeStore(current); await this.sessions.adoptExisting(); }
     }
+  }
+
+  private gate = new Gate();
+  /** Overridable in tests: how the isolated Chrome is started. */
+  isolatedLauncher?: IsolatedLauncher;
+  private isolatedPool?: IsolatedPool;
+  private isolated(): IsolatedPool {
+    this.isolatedPool ||= new IsolatedPool(this.isolatedLauncher || chromeLauncher(this.config), () => this.context,
+      () => Boolean(this.chrome.getState()?.headless));
+    return this.isolatedPool;
+  }
+  private makeStore(context: BrowserContext): SessionStore {
+    const store = new SessionStore(context, this.tabsFile());
+    // A real Chrome (it has a DevTools port) gives every session its own window.
+    store.windowPerSession = Boolean(this.chrome.getState()?.cdpPort) && process.env.WEBAGENT_WINDOW_PER_SESSION !== "0";
+    const [w, h] = String(this.config.windowSize || "1440,900").split(",").map(Number);
+    store.windowSize = { width: w || 1440, height: h || 900 };
+    return store;
   }
 
   private store(): SessionStore {
@@ -280,12 +331,19 @@ export class BrowserDaemon {
     // A display change relaunches the shared Chrome instance. Never interrupt an
     // in-flight operation in another session, and leave status queries unblocked.
     if (["request.status", "learning.status", "learning.finish"].includes(method)) return this.dispatchUnlocked(method, params);
-    return serial(`browser:${this.config.runtimeDir}`, async () => {
-      try { return await this.dispatchWithFallback(method, params); }
+    if (CHROME_WIDE.has(method) || (method === "browser.doctor" && params.fix)) return this.gate.exclusive(() => this.dispatchWithFallback(method, params));
+    const phase = await this.gate.shared(() => serial(`session:${params.sessionId || "new"}:${params.sessionId ? "" : crypto.randomUUID()}`, async () => {
+      try { return await this.dispatchWithFallback(method, params, true); }
       finally { if (params.sessionId) this.sessions?.touch?.(params.sessionId); }
-    });
+    }));
+    // Switching Chrome to headed restarts it for everyone: done alone, after this session's turn is over.
+    if (phase && phase.__headedFallback) {
+      const { original } = phase.__headedFallback;
+      return this.gate.exclusive(() => this.headedFallback(method, params, original));
+    }
+    return phase;
   }
-  private async dispatchWithFallback(method: string, params: any): Promise<any> {
+  private async dispatchWithFallback(method: string, params: any, deferRelaunch = false): Promise<any> {
     let original: any;
     try { original = await this.dispatchUnlocked(method, params); }
     catch (error: any) {
@@ -298,16 +356,24 @@ export class BrowserDaemon {
       try { original.pageState = await inspectPageState(this.store().get(probeSession),undefined,3000); } catch { /* Preserve the original execution outcome. */ }
     }
     if (!needsHeadedFallback(method, original) || this.chrome.getState()?.headless !== true) return original;
+    if (deferRelaunch) return { __headedFallback: { original } };
+    return this.headedFallback(method, params, original);
+  }
+  private async headedFallback(method: string, params: any, original: any): Promise<any> {
+    // Another agent may have switched Chrome to headed while this one waited: then just retry below.
+    const alreadyHeaded = this.chrome.getState()?.headless !== true;
     const fallback: any = { attempted: true, from: "headless", to: "headed", retried: false, observationRequired: true,
       reason: original.reason || original.blocked || original.navigationError || "headless_failure" };
     try {
-      // Capture up-to-date URLs before destroying Playwright handles.
-      this.store().captureUrls?.();
-      this.clearNetwork();
-      await this.chrome.writeDisplayPreference({ headless: false });
-      const repaired = await this.chrome.repair();
-      this.context = repaired.context;
-      await this.store().rebindContext(repaired.context);
+      if (!alreadyHeaded) {
+        // Capture up-to-date URLs before destroying Playwright handles.
+        this.store().captureUrls?.();
+        this.clearNetwork();
+        await this.chrome.writeDisplayPreference({ headless: false });
+        const repaired = await this.chrome.repair();
+        this.context = repaired.context;
+        await this.store().rebindContext(repaired.context);
+      }
       fallback.switched = true;
     } catch (error: any) {
       fallback.error = error.message;
@@ -343,6 +409,7 @@ export class BrowserDaemon {
       const learning = await finishObservedLearning(this.config, params.sessionId).catch((e: any) => ({ learningPending: false, warning: e.message }));
       const siteMemory = await closeMemory(this.config, params.sessionId).catch(() => undefined);
       this.memoryShown.delete(params.sessionId);
+      this.isolatedPool?.sessionsOpen(this.store().externalCount());
       const siteKnowledge = await this.knowledgeSuggestion(params.sessionId).catch(() => undefined);
       this.stepsBySite.delete(params.sessionId);
       return { closed: params.sessionId, learning, learning_pending: false, ...(siteMemory ? { siteMemory } : {}), ...(siteKnowledge ? { siteKnowledge } : {}) };
@@ -365,14 +432,15 @@ export class BrowserDaemon {
           const repaired = await this.chrome.repair();
           this.context = repaired.context;
           if (this.sessions) await this.sessions.rebindContext(repaired.context);
-          else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
+          else { this.sessions = this.makeStore(repaired.context); await this.sessions.adoptExisting(); }
         },
         sweep: () => this.sweepTabs(),
       }, Boolean(params.fix));
     }
     await this.syncContext();
     if (method === "health") return { status: "ok", pid: process.pid, chrome: this.chrome.getState() };
-    if (method === "browser.status") return { status: "ok", chrome: this.chrome.getState(), sessions: await this.store().list() };
+    if (method === "browser.status") return { status: "ok", chrome: this.chrome.getState(), sessions: await this.store().list(),
+      isolated: this.isolatedPool?.status() || { running: false }, activity: this.gate.busy };
     if (method === "browser.profiles") {
       const profiles = await listChromeProfiles();
       return {
@@ -396,7 +464,7 @@ export class BrowserDaemon {
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
-      else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
+      else { this.sessions = this.makeStore(repaired.context); await this.sessions.adoptExisting(); }
       return { status: "switched", preference: saved, resolved, chrome: repaired.state, takeover: repaired.takeover };
     }
     if (method === "browser.repair") {
@@ -405,7 +473,7 @@ export class BrowserDaemon {
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
-      else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
+      else { this.sessions = this.makeStore(repaired.context); await this.sessions.adoptExisting(); }
       return { status: "repaired", chrome: repaired.state, takeover: repaired.takeover, sessions: await this.store().list() };
     }
     if (method === "browser.reveal" || method === "browser.hide") {
@@ -418,7 +486,7 @@ export class BrowserDaemon {
       const repaired = await this.chrome.repair();
       this.context = repaired.context;
       if (this.sessions) await this.sessions.rebindContext(repaired.context);
-      else { this.sessions = new SessionStore(repaired.context, this.tabsFile()); await this.sessions.adoptExisting(); }
+      else { this.sessions = this.makeStore(repaired.context); await this.sessions.adoptExisting(); }
       return {
         status: method === "browser.reveal" ? "revealed" : "hidden",
         chrome: repaired.state,
@@ -428,7 +496,10 @@ export class BrowserDaemon {
     if (method === "session.open") {
       const viewport = typeof params.viewport === "string" ? params.viewport.match(/^(\d{3,5})[x,](\d{3,5})$/) : null;
       const locale = typeof params.locale === "string" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(params.locale) ? params.locale : undefined;
+      // isolated: the second Chrome (at most one), started with the main Chrome's cookies.
+      const isolatedContext = params.isolated ? await this.isolated().context() : undefined;
       const opened: any = await this.store().open(params.url, {
+        ...(isolatedContext ? { context: isolatedContext, idPrefix: "iso" } : {}),
         prepare: async (p) => {
           if (viewport) await p.setViewportSize({ width: Number(viewport[1]), height: Number(viewport[2]) });
           if (locale) {
@@ -444,6 +515,11 @@ export class BrowserDaemon {
         const blocked = await detectBlock(this.store().get(opened.id));
         if (blocked) opened.blocked = blocked;
         await this.afterLoadMemory(this.store().get(opened.id), opened.id, "open", "", opened).catch(() => {});
+      }
+      if (isolatedContext) {
+        this.isolated().sessionsOpen(this.store().externalCount());
+        opened.isolated = { ...this.isolated().status(),
+          note: "Separate Chrome with a copy of the main login (cookies). Sign-ins made here are not kept; some sites end the other login when one account is used in two browsers." };
       }
       return opened;
     }
@@ -857,6 +933,8 @@ export class BrowserDaemon {
 
   async stop(): Promise<void> {
     if (this.sweepTimer) clearInterval(this.sweepTimer);
+    // The isolated Chrome is a throwaway: it goes with the daemon (a later daemon would not know it).
+    await this.isolatedPool?.stopIfIdle(true).catch(() => {});
     await this.sessions?.saveNow().catch(() => {});
     this.clearNetwork();
     await new Promise<void>((resolve) => this.server?.close(() => resolve()));

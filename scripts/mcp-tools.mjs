@@ -24,7 +24,7 @@ const targetMessage = 'Provide exactly one of locator or ref, never both. Ambigu
 export const TOOLS = [
   tool('browser_status', 'Inspect local Chrome/browser daemon status and current sessions.', {}, [], true),
   tool('browser_doctor', 'When the browser does not work (startup failed, daemon unreachable, Chrome not answering, unauthorized, repeated errors): diagnose and, with fix: true, repair it safely - reattach to the running Chrome, relaunch only if it is dead, clear stale locks, close idle tabs, restore the login from backup. Call this ONCE instead of killing processes, changing ports or touching profile folders yourself.', {fix:B('Repair what is wrong (safe steps only).')}, []),
-  tool('session_open', 'Open a browser tab and return its stable session ID.', { url: S('HTTP(S) URL to open.'), locale: S('Optional locale, e.g. ko-KR.'), viewport: S('Optional viewport, e.g. 1440x900.') }, ['url']),
+  tool('session_open', 'Open a browser window for this task and return its stable session ID. Each session has its own window in the shared, signed-in Chrome, and sessions of different agents run side by side.', { url: S('HTTP(S) URL to open.'), locale: S('Optional locale, e.g. ko-KR.'), viewport: S('Optional viewport, e.g. 1440x900.'), isolated: B('Run in a separate Chrome (at most one extra) that starts with a copy of the main login. For work that must not share the main browser (heavy pages, risky flows). Sign-ins made there are not kept, and some sites end the other login when one account is used in two browsers.') }, ['url']),
   tool('session_list', 'List open browser tabs/sessions.', {}, [], true),
   tool('navigate', 'Load a URL in an existing session tab and return the resulting page state.', {sessionId, url:S('HTTP(S) URL to load.')}, ['sessionId','url']),
   tool('back', 'Go back one step in the session tab history.', {sessionId}, ['sessionId']),
@@ -177,7 +177,7 @@ async function runDaemonTool(name,args,rawCall) {
   validateToolInput(name,args);
   switch(name){
     case 'browser_status': return rpc(call,'browser.status',{});
-    case 'session_open': return rpc(call,'session.open',copy(args,['url','viewport','locale']));
+    case 'session_open': return rpc(call,'session.open',copy(args,['url','viewport','locale','isolated']));
     case 'session_list': return rpc(call,'session.list',{});
     case 'navigate': return rpc(call,'page.goto',copy(args,['sessionId','url']));
     case 'back': return rpc(call,'page.back',copy(args,['sessionId']));

@@ -81,7 +81,7 @@ Daemon/session:
   webctl browser use (--profile NAME | --auto | --managed | --real | --user-data-dir DIR)
   webctl browser reveal               # open a visible Chrome window (for login/CAPTCHA/help)
   webctl browser hide                 # go back to headless (the default)
-  webctl session open [--url URL] [--viewport 1440x900] [--locale en-US]
+  webctl session open [--url URL] [--viewport 1440x900] [--locale en-US] [--isolated]
   webctl session list
   webctl session close --session ID
   webctl session close --all           # close every open tab (cleanup sweep)
@@ -172,7 +172,7 @@ async function main() {
     }));
   }
 
-  if (a === "session" && b === "open") return print(await client.call("session.open", { url: flag("url"), viewport: flag("viewport"), locale: flag("locale") }));
+  if (a === "session" && b === "open") return print(await client.call("session.open", { url: flag("url"), viewport: flag("viewport"), locale: flag("locale"), isolated: argv.includes("--isolated") || undefined }));
   if (a === "session" && b === "list") return print(await client.call("session.list"));
   if (a === "session" && b === "close" && boolFlag("all")) return print(await client.call("session.closeAll"));
   if (a === "session" && b === "close") return print(await client.call("session.close", { sessionId: required("session") }));
