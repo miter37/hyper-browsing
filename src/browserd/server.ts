@@ -34,6 +34,8 @@ import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMo
 import { navigate } from "../engine/navigate";
 import { findFrame, frameView, listFrames, FRAME_HINT } from "./frame-view";
 import { recordMemoryStep, describeUrlChange, rememberTyped, memoryFor, closeMemory, draftMemory, acceptDraft, saveFacts, removeNotes, siteGuide } from "../runtime/site-memory";
+import { loadRegistry } from "../registry/load";
+import { hostMatches } from "../utils/glob";
 import { dismissAnnoyances, analyzeForms, compareSnapshots, sniffApi, waitForIdle, scrollPage, waitForElement, listItems } from "../runtime/discovery-tools";
 
 // A page-load popup watch stops at the first of these: from then on a new dialog may be the agent's own doing.
@@ -186,6 +188,17 @@ export class BrowserDaemon {
     }
   }
 
+  /** Sites this session worked on by hand (4+ steps) that have no saved knowledge yet. */
+  private async knowledgeSuggestion(sessionId: string) {
+    const counts = this.stepsBySite.get(sessionId);
+    if (!counts) return undefined;
+    const registry = await loadRegistry(this.config);
+    const unknown = [...counts.values()].filter((s) => s.steps >= 4 && !registry.entries.some((e) => e.match.hosts.some((h) => hostMatches(s.host, h))));
+    if (!unknown.length) return undefined;
+    return { suggest: unknown.map((s) => ({ host: s.host, steps: s.steps })),
+      hint: "This work was done by hand on a site with no saved knowledge. Before ending, reopen the site and save what worked with site_knowledge_save (guide + actions), so the next visit starts from it." };
+  }
+
   /** A registered site: its saved actions and the sections of its guide, so they are used without being asked for. */
   private async knownSiteBriefing(page: Page) {
     const identified = await identifySite(this.config, page);
@@ -194,18 +207,27 @@ export class BrowserDaemon {
     const actions = Object.entries(def.actions || {}).slice(0, 8).map(([id, a]: [string, any]) => `${id}${a.description ? ": " + String(a.description).slice(0, 90) : ""}`);
     const guide = await siteGuide(identified.loaded.dir);
     if (!actions.length && !guide?.sections.length) return undefined;
+    // The first guide section is what to know before starting; it is shown, not just named.
+    const intro = guide?.sections.length ? (await siteGuide(identified.loaded.dir, guide.sections[0]))?.text?.slice(0, 700) : undefined;
     return {
       site: def.site.id,
       ...(actions.length ? { actions } : {}),
       ...(guide?.sections.length ? { guide: guide.sections } : {}),
-      hint: `Known site "${def.site.id}".` + (actions.length ? " Saved actions run with run_saved_action (check the result)." : "")
-        + (guide?.sections.length ? " Read a guide section with learning_notes capability \"guide:<section>\"." : ""),
+      ...(intro ? { guideIntro: { section: guide!.sections[0], text: intro } } : {}),
+      hint: `Known site "${def.site.id}".` + (actions.length ? " Use its saved actions first: run_saved_action does the whole step in one call and checks the result; explore by hand only when none fits or one fails." : "")
+        + (guide?.sections.length ? " Read a guide section with learning_notes capability \"guide:<section>\"." : "")
+        + " After the task, keep what you learned with site_knowledge_save.",
     };
   }
 
+  // Steps taken per site in a session, to suggest saving site knowledge at close when a site has none.
+  private stepsBySite = new Map<string, Map<string, { host: string; steps: number }>>();
   private async recordStepMemory(page: Page, params: any, kind: string, before: string, result: any) {
     const site = await this.memoryKey(page, params.sessionId);
     if (!site) return;
+    const counts = this.stepsBySite.get(params.sessionId) || new Map();
+    const entry = counts.get(site.key) || { host: site.host, steps: 0 };
+    entry.steps++; counts.set(site.key, entry); this.stepsBySite.set(params.sessionId, counts);
     const after = page.url();
     const blocked = result.effect?.blocked;
     const base = { host: site.host, key: site.key, path: (() => { try { const u = new URL(after); return u.origin + u.pathname; } catch { return ""; } })() };
@@ -296,7 +318,9 @@ export class BrowserDaemon {
       const learning = await finishObservedLearning(this.config, params.sessionId).catch((e: any) => ({ learningPending: false, warning: e.message }));
       const siteMemory = await closeMemory(this.config, params.sessionId).catch(() => undefined);
       this.memoryShown.delete(params.sessionId);
-      return { closed: params.sessionId, learning, learning_pending: false, ...(siteMemory ? { siteMemory } : {}) };
+      const siteKnowledge = await this.knowledgeSuggestion(params.sessionId).catch(() => undefined);
+      this.stepsBySite.delete(params.sessionId);
+      return { closed: params.sessionId, learning, learning_pending: false, ...(siteMemory ? { siteMemory } : {}), ...(siteKnowledge ? { siteKnowledge } : {}) };
     }
     if (method === "session.closeAll") {
       this.clearNetwork();
@@ -744,6 +768,39 @@ export class BrowserDaemon {
       const check = await resolveUnique(page, plain, undefined, 3000, within, {});
       if (!("locator" in check)) return { ok: false, reason: "not_unique", detail: check, hint: "The locator must point at exactly one visible element on this page." };
       return { ok: true, ...(await saveElementStrategy(this.config, identified.loaded, String(params.element), strategy, "agent", params.sessionId)) };
+    }
+    if (method === "site.knowledge") {
+      if (!page) throw new Error("sessionId required");
+      let host = "";
+      try { const u = new URL(page.url()); if (/^https?:$/.test(u.protocol)) host = u.hostname; } catch {}
+      if (!host) throw new Error("Open the site in this session first");
+      const { loadSite } = await import("../engine/site-loader");
+      const identified = params.siteId ? { loaded: await loadSite(this.config, params.siteId) } : await identifySite(this.config, page).catch(() => undefined);
+      const { saveSiteKnowledge, dropActions } = await import("../runtime/site-knowledge");
+      const saved = await saveSiteKnowledge(this.config, { host, siteId: identified?.loaded.definition.site.id, name: params.name,
+        guide: params.guide, urlTemplates: params.urlTemplates, elements: params.elements, actions: params.actions, remove: params.remove });
+      // Each new read action is tried once on this page before it is kept; writes are never run here.
+      const trials: Record<string, any> = {};
+      const failed: string[] = [];
+      if (saved.actions.length) {
+        const loaded = await loadSite(this.config, saved.site);
+        for (const id of saved.actions) {
+          const spec = params.actions?.[id] || {};
+          const risk = effectiveRisk(id, loaded.definition.actions[id] as any);
+          if (spec.test === false) { trials[id] = { skipped: "test: false" }; continue; }
+          if (risk !== "read") { trials[id] = { skipped: `${risk}: not run without the user's approval; kept untried` }; continue; }
+          const r: any = await runKnownAction(this.config, page, loaded, { sessionId: params.sessionId, actionId: id, input: spec.test || {}, confirmed: false });
+          const preview = r.returned === undefined ? undefined : JSON.stringify(r.returned).slice(0, 800);
+          trials[id] = { ok: r.ok, verification: r.verification?.outcome, ...(preview ? { returned: preview } : {}),
+            ...(r.ok ? {} : { error: r.executionError || r.reason || r.failureClass, steps: r.steps?.filter((s: any) => !s.ok).slice(0, 2) }) };
+          if (!r.ok) failed.push(id);
+        }
+        if (failed.length) await dropActions(this.config, saved.site, failed, saved.previous);
+      }
+      const { previous: _previous, ...out } = saved;
+      return { ok: !failed.length, ...out, kept: saved.actions.filter((a: string) => !failed.includes(a)), trials,
+        ...(failed.length ? { notKept: failed, hint: "These actions failed their trial run and were not kept (an earlier version, if any, is back). Look at the page again, fix the steps, and save them again." } : {}),
+        next: "Any later session that opens this site gets these actions and the guide in siteMemory." };
     }
     if (method === "action.run") {
       if (!page) throw new Error("sessionId required");

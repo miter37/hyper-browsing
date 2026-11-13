@@ -17,7 +17,7 @@
     "test:execution": "node --import tsx --test tests/execution.mjs tests/transport.mjs tests/headed-fallback.mjs tests/improvements.mjs tests/input-pacing.mjs tests/reliability.mjs",
     "test:discovery": "node --import tsx tests/discovery-lessons.mjs",
     "test": "npm run typecheck && npm run test:learning && npm run test:execution && npm run test:scenarios && npm run test:discovery && npm run test:mcp",
-    "test:mcp": "node --test tests/mcp-protocol.mjs tests/distribution.mjs && node --import tsx --test tests/site-memory.mjs"
+    "test:mcp": "node --test tests/mcp-protocol.mjs tests/distribution.mjs && node --import tsx --test tests/site-memory.mjs tests/site-knowledge.mjs"
   },
   "dependencies": {
     "dotenv": "^16.0.0",

@@ -64,7 +64,9 @@ export function createMcpHandler(rpc=defaultRpc){
           const offered=message.params?.protocolVersion;
           const version=offered==='2025-03-26'?'2025-03-26':PROTOCOL;
           return ok({protocolVersion:version,capabilities:{tools:{}},serverInfo:SERVER_INFO,
-            instructions:'Local Chrome browser automation. Always inspect current refs before acting. No blind retries after outcome_unknown. Explicit user approval is required before external writes.'});
+            instructions:'Local Chrome browser automation. Always inspect current refs before acting. No blind retries after outcome_unknown. Explicit user approval is required before external writes. '
+            +'Known sites: when a result carries siteMemory, read it first and use its saved actions (run_saved_action) before exploring by hand. '
+            +'After finishing a task by hand on a site, save what worked with site_knowledge_save (a short guide and the actions that worked), so the next visit starts from it.'});
         }
         case 'ping':return ok({});
         case 'tools/list':return ok({tools:TOOLS});

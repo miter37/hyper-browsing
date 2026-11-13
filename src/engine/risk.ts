@@ -12,17 +12,27 @@ export function effectiveRisk(actionId: string, action: ActionDefinition): Risk 
   if (action.risk === "read" && action.implementation.kind === "declarative" && action.implementation.steps.length === 0 && action.returns?.extractor && !action.variants) return "read";
   let inferred: Risk = "read";
   const haystack = [actionId];
+  let scriptWrites = false;
   if (action.implementation.kind === "declarative") {
     for (const step of action.implementation.steps as any[]) {
       if (step.element) haystack.push(step.element);
-      if (step.op) haystack.push(step.op);
+      if (step.op && step.op !== "script") haystack.push(step.op);
+      if (step.op === "script" && scriptMutates(step.source)) scriptWrites = true;
     }
   }
   const text = haystack.join(" ").replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ');
   if (irreversible.test(text)) inferred = "irreversible";
-  else if (externalWrite.test(text)) inferred = "external_write";
+  else if (externalWrite.test(text) || scriptWrites) inferred = "external_write";
   const declared = action.risk as Risk;
   return rank[inferred] > rank[declared] ? inferred : declared;
+}
+
+/**
+ * Page scripts that can change something: clicks, form submits, synthetic events, writes through fetch/XHR,
+ * typed values, storage, cookies and navigation. A script with any of these is not a read, whatever its label.
+ */
+export function scriptMutates(source: string): boolean {
+  return /\.(click|submit|requestSubmit)\s*\(|dispatchEvent\s*\(|method\s*:\s*['"`](post|put|patch|delete)|\.open\s*\(\s*['"`](post|put|patch|delete)|navigator\.sendBeacon|\.(value|checked|innerHTML|textContent)\s*=(?!=)|(local|session)Storage\.(setItem|removeItem|clear)|document\.cookie\s*=(?!=)|location(\.href)?\s*=(?!=)|location\.(assign|replace)\s*\(/i.test(source);
 }
 
 export function requiresConfirmation(risk: Risk): boolean {

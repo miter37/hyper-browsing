@@ -1,26 +1,94 @@
 site:
   id: blog_naver_com
   name: 네이버 블로그
-  version: 1
+  version: 2
 match:
   hosts:
     - blog.naver.com
     - section.blog.naver.com
 fingerprints: {}
 states: {}
-elements: {}
+elements:
+  title:
+    description: Title line of the SmartEditor ONE editor
+    strategies:
+      - css: .se-documentTitle .se-text-paragraph
+  body:
+    description: First body paragraph of the editor
+    strategies:
+      - css: .se-component.se-text .se-text-paragraph
+  publish_layer_button:
+    description: Header 발행 button; opens the layer with category, visibility and tags (does not publish)
+    strategies:
+      - css: button[class*='publish_btn']
+      - role: button
+        name: 발행
+        exact: true
+  category_button:
+    strategies:
+      - role: button
+        name: 카테고리 목록 버튼
+  visibility_private:
+    strategies:
+      - css: label[for='open_private']
+  final_publish_button:
+    description: The 발행 button inside the publish layer. Publishes for real.
+    strategies:
+      - testId: seOnePublishBtn
+extractors: {}
 preconditions: {}
-actions: {}
-# Note: original file used a flat legacy shape (id/name/host/auth/routes/editor_specs)
-# that the current schema validator rejects and that blocked `registry build` for every site.
-# Authoritative editor specs preserved below as comments:
-#   engine: SmartEditor ONE
-#   typing_method: CDP Input.dispatchMouseEvent & Input.insertText
-#   title selector: ".se-documentTitle p" (click_and_insert)
-#   body selector: ".se-component.se-text p" (click_and_insert_with_linebreaks)
-#   save button: "button.save_btn__FuUyN"
-#   publish layer button: "button.publish_btn__v_kS9"
-#   final publish button: ".layer_publish button, .modal_layer button (text: '발행')"
-#   routes: home https://section.blog.naver.com, write https://blog.naver.com/PostWriteForm.naver?blogId={blogId},
-#           direct_write https://blog.naver.com/GoBlogWrite.naver
-#   auth: 네이버 로그인 세션 유지 필요 (로그아웃 시 webctl browser reveal로 수동 인증)
+urlTemplates:
+  write: https://blog.naver.com/PostWriteForm.naver?blogId={blogId}
+  write_mine: https://blog.naver.com/GoBlogWrite.naver
+actions:
+  open_editor:
+    description: Open a new post in the editor for blog {blogId} (the top-level editor page, no frames)
+    risk: read
+    lifecycle: verified
+    knowledge:
+      capability: open_editor
+      scope: Opened live on 2026-11-13; GoBlogWrite.naver redirects to /{blogId}?Redirect=Write, which frames this page.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: write
+    verify:
+      - type: url_matches
+        pattern: https://blog.naver.com/PostWriteForm.naver*
+  write_post:
+    description: 'New post with {title} and {html} (an HTML fragment) pasted in one step each; nothing is published. Optional {blogId}.'
+    risk: local_write
+    lifecycle: verified
+    knowledge:
+      capability: write_post
+      scope: Pasted live on 2026-11-13 - headings, bold, color, font-size spans, lists, tables, blockquote and hr all became editor components.
+    implementation:
+      kind: code
+      export: write_post
+    verify:
+      - type: url_matches
+        pattern: https://blog.naver.com/PostWriteForm.naver*
+  list_categories:
+    description: Category names of the signed-in blog (open the editor first)
+    risk: read
+    lifecycle: verified
+    implementation:
+      kind: code
+      export: list_categories
+    verify:
+      - type: url_matches
+        pattern: https://blog.naver.com/PostWriteForm.naver*
+  publish_post:
+    description: 'Publish the post open in the editor, with optional {category} (exact name) and {visibility} (전체공개|이웃공개|서로이웃공개|비공개, default 비공개)'
+    risk: external_write
+    lifecycle: verified
+    knowledge:
+      capability: publish_post
+      scope: Published privately on 2026-11-13; Naver then redirects to PostView.naver?...&logNo=...
+    implementation:
+      kind: code
+      export: publish_post
+    verify:
+      - type: url_matches
+        pattern: https://blog.naver.com/PostView.naver*logNo=*

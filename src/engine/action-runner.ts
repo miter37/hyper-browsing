@@ -79,9 +79,30 @@ async function runDeclarative(page: Page, site: SiteDefinition, steps: any[], in
         throw new Error(`Timeout waiting for condition after ${timeoutMs}ms`);
       }
       results.push({ op: "wait_for", execution: "completed", ok: true });
+    } else if (step.op === "script") {
+      // Evaluated as an expression through CDP, so a page's CSP (no eval) does not block it.
+      const expression = `(async (input) => {\n${step.source}\n})(${JSON.stringify(input ?? {})})`;
+      try {
+        const value = await page.evaluate(expression);
+        results.push({ op: "script", execution: "completed", ok: true, returned: value });
+      } catch (error: any) {
+        const message = String(error?.message || error).split("\n")[0];
+        results.push({ op: "script", execution: "completed", ok: false, error: message });
+        throw new StepExecutionError(results, { ok: false, reason: "script_error", execution: "completed", error: message });
+      }
     }
   }
   return results;
+}
+
+/** What a script step gave back, if any: the last script step's value. */
+function scriptResult(steps: Record<string, any>[]) {
+  const scripted = steps.filter((s) => s.op === "script" && s.ok);
+  return scripted.length ? { value: scripted[scripted.length - 1].returned } : undefined;
+}
+export function isEmptyResult(value: unknown) {
+  return value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length)
+    || (typeof value === "object" && !Array.isArray(value) && !Object.keys(value as object).length);
 }
 
 export async function runKnownAction(config: AppConfig, page: Page, loaded: LoadedSite, options: RunActionOptions) {
@@ -164,6 +185,8 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
   try {
     if (implementation.kind === "declarative") {
       steps = await runDeclarative(page, site, implementation.steps, options.input, options.confirmed, healed);
+      const scripted = scriptResult(steps);
+      if (scripted) returned = scripted.value;
     } else {
       const mod = await loadActionModule(loaded);
       const exportName = implementation.export || options.actionId;
@@ -194,10 +217,16 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
 
   // Invariant: a write-like action that throws/timeouts is verified before any retry.
   // This MVP performs no blind retry; the result stays UNKNOWN/NOT_APPLIED for the caller to decide.
-  const verification = await verifyAction(page, site, verify, options.input).catch((error: any) => ({
+  let verification: { outcome: VerificationOutcome; details: any[] } = await verifyAction(page, site, verify, options.input).catch((error: any) => ({
     outcome: "UNKNOWN" as VerificationOutcome,
     details: [{ condition: "verification", error: error?.message || String(error) }],
   }));
+  // A read action whose script read data off the page is checked by that data: something came back.
+  const scripted = !executionError && implementation.kind === "declarative" ? scriptResult(steps) : undefined;
+  if (!verify.length && scripted && risk === "read") {
+    const got = !isEmptyResult(scripted.value);
+    verification = { outcome: got ? "APPLIED" : "NOT_APPLIED", details: [{ condition: "script returned data", ok: got }] };
+  }
 
   const applied = verification.outcome === "APPLIED";
   // The desired state can predate this attempt. An interrupted implementation
@@ -243,7 +272,8 @@ async function executeKnownAction(config: AppConfig, page: Page, loaded: LoadedS
     risk,
     lifecycle,
     storedLifecycle,
-    steps,
+    // A script's value is the action's result (returned); the step record does not repeat it.
+    steps: steps.map((s) => s.op === "script" && "returned" in s ? (({ returned: _r, ...rest }) => rest)(s) : s),
     state: detected.state,
     variant,
     verification,

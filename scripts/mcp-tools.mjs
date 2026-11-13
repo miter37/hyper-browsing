@@ -47,6 +47,18 @@ export const TOOLS = [
   tool('learning_notes', 'Read saved know-how for the current site; pass capability to read one note body, or "guide:<section>" to read a section of a known site\'s guide.', {sessionId, capability:S('Optional capability name from the notes index.')}, ['sessionId'], true),
   tool('site_memory_save', 'Keep, write or delete saved knowledge for the site of this session. accept keeps facts the engine drafted (ids from siteMemory.draft or site_memory_draft); notes writes your own short facts (what worked, where things are, what to avoid); remove deletes wrong ones by capability.', {sessionId, accept:{type:'array',items:{type:'string'},description:'Draft fact ids to keep.'}, notes:{type:'array',items:{type:'object',properties:{capability:{type:'string'},text:{type:'string'}},required:['capability','text']},description:'Up to 5 {capability, text} facts, text up to 400 characters. No personal data.'}, remove:{type:'array',items:{type:'string'},description:'Capabilities of saved facts that turned out wrong.'}}, ['sessionId']),
   tool('site_repair', 'Repair a saved site action after it failed: save the control you actually used for one of its elements (locator or a fresh ref; it must point at exactly one visible element on this page), or replace a URL template. Use what run_saved_action returned under repair.', {sessionId, siteId:S('Site id, if the page is not recognised.'), element:S('Element id from repair.element.'), locator, ref, urlTemplate:S('URL template name to replace.'), template:S('New URL template with {name} placeholders.')}, ['sessionId']),
+  tool('site_knowledge_save', 'Save what you learned about the site of this session so every later session starts from it (creates the site if it is new). '
+    + 'guide: markdown in "## Section" blocks, merged into the site guide; the first section is shown when the site opens, so put what to know first there. '
+    + 'actions: {id: {description:"What it does with {inputs}", risk:"read"|"local_write"|"external_write", steps:[...], test:{inputs for a trial run}}}. '
+    + 'Steps: {op:"goto",url:"https://site/search?q={query}"}; {op:"click"|"fill"|"select"|"press",locator:{...},value:"{query}",key:"Enter"}; '
+    + '{op:"script",source:"return [...document.querySelectorAll(\'.item\')].map(e=>({title:e.innerText}))"} (body of async (input)=>{...}, runs in the page, its return value is the result). '
+    + 'Read actions are tried once on this page and kept only if they work; write actions are kept untried and always need approval to run. '
+    + 'Use it after doing a task by hand on a site, and when session_close or siteMemory suggests it.',
+    {sessionId, guide:S('Markdown with "## Section" headings: what to know first, where things are, what to avoid. No personal data.'),
+     actions:O('Actions to add or replace, by id (lowercase, _): {description, risk, steps, verify?, test?}.'),
+     urlTemplates:O('Optional named URL templates with {name} placeholders.'), elements:O('Optional named elements: {name: locator} or {name: {strategies:[...]}}.'),
+     remove:{type:'array',items:{type:'string'},description:'Action ids to delete (wrong or obsolete).'},
+     name:S('Site name, for a new site.'), siteId:S('Registered site id, if the page is not recognised as it.')}, ['sessionId']),
   tool('site_memory_draft', 'Show the facts the engine drafted from this session so far (URL parameters that controls set, how search is addressed, frames, blocks).', {sessionId}, ['sessionId'], true),
   tool('action_list', 'List saved actions for this page with lifecycle, risk and evidence.', {sessionId}, ['sessionId'], true),
   tool('run_saved_action', 'Run previously saved site action via shared risk/verification engine. External writes need explicit approval.', {sessionId, actionId:S('Existing saved action ID.'), siteId:S('Optional registered site ID.'), input:O('Action arguments.'), confirmed:confirmation}, ['sessionId','actionId']),
@@ -71,7 +83,7 @@ export function validateToolInput(name, value) {
     if (!Object.hasOwn(properties,key)) throw new Error('Unknown argument: '+key);
     const s=properties[key];
     if (!typeOk(v,s.type)) throw new Error('Invalid type for '+key+': expected '+s.type);
-    if (s.type==='string' && (v.length===0 || v.length>8192)) throw new Error('Invalid length for '+key);
+    if (s.type==='string' && (v.length===0 || v.length>(key==='guide'?20000:8192))) throw new Error('Invalid length for '+key);
     if (s.type==='integer' && (v<s.minimum || v>s.maximum)) throw new Error('Out of range: '+key);
     if (s.enum && !s.enum.includes(v)) throw new Error('Invalid value for '+key+': expected one of '+s.enum.join(', '));
   }
@@ -177,6 +189,7 @@ async function runDaemonTool(name,args,rawCall) {
     case 'learning_notes': return rpc(call,'learning.notes',copy(args,['sessionId','capability']));
     case 'site_memory_save': return rpc(call,'memory.save',copy(args,['sessionId','accept','notes','remove']));
     case 'site_memory_draft': return rpc(call,'memory.draft',copy(args,['sessionId']));
+    case 'site_knowledge_save': return rpc(call,'site.knowledge',copy(args,['sessionId','guide','actions','urlTemplates','elements','remove','name','siteId']));
     case 'site_repair': return rpc(call,'site.repair',copy(args,['sessionId','siteId','element','locator','ref','urlTemplate','template']));
     case 'session_close': return rpc(call,'session.close',copy(args,['sessionId']));
     case 'snapshot': return rpc(call,'page.snapshot',copy(args,['sessionId','query','limit']));

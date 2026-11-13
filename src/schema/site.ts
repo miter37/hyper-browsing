@@ -59,6 +59,9 @@ export const StepSchema = z.union([
   z.object({ op: z.literal("select"), element: z.string(), value: z.string() }),
   z.object({ op: z.literal("press"), element: z.string().optional(), key: z.string() }),
   z.object({ op: z.literal("wait_for"), condition: ConditionSchema, timeoutMs: z.number().int().positive().optional() }),
+  // Page-side JavaScript: the body of an async function of (input), run in the page (not in Node). Its return
+  // value becomes the action's result. It has the page's powers only, so it is not gated like code actions.
+  z.object({ op: z.literal("script"), source: z.string().min(1).max(20000) }),
 ]);
 
 export const ImplementationSchema = z.union([
