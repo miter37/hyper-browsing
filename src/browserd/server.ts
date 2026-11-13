@@ -32,7 +32,10 @@ import crypto from "node:crypto";
 import { needsHeadedFallback, safeHeadedRetry, recoverableBrowserError } from "./headed-fallback";
 import { ChromeManager, listChromeProfiles, resolveChromeProfile, type ProfileMode } from "./chrome-manager";
 import { navigate } from "../engine/navigate";
-import { findFrame, frameView, listFrames, FRAME_HINT } from "./frame-view";
+import { findFrame, frameView, listFrames, classifyFrames, FRAME_HINT } from "./frame-view";
+import { readTable } from "../runtime/table-reader";
+import { readPageData, recordPageData } from "../runtime/page-data";
+import { runReadScript } from "../runtime/page-script";
 import { recordMemoryStep, describeUrlChange, rememberTyped, memoryFor, closeMemory, draftMemory, acceptDraft, saveFacts, removeNotes, siteGuide } from "../runtime/site-memory";
 import { loadRegistry } from "../registry/load";
 import { IsolatedPool, chromeLauncher, cleanupIsolatedLeftovers, type IsolatedLauncher } from "./isolated";
@@ -148,7 +151,7 @@ export class BrowserDaemon {
         await this.afterLoadPopups(method, params, result);
         // How long each command took, so slow steps are visible to the agent and in transcripts.
         if (result && typeof result === "object" && !Array.isArray(result)) (result as any).durationMs = Date.now() - started;
-        const full = params.verbose || params.observe || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
+        const full = params.verbose || params.observe || ["page.snapshot", "page.evaluate", "page.forms", "page.list", "page.table", "page.data", "page.script", "network.stop", "page.sniffApi", "learning.notes"].includes(method);
         json(res, 200, { ok: true, result: full ? result : compactResult(result) });
       } catch (error: any) {
         json(res, 200, { ok: false, execution: error.execution === "not_started" ? "not_started" : "outcome_unknown", error: error?.message || String(error), stack: process.env.WEBAGENT_DEBUG ? error?.stack : undefined });
@@ -501,6 +504,7 @@ export class BrowserDaemon {
       const opened: any = await this.store().open(params.url, {
         ...(isolatedContext ? { context: isolatedContext, idPrefix: "iso" } : {}),
         prepare: async (p) => {
+          recordPageData(p);
           if (viewport) await p.setViewportSize({ width: Number(viewport[1]), height: Number(viewport[2]) });
           if (locale) {
             // Accept-Language and navigator.language for this tab only.
@@ -526,6 +530,8 @@ export class BrowserDaemon {
     if (method === "session.list") return this.store().list();
     let page = params.sessionId ? this.store().get(params.sessionId) : undefined;
     const topPage = page;
+    // Pages adopted from an earlier daemon or opened as popups record what they load from here on.
+    if (topPage) recordPageData(topPage);
     if (page && params.frame !== undefined && (method.startsWith("page.") || method === "batch.run")) {
       const frame = findFrame(page, String(params.frame));
       if (!frame) return { ok: false, reason: "no_frame", execution: "not_started", frames: await listFrames(page, 1),
@@ -536,11 +542,10 @@ export class BrowserDaemon {
     // Nothing found on the page itself: say so when the content may sit inside a frame.
     if (topPage && params.frame === undefined && result && typeof result === "object" && !Array.isArray(result)
       && (result.found === false || result.reason === "no_match" || (method === "page.snapshot" && result.snapshot))) {
-      const frames = await listFrames(topPage).catch(() => []);
-      if (frames.length) {
-        if (method === "page.snapshot") { result.snapshot.frames = frames; result.snapshot.frameHint = FRAME_HINT; }
-        else { result.frames = frames; result.frameHint = FRAME_HINT; }
-      }
+      const { frames, adFrames } = await classifyFrames(topPage).catch(() => ({ frames: [], adFrames: 0 }));
+      const target = method === "page.snapshot" ? result.snapshot : result;
+      if (frames.length) { target.frames = frames; target.frameHint = FRAME_HINT; }
+      if (adFrames) target.adFrames = adFrames;
     }
     return result;
   }
@@ -663,6 +668,23 @@ export class BrowserDaemon {
       }
       return list;
     }
+    if (method === "page.table") {
+      if (!page) throw new Error("sessionId required");
+      const opts = { query: params.query, index: params.index, offset: params.offset, limit: params.limit, where: params.where, columns: params.columns, links: Boolean(params.links), maxChars: params.maxChars };
+      // Grids are often filled a moment after the page reports ready: look again briefly before saying none.
+      let table: any = await readTable(page, opts);
+      for (let i = 0; i < 3 && table?.found === false && table.reason === "no_table"; i++) { await page.waitForTimeout(1000); table = await readTable(page, opts); }
+      await recordLearningEvent(this.config, page, params.sessionId, "extract", { read: "table", query: params.query }).catch(() => {});
+      return table;
+    }
+    if (method === "page.data") {
+      if (!page) throw new Error("sessionId required");
+      return readPageData(this.store().get(params.sessionId) || page, { source: params.source, path: params.path, query: params.query, offset: params.offset, limit: params.limit, maxChars: params.maxChars });
+    }
+    if (method === "page.script") {
+      if (!page) throw new Error("sessionId required");
+      return runReadScript(page, params.source, { offset: params.offset, maxChars: params.maxChars });
+    }
     if (method === "page.back" || method === "page.forward") {
       if (!page) throw new Error("sessionId required");
       return await goHistory(page, method === "page.back" ? "back" : "forward");
@@ -680,7 +702,7 @@ export class BrowserDaemon {
             while (start.parentElement && start.parentElement !== document.body && ((start.parentElement as HTMLElement).innerText || "").length <= ((head as HTMLElement).innerText || "").length + 40) start = start.parentElement;
             const parts: string[] = [];
             let size = 0;
-            for (let n = start.nextElementSibling; n && size < 6000; n = n.nextElementSibling) {
+            for (let n = start.nextElementSibling; n && size < 40000; n = n.nextElementSibling) {
               const h = n.matches(H) ? n : n.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > [role=heading]");
               if (h && (/^H[1-6]$/.test(h.tagName) ? Number(h.tagName[1]) : Number(h.getAttribute("aria-level") || 2)) <= level) break;
               const t = ((n as HTMLElement).innerText || "").replace(ws, " ").trim();
@@ -702,7 +724,7 @@ export class BrowserDaemon {
       if (params.all) {
         // Every visible match, in page order: reading a list is not ambiguous.
         const visible = locatorFromStrategy(page, params.locator).filter({ visible: true });
-        const n = Math.min(await visible.count(), Math.max(1, Math.min(Number(params.limit) || 20, 100)));
+        const n = Math.min(await visible.count(), Math.max(1, Math.min(Number(params.limit) || 20, 300)));
         const values: Array<string | null> = [];
         for (let i = 0; i < n; i++) values.push(await readOne(visible.nth(i), 2000).catch(() => null));
         await recordLearningEvent(this.config, page, params.sessionId, "extract", { locator: params.locator, read: params.read || "text", all: true });

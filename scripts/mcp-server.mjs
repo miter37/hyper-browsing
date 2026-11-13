@@ -78,6 +78,7 @@ export function createMcpHandler(rpc=defaultRpc){
             instructions:'Local Chrome browser automation. Always inspect current refs before acting. No blind retries after outcome_unknown. Explicit user approval is required before external writes. '
             +'Known sites: when a result carries siteMemory, read it first and use its saved actions (run_saved_action) before exploring by hand. '
             +'After finishing a task by hand on a site, save what worked with site_knowledge_save (a short guide and the actions that worked), so the next visit starts from it. '
+            +'Read data in bulk: read_table for tables and grids (filter rows with where), page_data for JSON the page loaded, run_script for a read-only script that collects many values at once; not one read_text per element. '
             +'If the browser itself fails (startup, unreachable, unauthorized, Chrome not answering), call browser_doctor with fix: true once; never kill processes, change ports or delete profile folders yourself. An unknown session id only means its tab is gone: open a new session.'});
         }
         case 'ping':return ok({});

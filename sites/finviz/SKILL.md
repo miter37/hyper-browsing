@@ -12,10 +12,43 @@ metadata:
 
 Read this before working on finviz. It covers what's actually needed to succeed quickly - not
 every page on the site. `site.yaml`/`actions.ts` cover stock quotes, the screener, market/ticker
-news, and the three calendar sections (earnings/dividends/economic). Groups, Futures, Forex,
-Crypto, and Portfolio are intentionally not encoded - use Discovery Mode if you need them.
+news, the three calendar sections (earnings/dividends/economic) and insider trading. Groups,
+Futures, Forex, Crypto, and Portfolio are intentionally not encoded - use Discovery Mode if you
+need them.
 
-## Use the encoded actions first
+## Start here: actions that always run
+
+`insider_trades` and `stock_fundamentals` are page-script actions: they run in every setup (the
+code actions further down need WEBAGENT_ALLOW_CODE_ACTIONS=1 and are refused without it). Both
+read finviz's server-rendered pages with same-site GET fetches, so one call covers many pages.
+
+```
+run_saved_action insider_trades      {"minValue":700000,"minMarketCap":"10B"}   # large buys, large caps, with market cap
+run_saved_action insider_trades      {"ticker":"KMI","type":"all"}              # one company's history (years back)
+run_saved_action insider_trades      {"owners":"insiders"}                      # officers/directors only, no 10% owners
+run_saved_action stock_fundamentals  {"tickers":"KMI,CVS,ROK","fields":"Market Cap,P/E,Insider Own"}
+```
+
+## Insider trading pages
+
+- `insidertrading.ashx` lists the latest ~200 Form 4 rows. URL parameters: `tc=1` buys, `tc=2`
+  sales; `o=-transactionValue` largest first; `or=-10` without 10% owners, `or=10` only 10%
+  owners; `t=TICKER` one company's full history (the list itself only spans the last 1-2 weeks,
+  and an older large buy drops off it as new filings arrive).
+- "Repeated buying" needs the ticker history (`ticker` input or `t=`): the latest list alone shows
+  one week. A 10% owner (a fund, a parent company) is not an officer: say which one it is.
+- Values are per filing row; one person's several rows on one day are separate purchases.
+
+## Reading tables by hand
+
+- `read_table` reads the insider list (an HTML table, 200 rows in one call; filter with
+  `where`, e.g. Value >= 700000) and the screener results.
+- The screener is a grid drawn on a canvas: its cells are in the page as zero-size elements, so
+  `read_text`/`list_items` see nothing. `read_table` reads it (columns: Ticker, Company, Market
+  Cap, ...). `screener.ashx?v=111&f=cap_largeover&t=A,B,C` screens a ticker list in one load
+  (`cap_largeover` = market cap over $10B).
+
+## Code actions (need WEBAGENT_ALLOW_CODE_ACTIONS=1)
 
 ```bash
 webctl run get_stock_price      --session $S --site finviz --input '{"ticker":"NVDA"}'
@@ -59,11 +92,12 @@ screener, current week).
 
 ## If you extend this site's knowledge
 
-- The screener and calendar tables render inside a **shadow root** (same component family as
-  the ad player). Read them with Playwright **locators** (`.locator(...).allInnerTexts()`),
-  never `page.evaluate()` + `querySelectorAll` - the native DOM query can't see inside a shadow
-  root and will silently return nothing. `actions.ts`'s `parseHeaderedTable` already does this
-  correctly; reuse it for any new table-shaped action instead of writing a new parser.
+- The screener is a canvas-drawn grid (`[role=grid]`, cells `[role=gridcell]` with no size, rows
+  `display:contents`); calendar tables may sit in a shadow root. Read either with `read_table`,
+  or in code with Playwright locators; a plain `querySelectorAll` cannot see into a shadow root.
+- Prefer page-script actions (`op: script` in site.yaml, like `insider_trades`) for new reads:
+  they run without the code-action switch. Fetch other finviz pages with `fetch()` and parse them
+  with `DOMParser` instead of navigating page by page.
 - Ticker news (`#news-table`, on the quote page) and market news (`tr.news_table-row`, on
   `/news.ashx`) look similar but have different cell layouts (2 cells vs. 3, with a leading
   spacer cell). Don't assume one's structure for the other - `parseNewsRows` already handles

@@ -131,5 +131,7 @@ test('MCP results stay small: session id alias, short close, capped long text',a
   const closed=await runTool('session_close',{sessionId:'task_1'},async()=>({closed:'task_1',learning:{journal:'x'.repeat(900),learningPending:false},requestId:'r'}));
   assert.deepEqual(closed,{ok:true,closed:'task_1',requestId:'r'});
   const read=await runTool('read_text',{sessionId:'s',locator:{css:'body'}},async()=>({value:'v'.repeat(9000)}));
-  assert.equal(read.value.length,4001);assert.ok(read.truncatedValues);
+  assert.equal(read.value.length,6000);assert.deepEqual([read.totalLength,read.nextOffset],[9000,6000]);
+  const rest=await runTool('read_text',{sessionId:'s',locator:{css:'body'},offset:6000},async()=>({value:'v'.repeat(9000)}));
+  assert.equal(rest.value.length,3000);assert.equal(rest.nextOffset,undefined);
 });

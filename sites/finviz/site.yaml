@@ -12,6 +12,7 @@ match:
     - screener_page
     - market_news_page
     - calendar_page
+    - insider_page
 
 # --- fingerprints: which kind of finviz page is currently open -------------
 # finviz has almost no ARIA roles or data-testid coverage outside the chart
@@ -29,6 +30,9 @@ fingerprints:
   calendar_page:
     all:
       - url: "*finviz.com/calendar/*"
+  insider_page:
+    all:
+      - url: "*finviz.com/insidertrading*"
 
 states:
   quote:
@@ -39,6 +43,8 @@ states:
     variants: [market_news_page]
   calendar:
     variants: [calendar_page]
+  insider:
+    variants: [insider_page]
 
 # --- elements ----------------------------------------------------------
 # CSS is the primary strategy everywhere below because finviz exposes almost
@@ -161,6 +167,9 @@ preconditions: {}
 urlTemplates:
   stock_quote: "https://finviz.com/quote.ashx?t={ticker}"
   market_news_home: "https://finviz.com/news.ashx"
+  insider_latest: "https://finviz.com/insidertrading.ashx?tc=1"
+  # A light same-site page for actions that only fetch other finviz pages.
+  fetch_base: "https://finviz.com/robots.txt"
 
 actions:
   # Declarative example: simplest possible read action, one URL template plus
@@ -179,6 +188,105 @@ actions:
     verify:
       - type: extractor_exists
         extractor: read_quote_price
+
+
+  # --- Declarative read actions (page scripts): they run without WEBAGENT_ALLOW_CODE_ACTIONS ---
+  # They read finviz's server-rendered HTML with same-site GET fetches, so one call covers many pages.
+
+  insider_trades:
+    description: >
+      Insider trades from finviz's insider list, largest first, in one call: [{ticker, owner, relationship,
+      date, transaction, cost, shares, value, sharesTotal, filed, marketCap?}]. Inputs (all optional):
+      type "buy" (default) | "sale" | "all"; minValue in $ (e.g. 700000); owners "all" (default) |
+      "insiders" (no 10% owners) | "10pct"; ticker (one symbol: that company's full history);
+      marketCaps true adds each ticker's market cap from its quote page; minMarketCap (e.g. "10B") keeps
+      only tickers at or above it (implies marketCaps). The list covers roughly the latest 1-2 weeks
+      (200 rows); a ticker's own history goes back years.
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: insider_trades
+      scope: Insider list (insidertrading.ashx) and quote pages, read through same-site GET fetches.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: insider_latest
+        - op: script
+          source: |
+            const p = new URLSearchParams({ o: '-transactionValue' });
+            const type = String(input.type || 'buy').toLowerCase();
+            if (type === 'buy') p.set('tc', '1'); else if (type === 'sale') p.set('tc', '2');
+            if (input.owners === 'insiders') p.set('or', '-10'); else if (input.owners === '10pct') p.set('or', '10');
+            if (input.ticker) p.set('t', String(input.ticker).toUpperCase());
+            const page = new DOMParser().parseFromString(await (await fetch('/insidertrading.ashx?' + p)).text(), 'text/html');
+            const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+            const table = [...page.querySelectorAll('table')].find((t) => { const h = clean(t.rows[0]?.textContent); return /Owner/.test(h) && /Value/.test(h) && /Relationship/.test(h); });
+            if (!table) return { url: '/insidertrading.ashx?' + p, rows: [] };
+            const head = [...table.rows[0].cells].map((c) => clean(c.textContent));
+            const col = (re) => head.findIndex((h) => re.test(h));
+            const at = { ticker: col(/^Ticker/), owner: col(/^Owner/), relationship: col(/^Relationship/), date: col(/^Date/), transaction: col(/^Transaction/), cost: col(/^Cost/), shares: col(/^#Shares$/), value: col(/^Value/), sharesTotal: col(/^#Shares Total/), filed: col(/SEC Form 4/) };
+            const num = (s) => Number(String(s).replace(/[$,]/g, '')) || 0;
+            let rows = [...table.rows].slice(1).map((r) => {
+              // A ticker cell also holds a logo letter: the symbol is the link text.
+              const c = [...r.cells].map((x, i) => clean(i === at.ticker && x.querySelector('a') ? x.querySelector('a').textContent : x.textContent));
+              const o = {};
+              for (const [k, i] of Object.entries(at)) if (i >= 0) o[k] = c[i];
+              for (const k of ['cost', 'shares', 'value', 'sharesTotal']) if (k in o) o[k] = num(o[k]);
+              return o;
+            }).filter((o) => o.ticker && (type === 'all' || (o.transaction || '').toLowerCase() === type) && (!input.minValue || o.value >= Number(input.minValue)));
+            const capOf = (s) => { const m = String(s).match(/^([\d.]+)([KMBT])?$/i); return m ? Number(m[1]) * ({ K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[(m[2] || '').toUpperCase()] || 1) : NaN; };
+            const minCap = input.minMarketCap ? capOf(String(input.minMarketCap).replace(/[$\s]/g, '')) : 0;
+            if (input.marketCaps || minCap) {
+              const tickers = [...new Set(rows.map((r) => r.ticker))].slice(0, 60);
+              const caps = {};
+              for (let i = 0; i < tickers.length; i += 6) {
+                await Promise.all(tickers.slice(i, i + 6).map(async (t) => {
+                  const q = new DOMParser().parseFromString(await (await fetch('/quote.ashx?t=' + encodeURIComponent(t))).text(), 'text/html');
+                  const cells = [...q.querySelectorAll('table.snapshot-table2 td')].map((x) => clean(x.textContent));
+                  const k = cells.indexOf('Market Cap');
+                  caps[t] = k >= 0 ? cells[k + 1] : null;
+                }));
+              }
+              rows = rows.map((r) => ({ ...r, marketCap: caps[r.ticker] ?? null }));
+              if (minCap) rows = rows.filter((r) => capOf(r.marketCap) >= minCap);
+            }
+            return { url: '/insidertrading.ashx?' + p, count: rows.length, rows };
+    verify: []
+
+  stock_fundamentals:
+    description: >
+      Fundamentals of one or more tickers in one call, read from their quote pages: {TICKER: {"Market Cap":
+      "71.31B", "P/E": ..., "Insider Own": ..., ...}}. Inputs: tickers, e.g. "KMI,CVS,ROK" (up to 40); fields
+      (optional) keeps only these labels, e.g. "Market Cap,P/E,Insider Own".
+    risk: read
+    lifecycle: candidate
+    knowledge:
+      capability: stock_fundamentals
+      scope: Quote pages (quote.ashx) read through same-site GET fetches.
+    implementation:
+      kind: declarative
+      steps:
+        - op: goto
+          urlTemplate: fetch_base
+        - op: script
+          source: |
+            const tickers = String(input.tickers || input.ticker || '').split(/[\s,]+/).filter(Boolean).map((t) => t.toUpperCase()).slice(0, 40);
+            const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+            const out = {};
+            for (let i = 0; i < tickers.length; i += 6) {
+              await Promise.all(tickers.slice(i, i + 6).map(async (t) => {
+                const q = new DOMParser().parseFromString(await (await fetch('/quote.ashx?t=' + encodeURIComponent(t))).text(), 'text/html');
+                const cells = [...q.querySelectorAll('table.snapshot-table2 td')].map((x) => clean(x.textContent));
+                const f = {};
+                for (let k = 0; k + 1 < cells.length; k += 2) f[cells[k]] = cells[k + 1];
+                const want = String(input.fields || '').split(',').map((x) => x.trim()).filter(Boolean);
+                const picked = want.length ? Object.fromEntries(want.map((k) => [k, f[k] ?? null])) : f;
+                out[t] = Object.keys(f).length ? { company: clean(q.querySelector('h2')?.textContent) || undefined, ...picked } : null;
+              }));
+            }
+            return out;
+    verify: []
 
   # Everything below needs structured multi-row output, optional query
   # params, or the ad-overlay workaround, so it is a code action.

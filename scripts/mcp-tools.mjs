@@ -30,8 +30,11 @@ export const TOOLS = [
   tool('back', 'Go back one step in the session tab history.', {sessionId}, ['sessionId']),
   tool('session_close', 'Close one session tab, not the whole browser.', {sessionId}, ['sessionId']),
   tool('snapshot', 'Compact observation of current page with short-lived element references. If the result lists frames, that content is inside iframes: pass frame to look inside.', {sessionId, query:S('Optional query for relevant controls.'), limit:N('Maximum elements to show.',1,100), frame}, ['sessionId'], true),
-  tool('list_items', 'Extract repeated result cards and their titles/links (text holds the rest of each card: price, rating, date). otherGroups counts other repeated lists on the page; narrow with query if the wrong list came back.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,50), frame}, ['sessionId'], true),
-  tool('read_text', 'Read the text, value or an attribute of current elements. Use this to read page content; snapshot lists controls, not prose. '+targetMessage, {sessionId,...target, read:S('What to read: text (default), value, attribute, row (the whole table row / list entry / dt-dd pair around a label such as "ISBN"), or section (the text under a heading, up to the next heading of the same level; target the heading).',{enum:['text','value','attribute','row','section']}), attribute:S('Attribute name when read is attribute, e.g. href.'), all:B('Return every visible match in order instead of requiring a unique one.'), limit:N('Maximum values when all is true.',1,100)}, ['sessionId'], true),
+  tool('list_items', 'Extract repeated result cards and their titles/links (text holds the rest of each card: price, rating, date). otherGroups counts other repeated lists on the page; narrow with query if the wrong list came back. For rows and columns use read_table.', {sessionId, query:S('Optional text filter.'), limit:N('Results per read.',1,100), offset:N('Skip this many items (paging; see nextOffset).',0,1000), frame}, ['sessionId'], true),
+  tool('read_table', 'Read a data table or grid as rows and columns (TSV), with paging and a row filter run in the page. Works for HTML tables and ARIA grids, including grids drawn on a canvas or virtualised whose cells read_text cannot see. Prefer this over many read_text calls for any tabular data.', {sessionId, query:S('Pick the table whose column names or label contain this text (default: the largest table).'), index:N('Pick a table by index (see otherTables).',0,100), columns:{type:'array',items:{type:'string'},description:'Only these columns (names or parts of names).'}, where:{type:'array',items:{type:'object',properties:{column:{type:'string'},op:{type:'string',enum:['>','>=','<','<=','=','!=','contains']},value:{type:['string','number']}},required:['column','op','value']},description:'Keep rows matching all conditions. Numbers like $1.2M, 45.3B, 12%, (3.5) compare as numbers: {"column":"Value","op":">=","value":700000}.'}, links:B('Add a link column with the first link of each row.'), offset:N('First matching row to return (paging; see nextOffset).',0,100000), limit:N('Rows per read (default 50).',1,500), frame}, ['sessionId'], true),
+  tool('page_data', 'Read data the page itself loaded: JSON from its own fetch/XHR calls since the session opened, and JSON embedded in the HTML. Without source: lists what is available with its shape. With source: returns that data (path selects inside it, query keeps matching items), paged. Use when content is drawn (charts, canvas) or when the exact numbers matter.', {sessionId, source:S('A source from the list, e.g. net:3 or html:0.'), path:S('Dot path inside the JSON, e.g. data.rows.'), query:S('Keep items (or list sources) containing this text.'), offset:N('Paging offset (see nextOffset).',0,10000000), limit:N('Items per read.',1,500)}, ['sessionId'], true),
+  tool('run_script', 'Run a READ-ONLY JavaScript snippet in the page and return its JSON result: collect many values in one call (rows, attributes, computed text) instead of many reads. A function body with return, or one expression; await works, and fetch(url) GET of same-site pages may be used to read them. Anything that could change the page or the site (clicks, typing, events, DOM edits, POST, storage, navigation, eval) is refused before running.', {sessionId, source:S('JavaScript, e.g. return [...document.querySelectorAll("h2")].map(h => h.innerText)'), offset:N('Paging offset into a long result (see nextOffset).',0,10000000), frame}, ['sessionId','source'], true),
+  tool('read_text', 'Read the text, value or an attribute of current elements. Use this to read page content; snapshot lists controls, not prose. '+targetMessage, {sessionId,...target, read:S('What to read: text (default), value, attribute, row (the whole table row / list entry / dt-dd pair around a label such as "ISBN"), or section (the text under a heading, up to the next heading of the same level; target the heading).',{enum:['text','value','attribute','row','section']}), attribute:S('Attribute name when read is attribute, e.g. href.'), all:B('Return every visible match in order instead of requiring a unique one.'), limit:N('Maximum values when all is true.',1,300), offset:N('Character offset into a long value (see nextOffset).',0,10000000)}, ['sessionId'], true),
   tool('screenshot', 'Save a PNG of the session tab and return its local file path.', {sessionId, fullPage:B('Capture the whole scrollable page instead of the viewport.')}, ['sessionId'], true),
   tool('wait_for', 'Wait until a text or CSS match appears. Provide text or css.', {sessionId, text:S('Visible text to wait for.'), css:S('CSS selector to wait for.'), timeoutMs:N('Give up after this many milliseconds.',100,30000), frame}, ['sessionId'], true),
   tool('forms', 'Inspect visible form structure (labels, fields and submit buttons).', {sessionId, frame}, ['sessionId'], true),
@@ -152,7 +155,7 @@ export async function runTool(name,args,call) {
 }
 
 // Keep results small enough for a model to read: no bookkeeping it cannot act on, no page-sized strings.
-const MAX_TITLE = 160, MAX_VALUE = 4000;
+const MAX_TITLE = 160, MAX_VALUE = 6000, MAX_LIST_CHARS = 20000;
 function clip(text, max) { return typeof text === 'string' && text.length > max ? text.slice(0, max) + '…' : text; }
 function shapeForMcp(name, args, result) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
@@ -163,11 +166,33 @@ function shapeForMcp(name, args, result) {
   if (typeof result.title === 'string') result.title = clip(result.title, MAX_TITLE);
   if (result.effect && typeof result.effect.title === 'string') result.effect = { ...result.effect, title: clip(result.effect.title, MAX_TITLE) };
   if (name === 'read_text') {
-    let cut = false;
-    const cap = v => { if (typeof v === 'string' && v.length > MAX_VALUE) { cut = true; return clip(v, MAX_VALUE); } return v; };
-    if (Array.isArray(result.values)) result.values = result.values.map(cap);
-    if (result.value !== undefined) result.value = cap(result.value);
-    if (cut) result.truncatedValues = `Values longer than ${MAX_VALUE} characters were cut. Read a smaller element instead of the whole page.`;
+    // One long value is read in parts: offset/nextOffset. Several values share a total budget.
+    if (typeof result.value === 'string') {
+      const offset = args.offset || 0, total = result.value.length;
+      if (offset || total > MAX_VALUE) {
+        result.value = result.value.slice(offset, offset + MAX_VALUE);
+        result.totalLength = total; result.offset = offset;
+        if (offset + MAX_VALUE < total) { result.nextOffset = offset + MAX_VALUE; result.more = 'Long text: call read_text again with offset = nextOffset to read on.'; }
+      }
+    }
+    if (Array.isArray(result.values)) {
+      let used = 0, cut = false;
+      result.values = result.values.map(v => {
+        if (typeof v !== 'string') return v;
+        const room = Math.max(200, MAX_LIST_CHARS - used);
+        const out = v.length > Math.min(room, MAX_VALUE) ? (cut = true, clip(v, Math.min(room, MAX_VALUE))) : v;
+        used += out.length; return out;
+      });
+      if (cut) result.truncatedValues = 'Some values were cut to fit. Read fewer or smaller elements, or use read_table for tables.';
+    }
+  }
+  if (name === 'list_items' && args.offset && Array.isArray(result.items)) {
+    result.items = result.items.slice(args.offset, args.offset + (args.limit || 10));
+    result.offset = args.offset;
+  }
+  if (name === 'list_items' && Array.isArray(result.items) && typeof result.total === 'number') {
+    const end = (args.offset || 0) + result.items.length;
+    if (end < result.total) result.nextOffset = end;
   }
   return result;
 }
@@ -201,7 +226,10 @@ async function runDaemonTool(name,args,rawCall) {
     case 'site_repair': return rpc(call,'site.repair',copy(args,['sessionId','siteId','element','locator','ref','urlTemplate','template']));
     case 'session_close': return rpc(call,'session.close',copy(args,['sessionId']));
     case 'snapshot': return rpc(call,'page.snapshot',copy(args,['sessionId','query','limit']));
-    case 'list_items': return rpc(call,'page.list',copy(args,['sessionId','query','limit']));
+    case 'list_items': return rpc(call,'page.list',{...copy(args,['sessionId','query']),limit:Math.min(200,(args.offset||0)+(args.limit||10))});
+    case 'read_table': return rpc(call,'page.table',copy(args,['sessionId','query','index','columns','where','links','offset','limit']));
+    case 'page_data': return rpc(call,'page.data',copy(args,['sessionId','source','path','query','offset','limit']));
+    case 'run_script': return rpc(call,'page.script',copy(args,['sessionId','source','offset']));
     case 'forms': return rpc(call,'page.forms',copy(args,['sessionId']));
     case 'dismiss_annoyances': return rpc(call,'page.dismissAnnoyances',{sessionId:args.sessionId,forceHide:false});
     case 'verify': return rpc(call,'page.verify',copy(args,['sessionId','input']));

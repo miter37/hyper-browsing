@@ -58,7 +58,10 @@ The npm package name/availability must be verified at publication time. The repo
 | `session_open`, `session_list`, `session_close` | Manage tabs |
 | `navigate`, `back` | Move an existing tab |
 | `snapshot`, `list_items`, `forms` | Compact page inspection |
-| `read_text` | Read text, values or attributes of elements |
+| `read_text` | Read text, values or attributes of elements; long text in parts (`offset`/`nextOffset`) |
+| `read_table` | Read a table or grid as TSV rows in one call, with a row filter (`where`) run in the page and paging. Reads canvas-drawn and virtualised grids whose zero-size cells `read_text` cannot see |
+| `page_data` | Read the JSON the page loaded from its own site (fetch/XHR since the session opened) and JSON embedded in its HTML |
+| `run_script` | Run a read-only page script and return its JSON result; scripts that could change the page or the site are refused before running |
 | `screenshot`, `wait_for` | Capture the tab; wait for a text or CSS match |
 | `scroll`, `hover` | Reach lazy content and hover menus |
 | `smart_scroll` | Accumulate result items during bounded scrolling |
@@ -72,7 +75,7 @@ The npm package name/availability must be verified at publication time. The repo
 | `action_list`, `run_saved_action` | Reuse site assets |
 | `request_status` | Check uncertain requests without replay |
 
-Content inside iframes is not part of the page's own snapshot. When a page has visible frames, `snapshot` (and a lookup that finds nothing) lists them under `frames`; pass `frame` (a frame name or URL part) to `snapshot`, `list_items`, `read_text`, `click`, `fill` and the other page tools to work inside one. A `ref` observed in a frame can be used without `frame`.
+Ad frames (ad-server hosts and paths, ad slot names, standard banner sizes from another site) are not listed: `adFrames` only counts them. Content inside iframes is not part of the page's own snapshot. When a page has visible frames, `snapshot` (and a lookup that finds nothing) lists them under `frames`; pass `frame` (a frame name or URL part) to `snapshot`, `list_items`, `read_text`, `click`, `fill` and the other page tools to work inside one. A `ref` observed in a frame can be used without `frame`.
 
 Targets take exactly one of `locator` or `ref`. An ambiguous locator is rejected with its candidates; retry with `nth` (0-based) or `within`. Locator suggestions in results are returned as `locator` objects, ready to pass back as arguments.
 
